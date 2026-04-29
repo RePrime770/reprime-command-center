@@ -110,6 +110,13 @@ export async function GET(request: NextRequest) {
       discarded: discardedCount,
     })
 
+    if (kept.length > 0) {
+      console.log(
+        '[/api/whatsapp/threads] sample chat shape',
+        JSON.stringify(kept[0], null, 2)
+      )
+    }
+
     const service = createServiceClient()
     const rows = kept.map((c) => chatToThreadRow(c, panel))
 
