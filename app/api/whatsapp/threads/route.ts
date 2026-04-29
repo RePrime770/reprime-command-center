@@ -48,14 +48,42 @@ export async function GET(request: NextRequest) {
 
     const chats: TimelinesChat[] = await getChats(panel)
 
+    const kept: TimelinesChat[] = []
+    let discardedCount = 0
+    for (const c of chats) {
+      const raw = c.phone
+      const isInvalidRaw = raw == null || raw === '' || raw === '+0' || raw === '0'
+      const normalized = isInvalidRaw ? null : normalizePhone(raw)
+      const isGroupJid =
+        typeof c.whatsapp_account_id === 'string' && c.whatsapp_account_id.endsWith('@g.us')
+      if (isInvalidRaw || !normalized || c.is_group === true || isGroupJid) {
+        discardedCount++
+        continue
+      }
+      kept.push(c)
+    }
+    console.log('[/api/whatsapp/threads] filtered', {
+      panel,
+      total: chats.length,
+      kept: kept.length,
+      discarded: discardedCount,
+    })
+
     const service = createServiceClient()
-    const rows = chats.map((c) => chatToThreadRow(c, panel))
+    const rows = kept.map((c) => chatToThreadRow(c, panel))
 
     if (rows.length > 0) {
       const { error: upsertErr } = await service
         .from('whatsapp_threads')
         .upsert(rows, { onConflict: 'panel,phone,channel_type' })
       if (upsertErr) {
+        console.error('[/api/whatsapp/threads] DB error', {
+          error: upsertErr?.message,
+          code: upsertErr?.code,
+          details: upsertErr?.details,
+          hint: upsertErr?.hint,
+          panel,
+        })
         return NextResponse.json(
           { error: 'db_upsert_failed', message: upsertErr.message },
           { status: 500 }
@@ -71,6 +99,13 @@ export async function GET(request: NextRequest) {
       .order('last_message_at', { ascending: false, nullsFirst: false })
 
     if (selectErr) {
+      console.error('[/api/whatsapp/threads] DB error', {
+        error: selectErr?.message,
+        code: selectErr?.code,
+        details: selectErr?.details,
+        hint: selectErr?.hint,
+        panel,
+      })
       return NextResponse.json(
         { error: 'db_select_failed', message: selectErr.message },
         { status: 500 }
