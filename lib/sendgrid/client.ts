@@ -1,5 +1,13 @@
 const SEND_URL = 'https://api.sendgrid.com/v3/mail/send'
 
+export interface SendEmailAttachment {
+  content: string
+  filename: string
+  type?: string
+  disposition?: 'attachment' | 'inline'
+  contentId?: string
+}
+
 export interface SendEmailInput {
   to: string | string[]
   from: string
@@ -9,6 +17,7 @@ export interface SendEmailInput {
   replyTo?: string
   cc?: string | string[]
   bcc?: string | string[]
+  attachments?: SendEmailAttachment[]
 }
 
 function asAddressList(v: string | string[] | undefined): { email: string }[] | undefined {
@@ -41,6 +50,15 @@ export async function sendEmail(input: SendEmailInput): Promise<void> {
     content,
   }
   if (input.replyTo) body.reply_to = { email: input.replyTo }
+  if (input.attachments && input.attachments.length > 0) {
+    body.attachments = input.attachments.map((a) => ({
+      content: a.content,
+      filename: a.filename,
+      type: a.type ?? 'application/octet-stream',
+      disposition: a.disposition ?? 'attachment',
+      ...(a.contentId ? { content_id: a.contentId } : {}),
+    }))
+  }
 
   const res = await fetch(SEND_URL, {
     method: 'POST',

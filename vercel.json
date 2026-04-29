@@ -12,5 +12,11 @@
       "destination": "https://reprime.com/$1",
       "permanent": true
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/dispatch-alerts",
+      "schedule": "*/1 * * * *"
+    }
   ]
 }

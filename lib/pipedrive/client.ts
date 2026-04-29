@@ -157,6 +157,61 @@ export async function findPersonByPhone(phone: string): Promise<PipedrivePerson 
   return full.data ?? null
 }
 
+export async function findPersonByEmail(email: string): Promise<PipedrivePerson | null> {
+  const term = encodeURIComponent(email.trim().toLowerCase())
+  const search = await pipedriveRequest<{
+    data: { items?: PipedriveSearchItem[] } | null
+  }>(`/persons/search?term=${term}&fields=email&exact_match=true&limit=1`)
+  const hit = search.data?.items?.[0]?.item
+  if (!hit) return null
+  const full = await pipedriveRequest<{ data: PipedrivePerson | null }>(
+    `/persons/${hit.id}`
+  )
+  return full.data ?? null
+}
+
+export async function getPerson(id: number): Promise<PipedrivePerson | null> {
+  const res = await pipedriveRequest<{ data: PipedrivePerson | null }>(`/persons/${id}`)
+  return res.data ?? null
+}
+
+export async function searchPersons(
+  term: string,
+  limit = 10
+): Promise<Array<{ id: number; name: string; emails: string[]; phones: string[] }>> {
+  const q = encodeURIComponent(term)
+  const res = await pipedriveRequest<{
+    data: { items?: PipedriveSearchItem[] } | null
+  }>(`/persons/search?term=${q}&limit=${limit}`)
+  return (res.data?.items ?? []).map((it) => ({
+    id: it.item.id,
+    name: it.item.name,
+    emails: it.item.emails ?? [],
+    phones: it.item.phones ?? [],
+  }))
+}
+
+export async function createActivity(input: {
+  type: string
+  subject: string
+  person_id?: number
+  deal_id?: number
+  due_date?: string
+  due_time?: string
+  duration?: string
+  note?: string
+  done?: boolean
+}): Promise<PipedriveActivity> {
+  const res = await pipedriveRequest<{ data: PipedriveActivity }>(`/activities`, {
+    method: 'POST',
+    body: JSON.stringify({
+      ...input,
+      done: input.done ? 1 : 0,
+    }),
+  })
+  return res.data
+}
+
 export async function getPersonActivities(
   personId: number,
   limit = 3

@@ -43,13 +43,19 @@ export async function createCalendarEvent(opts: {
   endTime: string
   attendees?: string[]
   zoomLink?: string
+  location?: string
 }) {
   const calendar = google.calendar({ version: 'v3', auth: getAuthClient() })
+  const location = opts.location ?? opts.zoomLink
+  const description = location
+    ? (opts.description || '')
+    : (opts.description || '') + (opts.zoomLink ? `\n\nZoom: ${opts.zoomLink}` : '')
   const res = await calendar.events.insert({
     calendarId: 'primary',
     requestBody: {
       summary: opts.summary,
-      description: (opts.description || '') + (opts.zoomLink ? `\n\nZoom: ${opts.zoomLink}` : ''),
+      description,
+      location,
       start: { dateTime: opts.startTime, timeZone: 'America/Chicago' },
       end: { dateTime: opts.endTime, timeZone: 'America/Chicago' },
       attendees: opts.attendees?.map(email => ({ email })),
