@@ -1,6 +1,6 @@
 # RePrime Command Center — Reference Index
 
-Last updated: 2026-04-29 14:35 CT
+Last updated: 2026-04-29 15:43 CT
 
 ## Live URLs
 - Dashboard (production): https://project-7e87w.vercel.app
@@ -23,15 +23,19 @@ Last updated: 2026-04-29 14:35 CT
 - reprime-terminal.com (with hyphen) — newly purchased Apr 29 by Gideon, owned in g-8390's projects. Currently configured to redirect to reprime.com via vercel.json.
 - reprime-command-center.vercel.app — INVALID hostname. Project's actual default URL is project-7e87w.vercel.app.
 - reprimeportal.lovable.app — old acquisitions portal, preserved but inactive. Do not delete; may reactivate.
+- reprime-terminal.com — SendGrid domain auth Verified Apr 29 with 3 CNAMEs in Vercel DNS
 
 ## Phone numbers
 - 718 personal: +1-718-550-5500 (WhatsApp, JID 17185505500@s.whatsapp.net)
 - 305 business: +1-305-778-4861 (WhatsApp, JID 13057784861@s.whatsapp.net, also Google Voice 305 SMS)
 
 ## Email identities
-- g@reprime.com — primary, SendGrid single-sender Verified
+- g@reprime.com — primary inbox
 - g@floridastatetrust.com — Google Workspace org owner, Vercel account owner, Timelines.ai workspace owner
 - g@reprime-terminal.com — Google Workspace alias, mail forwards to g@reprime.com (added Apr 29)
+- SendGrid sender (production from Phase 8): g@reprime-terminal.com (domain-authenticated Apr 29)
+- Reply-To: g@reprime.com (forwards via Gmail alias)
+- SendGrid Single Sender g@reprime.com remains Verified as fallback
 
 ## Where secrets live (NOT the values)
 - ANTHROPIC_API_KEY → Vercel env var (key name: reprime-command-center-2 in Anthropic Console)
@@ -68,3 +72,14 @@ Last updated: 2026-04-29 14:35 CT
 - Pipedrive contains 7 contacts as of Apr 29 (3 JID artifacts deleted, 1 email typo fixed).
 - reprimeterminal.com (no hyphen) DNS still owned by locked-out Vercel account (TXT verification done by Yossef, full DNS edit access still pending).
 - reprime.com DNS host unknown — Vercel account regained only contains reprime-terminal.com. SendGrid CNAMEs blocked until DNS host identified.
+
+## Pipedrive contacts (snapshot Apr 29)
+1. [Sample] Benjamin Leon — 785-202-7824, no org, benjamin.leon@gmail.com
+2. [Sample] Tony Turner — 218-348-8528, [Sample] MoveEr, tony.turner@moveer.com
+3. Steve RePrime — +1-401-742-9321, no org
+4. ויקי — +972-52-290-1990, no org
+5. YY — +972-58-408-1337, no org (sensitive: bank acct details in WhatsApp thread)
+6. Shirel שיראל — +1-917-703-0365, no org
+7. levi Izhak biton — +1-954-744-9299, no org
+8. נתן הורביץ — phone via Timelines sync, no org
+9. Shlomo — phone via Timelines sync, no org
