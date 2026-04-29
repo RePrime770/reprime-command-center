@@ -1,6 +1,6 @@
 # RePrime Command Center — Reference Index
 
-Last updated: 2026-04-29 15:43 CT
+Last updated: 2026-04-29 16:50 CT
 
 ## Live URLs
 - Dashboard (production): https://project-7e87w.vercel.app
@@ -48,6 +48,13 @@ Last updated: 2026-04-29 15:43 CT
 - ZOOM credentials → Vercel env var (Server-to-Server OAuth app: "RePrime Command Center", account ID _ByMa6jsTOa3YQPnW_3n_w)
 - PAGERDUTY_ROUTING_KEY → Vercel env var (service: "Booking Reminders", was "Cal.com Booking Reminders")
 - SUPABASE_DB_URL — DB password stored in Gideon's password vault (1Password)
+
+### Pipedrive field keys
+Person custom fields (Pipedrive API hashed keys, NOT secrets, safe to commit):
+- TAG: d57ae324f61ddb2b922fb2e212f0723baba92448
+- NOTES_FROM_DASHBOARD: 67745cf460dd9f8423a11da2b2fc3323130fef2c
+- PREFERRED_CONTACT_METHOD: b1844d06b9efa0f554dc1e5fb4aeee55c7beca7d
+  - Options: WhatsApp (27), Email (28), Phone (29), Zoom (30)
 
 ## Banned forever (zero-touch)
 - Yosef App Vercel project: yosef-app-v2
