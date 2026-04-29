@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
   const service = createServiceClient()
   const { data: thread, error: threadErr } = await service
     .from('whatsapp_threads')
-    .select('id, panel, timelines_chat_id, is_group')
+    .select('id, panel, phone, timelines_chat_id, is_group')
     .eq('id', threadId)
     .single()
 
@@ -191,6 +191,11 @@ export async function POST(request: NextRequest) {
   const chatId: number | null = thread.timelines_chat_id
   if (!chatId) {
     return NextResponse.json({ error: 'thread_has_no_chat_id' }, { status: 409 })
+  }
+
+  const recipientPhone: string | null = thread.phone
+  if (!recipientPhone) {
+    return NextResponse.json({ error: 'thread_has_no_phone' }, { status: 409 })
   }
 
   const accountId = PANEL_ACCOUNT_MAP[panel]
@@ -232,7 +237,11 @@ export async function POST(request: NextRequest) {
 
   let sent: TimelinesMessage
   try {
-    sent = await sendMessage(chatId, wireText, accountId)
+    sent = await sendMessage({
+      phone: recipientPhone,
+      text: wireText,
+      whatsappAccountPhone: accountId,
+    })
   } catch (err) {
     await service
       .from('whatsapp_messages')

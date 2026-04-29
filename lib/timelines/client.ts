@@ -57,16 +57,16 @@ export async function getMessages(chatId: number): Promise<TimelinesMessage[]> {
   return json.data?.messages ?? []
 }
 
-export async function sendMessage(
-  chatId: number,
-  text: string,
-  accountId: string
-): Promise<TimelinesMessage> {
+export async function sendMessage(opts: {
+  phone: string
+  text: string
+  whatsappAccountPhone: string
+}): Promise<TimelinesMessage> {
   const url = `${BASE_URL}/messages`
   const requestBody = JSON.stringify({
-    chat_id: chatId,
-    text,
-    whatsapp_account_phone: accountId,
+    phone: opts.phone,
+    text: opts.text,
+    whatsapp_account_phone: opts.whatsappAccountPhone,
   })
   const res = await fetch(url, {
     method: 'POST',

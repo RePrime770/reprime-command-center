@@ -216,7 +216,11 @@ export async function POST(request: Request) {
           })
         } else {
           const text = buildWhatsAppCopy(firstName, slotsWithDisplay, email ? undefined : inviteUrl)
-          await sendMessage(chatId, text, PANEL_ACCOUNT_MAP[panel])
+          await sendMessage({
+            phone,
+            text,
+            whatsappAccountPhone: PANEL_ACCOUNT_MAP[panel],
+          })
           sentChannels.push(`whatsapp_${panel}`)
         }
       } catch (err) {

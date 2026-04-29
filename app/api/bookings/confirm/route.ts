@@ -384,7 +384,11 @@ Founder, RePrime Group`
       const chatId = await findChatIdForPhone('305', inv.contact_phone)
       if (chatId) {
         const text = `${firstName} — confirmed: ${slot.display}.\n\nZoom: ${zoomJoinUrl}\n\nSee you then.\n— Gideon`
-        await sendMessage(chatId, text, PANEL_ACCOUNT_MAP['305'])
+        await sendMessage({
+          phone: inv.contact_phone,
+          text,
+          whatsappAccountPhone: PANEL_ACCOUNT_MAP['305'],
+        })
       } else {
         errors.push({ step: '7_whatsapp_confirmation', message: 'no_existing_chat' })
       }
