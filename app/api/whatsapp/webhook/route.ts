@@ -33,39 +33,70 @@ function getRedis(): Redis | null {
 }
 
 export async function POST(request: Request) {
+  let body: string
   let payload: WebhookPayload
   try {
-    payload = await request.json()
+    body = await request.text()
+    payload = JSON.parse(body)
   } catch {
+    console.error('[webhook] invalid json body')
     return NextResponse.json({ error: 'invalid json' }, { status: 400 })
   }
 
   const message = payload.message
   const chat = payload.chat
+
+  console.log('[webhook] received', {
+    event: payload.event,
+    hasMessage: !!message,
+    hasChat: !!chat,
+    messageUid: message?.uid ?? null,
+    chatPhone: chat?.phone ?? null,
+    chatJid: chat?.jid ?? null,
+    whatsappAccountId: chat?.whatsapp_account_id ?? null,
+    fromMe: message?.from_me ?? null,
+    chatIsGroup: chat?.is_group ?? null,
+  })
+
   if (!message || !chat) {
+    console.log('[webhook] skipped — no message or chat in payload')
     return NextResponse.json({ ok: true, skipped: 'no message or chat' })
   }
 
+  // Check dedup BEFORE setting key — only set after successful write
   const redis = getRedis()
-  if (redis && message.uid) {
-    const key = `webhook:${message.uid}`
-    const set = await redis.set(key, '1', { nx: true, ex: 60 * 60 * 24 })
-    if (set !== 'OK') {
-      return NextResponse.json({ ok: true, deduped: true })
+  const redisKey = message.uid ? `webhook:${message.uid}` : null
+  if (redis && redisKey) {
+    try {
+      const existing = await redis.get(redisKey)
+      if (existing) {
+        console.log('[webhook] deduped', { uid: message.uid })
+        return NextResponse.json({ ok: true, deduped: true })
+      }
+    } catch (err) {
+      console.error('[webhook] redis read failed', { uid: message.uid, error: (err as Error).message })
+      // Continue without dedup rather than blocking write
     }
   }
 
   const panel = panelFromAccountId(chat.whatsapp_account_id)
+  console.log('[webhook] panel inference', {
+    whatsapp_account_id: chat.whatsapp_account_id,
+    panel,
+  })
   if (!panel) {
+    console.log('[webhook] skipped — unknown account', { whatsapp_account_id: chat.whatsapp_account_id })
     return NextResponse.json({ ok: true, skipped: 'unknown account' })
   }
 
   const service = createServiceClient()
-  const phone = normalizePhone(chat.phone) || chat.phone
+  const rawPhone = chat.phone
+  const phone = normalizePhone(rawPhone) || rawPhone
   const lastAt = chat.last_message_timestamp
     ? parseTimelinesTimestamp(chat.last_message_timestamp).toISOString()
     : (message.timestamp ? parseTimelinesTimestamp(message.timestamp).toISOString() : null)
 
+  // Only include columns that exist in the whatsapp_threads schema
   const threadRow = {
     panel,
     channel_type: 'whatsapp' as const,
@@ -75,13 +106,9 @@ export async function POST(request: Request) {
     jid: chat.jid || null,
     timelines_chat_id: chat.id,
     last_message_at: lastAt,
-    photo_url: chat.photo,
-    chat_url: chat.chat_url,
-    is_allowed_to_message: chat.is_allowed_to_message,
-    closed: chat.closed,
-    unattended: chat.unattended,
-    timelines_account_id: chat.whatsapp_account_id || null,
   }
+
+  console.log('[webhook] upserting thread', { panel, phone, timelines_chat_id: chat.id, lastAt })
 
   const { data: thread, error: upsertErr } = await service
     .from('whatsapp_threads')
@@ -90,11 +117,21 @@ export async function POST(request: Request) {
     .single()
 
   if (upsertErr || !thread) {
+    console.error('[webhook] thread upsert FAILED', {
+      panel,
+      phone,
+      message: upsertErr?.message,
+      code: upsertErr?.code,
+      details: upsertErr?.details,
+      hint: upsertErr?.hint,
+    })
     return NextResponse.json(
       { error: 'thread_upsert_failed', message: upsertErr?.message },
       { status: 500 }
     )
   }
+
+  console.log('[webhook] thread upsert OK', { threadId: thread.id, panel, phone })
 
   const sentAt = message.timestamp
     ? parseTimelinesTimestamp(message.timestamp).toISOString()
@@ -117,18 +154,45 @@ export async function POST(request: Request) {
     raw: message.data ?? null,
   }
 
+  console.log('[webhook] upserting message', {
+    threadId: thread.id,
+    uid: message.uid,
+    direction: messageRow.direction,
+    sentAt,
+    bodyPreview: (message.text || '').slice(0, 40) || null,
+  })
+
   const { error: msgErr } = await service
     .from('whatsapp_messages')
     .upsert(messageRow, { onConflict: 'timelines_uid' })
 
   if (msgErr) {
+    console.error('[webhook] message upsert FAILED', {
+      uid: message.uid,
+      threadId: thread.id,
+      message: msgErr.message,
+      code: msgErr.code,
+      details: msgErr.details,
+      hint: msgErr.hint,
+    })
     return NextResponse.json(
       { error: 'message_upsert_failed', message: msgErr.message },
       { status: 500 }
     )
   }
 
-  return NextResponse.json({ ok: true })
+  console.log('[webhook] message upsert OK', { uid: message.uid, threadId: thread.id })
+
+  // Mark dedup key only after successful write
+  if (redis && redisKey) {
+    try {
+      await redis.set(redisKey, '1', { ex: 60 * 60 * 24 })
+    } catch (err) {
+      console.error('[webhook] redis write failed (non-fatal)', { uid: message.uid, error: (err as Error).message })
+    }
+  }
+
+  return NextResponse.json({ ok: true, written: true })
 }
 
 export async function GET() {
