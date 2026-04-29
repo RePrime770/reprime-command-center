@@ -16,32 +16,38 @@ function authHeaders() {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: { ...authHeaders(), ...(init?.headers || {}) },
-    cache: 'no-store',
-  })
+export async function getChats(panel: Panel, page = 1): Promise<TimelinesChat[]> {
+  const accountId = PANEL_ACCOUNT_MAP[panel]
+  const url = `${BASE_URL}/chats/?per_page=50&page=${page}&whatsapp_account_id=${encodeURIComponent(accountId)}`
+  const res = await fetch(url, { headers: authHeaders(), cache: 'no-store' })
   if (!res.ok) {
     const body = await res.text().catch(() => '')
-    throw new Error(`Timelines ${res.status} ${path}: ${body.slice(0, 300)}`)
+    console.error('[timelines.getChats] FAILED', {
+      status: res.status,
+      statusText: res.statusText,
+      url,
+      bodyPreview: body.slice(0, 500),
+    })
+    throw new Error(`Timelines getChats ${res.status}: ${body.slice(0, 200)}`)
   }
-  return res.json() as Promise<T>
-}
-
-export async function getChats(panel: Panel): Promise<TimelinesChat[]> {
-  const account = PANEL_ACCOUNT_MAP[panel]
-  const params = new URLSearchParams({ whatsapp_account_phone: account })
-  const data = await request<{ results?: TimelinesChat[] } | TimelinesChat[]>(
-    `/chats/?${params.toString()}`
-  )
+  const data = (await res.json()) as { results?: TimelinesChat[] } | TimelinesChat[]
   return Array.isArray(data) ? data : data.results ?? []
 }
 
 export async function getMessages(chatId: number): Promise<TimelinesMessage[]> {
-  const data = await request<{ results?: TimelinesMessage[] } | TimelinesMessage[]>(
-    `/messages/?chat_id=${chatId}`
-  )
+  const url = `${BASE_URL}/messages/?chat_id=${chatId}`
+  const res = await fetch(url, { headers: authHeaders(), cache: 'no-store' })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    console.error('[timelines.getMessages] FAILED', {
+      status: res.status,
+      statusText: res.statusText,
+      url,
+      bodyPreview: body.slice(0, 500),
+    })
+    throw new Error(`Timelines getMessages ${res.status}: ${body.slice(0, 200)}`)
+  }
+  const data = (await res.json()) as { results?: TimelinesMessage[] } | TimelinesMessage[]
   return Array.isArray(data) ? data : data.results ?? []
 }
 
@@ -50,12 +56,28 @@ export async function sendMessage(
   text: string,
   accountId: string
 ): Promise<TimelinesMessage> {
-  return request<TimelinesMessage>('/messages/', {
-    method: 'POST',
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      whatsapp_account_phone: accountId,
-    }),
+  const url = `${BASE_URL}/messages/`
+  const requestBody = JSON.stringify({
+    chat_id: chatId,
+    text,
+    whatsapp_account_phone: accountId,
   })
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: authHeaders(),
+    cache: 'no-store',
+    body: requestBody,
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    console.error('[timelines.sendMessage] FAILED', {
+      status: res.status,
+      statusText: res.statusText,
+      url,
+      requestBody,
+      bodyPreview: body.slice(0, 500),
+    })
+    throw new Error(`Timelines sendMessage ${res.status}: ${body.slice(0, 200)}`)
+  }
+  return (await res.json()) as TimelinesMessage
 }
