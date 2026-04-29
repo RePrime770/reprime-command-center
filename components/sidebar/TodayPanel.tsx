@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import ConciergeButtons from './ConciergeButtons'
 
 interface CalendarEvent {
   id: string
@@ -180,6 +181,16 @@ export default function TodayPanel() {
                   Zoom →
                 </a>
               )}
+            </div>
+            <div style={{ marginTop: 4 }}>
+              <ConciergeButtons
+                meeting={{
+                  id: ev.id,
+                  title: ev.title,
+                  startTime: ev.startTime,
+                  attendees: ev.attendees,
+                }}
+              />
             </div>
           </div>
         )

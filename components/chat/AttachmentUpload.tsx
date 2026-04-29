@@ -76,6 +76,7 @@ export default function AttachmentUpload({ panel, threadId, onUpload, disabled }
         onClick={handlePick}
         disabled={disabled || uploading}
         title="Attach file"
+        aria-label="Attach file"
         style={{
           background: 'transparent',
           border: 'none',

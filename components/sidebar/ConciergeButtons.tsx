@@ -442,8 +442,6 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
           </div>
         </div>
       ) : null}
-      {/* TODO(Code-J): Once components/sidebar/TodayPanel.tsx lands, wire this
-          component inline next to each meeting row, passing the meeting object. */}
     </>
   )
 }
