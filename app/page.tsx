@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import ChatList from '@/components/chat/ChatList'
 import MessageView from '@/components/chat/MessageView'
 import ReplyBox from '@/components/chat/ReplyBox'
+import PipedriveCard from '@/components/sidebar/PipedriveCard'
 import type { DashboardMessage, DashboardThread, Panel } from '@/lib/timelines/types'
 
 function PanelView({ panel }: { panel: Panel }) {
@@ -87,19 +88,22 @@ function PanelView({ panel }: { panel: Panel }) {
           onSelect={setSelected}
         />
         {selected ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <MessageView thread={selected} messages={messages || []} />
-            <div style={{ padding: '0 1rem 0.75rem', background: headerBg }}>
-              <ReplyBox
-                panel={panel}
-                threadId={selected.id}
-                threadHistory={messages || []}
-                contact={{ name: selected.contact_name, phone: selected.phone }}
-                onOptimistic={onOptimistic}
-                onStatus={onStatus}
-              />
+          <>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <MessageView thread={selected} messages={messages || []} />
+              <div style={{ padding: '0 1rem 0.75rem', background: headerBg }}>
+                <ReplyBox
+                  panel={panel}
+                  threadId={selected.id}
+                  threadHistory={messages || []}
+                  contact={{ name: selected.contact_name, phone: selected.phone }}
+                  onOptimistic={onOptimistic}
+                  onStatus={onStatus}
+                />
+              </div>
             </div>
-          </div>
+            <PipedriveCard thread={selected} panel={panel} />
+          </>
         ) : (
           <div
             style={{

@@ -73,3 +73,115 @@ export async function createDeal(deal: {
   })
   return data.data
 }
+
+export interface PipedriveContactValue {
+  value: string
+  primary: boolean
+  label: string
+}
+
+export interface PipedriveOrgRef {
+  value: number
+  name: string
+}
+
+export interface PipedrivePerson {
+  id: number
+  name: string
+  first_name?: string | null
+  last_name?: string | null
+  org_id?: PipedriveOrgRef | number | null
+  org_name?: string | null
+  primary_email?: string | null
+  email?: PipedriveContactValue[] | null
+  phone?: PipedriveContactValue[] | null
+  add_time?: string
+  update_time?: string
+  [customFieldKey: string]: unknown
+}
+
+export interface PipedriveActivity {
+  id: number
+  type: string
+  subject: string
+  done: boolean
+  due_date?: string | null
+  due_time?: string | null
+  add_time?: string | null
+  update_time?: string | null
+  marked_as_done_time?: string | null
+  note?: string | null
+}
+
+export interface PipedrivePersonField {
+  id: number
+  key: string
+  name: string
+  field_type: string
+  options?: Array<{ id: number; label: string }>
+}
+
+interface PipedriveSearchItem {
+  result_score: number
+  item: { id: number; type: string; name: string; phones?: string[]; emails?: string[] }
+}
+
+let personFieldsCache: PipedrivePersonField[] | null = null
+
+export async function getPersonFields(): Promise<PipedrivePersonField[]> {
+  if (personFieldsCache) return personFieldsCache
+  const res = await pipedriveRequest<{ data: PipedrivePersonField[] | null }>(
+    `/personFields`
+  )
+  personFieldsCache = res.data ?? []
+  return personFieldsCache
+}
+
+export async function getPersonFieldKeyByName(name: string): Promise<string | null> {
+  const fields = await getPersonFields()
+  const target = name.trim().toLowerCase()
+  const f = fields.find((x) => x.name.trim().toLowerCase() === target)
+  return f?.key ?? null
+}
+
+export async function findPersonByPhone(phone: string): Promise<PipedrivePerson | null> {
+  const term = encodeURIComponent(phone)
+  const search = await pipedriveRequest<{
+    data: { items?: PipedriveSearchItem[] } | null
+  }>(`/persons/search?term=${term}&fields=phone&exact_match=true&limit=1`)
+  const hit = search.data?.items?.[0]?.item
+  if (!hit) return null
+  const full = await pipedriveRequest<{ data: PipedrivePerson | null }>(
+    `/persons/${hit.id}`
+  )
+  return full.data ?? null
+}
+
+export async function getPersonActivities(
+  personId: number,
+  limit = 3
+): Promise<PipedriveActivity[]> {
+  const res = await pipedriveRequest<{ data: PipedriveActivity[] | null }>(
+    `/persons/${personId}/activities?limit=${limit * 4}&start=0`
+  )
+  const all = res.data ?? []
+  return all
+    .slice()
+    .sort((a, b) => {
+      const at = a.update_time || a.add_time || ''
+      const bt = b.update_time || b.add_time || ''
+      return bt.localeCompare(at)
+    })
+    .slice(0, limit)
+}
+
+export async function updatePerson(
+  id: number,
+  body: Record<string, unknown>
+): Promise<PipedrivePerson> {
+  const res = await pipedriveRequest<{ data: PipedrivePerson }>(`/persons/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
