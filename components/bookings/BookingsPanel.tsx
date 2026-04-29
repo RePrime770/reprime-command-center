@@ -5,11 +5,23 @@ import SlotSelector, { formatSlotDisplay } from './SlotSelector'
 
 type Channel = 'whatsapp_718' | 'whatsapp_305' | 'email' | 'all'
 
+const PREFERRED_LABEL: Record<number, string> = {
+  27: 'WhatsApp',
+  28: 'Email',
+  29: 'Phone',
+  30: 'Zoom',
+}
+
 interface PipedriveSearchHit {
   id: number
   name: string
   emails: string[]
   phones: string[]
+}
+
+interface ContactPrefs {
+  preferred_method: number | null
+  default_channel: Channel
 }
 
 interface Invitation {
@@ -41,6 +53,7 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
 
   const [slots, setSlots] = useState<string[]>([])
   const [channel, setChannel] = useState<Channel>('all')
+  const [channelDefaultedFrom, setChannelDefaultedFrom] = useState<number | null>(null)
   const [sending, setSending] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -85,6 +98,29 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
       if (searchTimer.current) clearTimeout(searchTimer.current)
     }
   }, [query, contact])
+
+  useEffect(() => {
+    if (!contact) {
+      setChannelDefaultedFrom(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/pipedrive/person?id=${contact.id}`, { cache: 'no-store' })
+        if (!res.ok) return
+        const json = (await res.json()) as ContactPrefs
+        if (cancelled) return
+        setChannel(json.default_channel ?? 'all')
+        setChannelDefaultedFrom(json.preferred_method ?? null)
+      } catch (err) {
+        console.error('[BookingsPanel] prefs fetch failed', err)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [contact])
 
   const loadRecent = useCallback(async () => {
     setLoadingRecent(true)
@@ -283,6 +319,11 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
 
           <section>
             <label style={labelStyle}>Channel</label>
+            {channelDefaultedFrom !== null && (
+              <div style={{ color: GOLD_LIGHT, fontSize: '0.72rem', marginTop: '0.3rem', fontStyle: 'italic' }}>
+                Default from Pipedrive · Preferred: {PREFERRED_LABEL[channelDefaultedFrom] ?? `option ${channelDefaultedFrom}`}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
               {(
                 [
@@ -295,7 +336,7 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
                 <button
                   key={val}
                   type="button"
-                  onClick={() => setChannel(val)}
+                  onClick={() => { setChannel(val); setChannelDefaultedFrom(null) }}
                   style={channelBtn(channel === val)}
                 >
                   {label}
