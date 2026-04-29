@@ -2,10 +2,7 @@ import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { createServerClient } from '@/lib/supabase/server'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
-import {
-  getPersonFieldKeyByName,
-  updatePerson,
-} from '@/lib/pipedrive/client'
+import { PIPEDRIVE_FIELD_KEYS, updatePerson } from '@/lib/pipedrive/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,16 +36,10 @@ export async function PUT(request: Request) {
   }
   const value = typeof body.value === 'string' ? body.value : ''
 
-  const fieldKey = await getPersonFieldKeyByName('Notes from Dashboard')
-  if (!fieldKey) {
-    return NextResponse.json(
-      { error: 'field_not_found', message: 'No "Notes from Dashboard" field on Person' },
-      { status: 500 }
-    )
-  }
-
   try {
-    await updatePerson(body.personId, { [fieldKey]: value })
+    await updatePerson(body.personId, {
+      [PIPEDRIVE_FIELD_KEYS.NOTES_FROM_DASHBOARD]: value,
+    })
   } catch (err) {
     return NextResponse.json(
       { error: 'pipedrive_error', message: (err as Error).message },

@@ -1,5 +1,18 @@
 const BASE_URL = 'https://api.pipedrive.com/v1'
 
+export const PIPEDRIVE_FIELD_KEYS = {
+  TAG: 'd57ae324f61ddb2b922fb2e212f0723baba92448',
+  NOTES_FROM_DASHBOARD: '67745cf460dd9f8423a11da2b2fc3323130fef2c',
+  PREFERRED_CONTACT_METHOD: 'b1844d06b9efa0f554dc1e5fb4aeee55c7beca7d',
+} as const
+
+export const PREFERRED_CONTACT_OPTIONS = {
+  WHATSAPP: 27,
+  EMAIL: 28,
+  PHONE: 29,
+  ZOOM: 30,
+} as const
+
 function token(): string {
   const t = process.env.PIPEDRIVE_API_TOKEN
   if (!t) throw new Error('PIPEDRIVE_API_TOKEN is not set')

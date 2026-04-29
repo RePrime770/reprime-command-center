@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { DashboardThread, Panel } from '@/lib/timelines/types'
+import { PIPEDRIVE_FIELD_KEYS } from '@/lib/pipedrive/client'
 import type {
   PipedriveActivity,
   PipedriveContactValue,
@@ -12,7 +13,7 @@ import type {
 interface ResolvePayload {
   person: PipedrivePerson | null
   activities: PipedriveActivity[]
-  fieldKeys: { dashboard: string | null; tag: string | null }
+  fieldKeys?: { dashboard: string; tag: string }
 }
 
 interface Theme {
@@ -95,20 +96,19 @@ export default function PipedriveCard({
 
   const person = data?.person ?? null
   const activities = data?.activities ?? []
-  const fieldKeys = data?.fieldKeys ?? { dashboard: null, tag: null }
 
   const initialNote = useMemo(() => {
-    if (!person || !fieldKeys.dashboard) return ''
-    const v = person[fieldKeys.dashboard]
+    if (!person) return ''
+    const v = person[PIPEDRIVE_FIELD_KEYS.NOTES_FROM_DASHBOARD]
     return typeof v === 'string' ? v : ''
-  }, [person, fieldKeys.dashboard])
+  }, [person])
 
   const tagValue = useMemo(() => {
-    if (!person || !fieldKeys.tag) return null
-    const v = person[fieldKeys.tag]
+    if (!person) return null
+    const v = person[PIPEDRIVE_FIELD_KEYS.TAG]
     if (v == null) return null
     return typeof v === 'string' ? v : String(v)
-  }, [person, fieldKeys.tag])
+  }, [person])
 
   const [note, setNote] = useState<string>(initialNote)
   useEffect(() => {
@@ -308,31 +308,25 @@ export default function PipedriveCard({
             <span style={{ color: 'var(--rp-red)', marginLeft: 6, fontWeight: 400 }}>· save failed</span>
           )}
         </h3>
-        {fieldKeys.dashboard ? (
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            onBlur={onNoteBlur}
-            placeholder="Add notes..."
-            rows={4}
-            style={{
-              width: '100%',
-              background: theme.inputBg,
-              color: theme.inputText,
-              border: `1px solid ${theme.border}`,
-              borderRadius: 4,
-              padding: '0.5rem',
-              fontSize: 12,
-              fontFamily: 'inherit',
-              resize: 'vertical',
-              boxSizing: 'border-box',
-            }}
-          />
-        ) : (
-          <div style={{ color: theme.muted, fontSize: 12 }}>
-            (Pipedrive person field "Notes from Dashboard" not configured.)
-          </div>
-        )}
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onBlur={onNoteBlur}
+          placeholder="Add notes..."
+          rows={4}
+          style={{
+            width: '100%',
+            background: theme.inputBg,
+            color: theme.inputText,
+            border: `1px solid ${theme.border}`,
+            borderRadius: 4,
+            padding: '0.5rem',
+            fontSize: 12,
+            fontFamily: 'inherit',
+            resize: 'vertical',
+            boxSizing: 'border-box',
+          }}
+        />
       </section>
     </aside>
   )

@@ -18,7 +18,7 @@ function authHeaders() {
 
 export async function getChats(panel: Panel, page = 1): Promise<TimelinesChat[]> {
   const accountId = PANEL_ACCOUNT_MAP[panel]
-  const url = `${BASE_URL}/chats/?per_page=50&page=${page}&whatsapp_account_id=${encodeURIComponent(accountId)}`
+  const url = `${BASE_URL}/chats/?per_page=50&page=${page}&whatsapp_account_phone=${encodeURIComponent(accountId)}`
   const res = await fetch(url, { headers: authHeaders(), cache: 'no-store' })
   if (!res.ok) {
     const body = await res.text().catch(() => '')

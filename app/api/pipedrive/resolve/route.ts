@@ -5,7 +5,7 @@ import { normalizePhone } from '@/lib/timelines/normalize-phone'
 import {
   findPersonByPhone,
   getPersonActivities,
-  getPersonFieldKeyByName,
+  PIPEDRIVE_FIELD_KEYS,
   type PipedrivePerson,
   type PipedriveActivity,
 } from '@/lib/pipedrive/client'
@@ -19,7 +19,7 @@ const CACHE_TTL = 3600
 type ResolvePayload = {
   person: PipedrivePerson | null
   activities: PipedriveActivity[]
-  fieldKeys: { dashboard: string | null; tag: string | null }
+  fieldKeys: { dashboard: string; tag: string }
 }
 
 function getRedis(): Redis | null {
@@ -27,6 +27,11 @@ function getRedis(): Redis | null {
   const token = process.env.UPSTASH_REDIS_REST_TOKEN
   if (!url || !token) return null
   return new Redis({ url, token })
+}
+
+const FIELD_KEYS = {
+  dashboard: PIPEDRIVE_FIELD_KEYS.NOTES_FROM_DASHBOARD,
+  tag: PIPEDRIVE_FIELD_KEYS.TAG,
 }
 
 export async function GET(request: Request) {
@@ -48,7 +53,7 @@ export async function GET(request: Request) {
   const phone = normalizePhone(rawPhone)
   if (!phone) {
     return NextResponse.json(
-      { person: null, activities: [], fieldKeys: { dashboard: null, tag: null } } satisfies ResolvePayload
+      { person: null, activities: [], fieldKeys: FIELD_KEYS } satisfies ResolvePayload
     )
   }
 
@@ -64,20 +69,11 @@ export async function GET(request: Request) {
 
   let person: PipedrivePerson | null = null
   let activities: PipedriveActivity[] = []
-  let dashboardKey: string | null = null
-  let tagKey: string | null = null
 
   try {
     person = await findPersonByPhone(phone)
     if (person) {
-      const [acts, dk, tk] = await Promise.all([
-        getPersonActivities(person.id, 3),
-        getPersonFieldKeyByName('Notes from Dashboard'),
-        getPersonFieldKeyByName('Tag'),
-      ])
-      activities = acts
-      dashboardKey = dk
-      tagKey = tk
+      activities = await getPersonActivities(person.id, 3)
     }
   } catch (err) {
     return NextResponse.json(
@@ -89,7 +85,7 @@ export async function GET(request: Request) {
   const payload: ResolvePayload = {
     person,
     activities,
-    fieldKeys: { dashboard: dashboardKey, tag: tagKey },
+    fieldKeys: FIELD_KEYS,
   }
 
   if (redis) {
