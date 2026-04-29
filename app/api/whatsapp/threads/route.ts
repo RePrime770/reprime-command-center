@@ -17,16 +17,13 @@ function chatToThreadRow(chat: TimelinesChat, panel: Panel) {
     channel_type: 'whatsapp' as const,
     phone,
     contact_name: chat.name || null,
-    is_group: chat.is_group,
+    is_group: false,
     jid: chat.jid || null,
-    timelines_chat_id: chat.id,
     last_message_at: lastAt,
-    photo_url: chat.photo,
-    chat_url: chat.chat_url,
-    is_allowed_to_message: chat.is_allowed_to_message,
-    closed: chat.closed,
-    unattended: chat.unattended,
-    timelines_account_id: chat.whatsapp_account_id || null,
+    last_message_preview: null,
+    unread_count: chat.read === false ? 1 : 0,
+    pipedrive_contact_id: null,
+    is_investor: false,
   }
 }
 
