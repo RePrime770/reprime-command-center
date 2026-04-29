@@ -45,23 +45,43 @@ function parseCsvRow(line: string): string[] {
   return fields.map((f) => f.trim())
 }
 
-function parseCsv(text: string): { phone: string; tag: string }[] {
+const PHONE_HEADER_KEYS = new Set([
+  'phone',
+  'phone number',
+  'phone_number',
+  'number',
+])
+const TAG_HEADER_KEYS = new Set(['tag', 'tags', 'label'])
+
+function normalizeHeader(h: string): string {
+  return h.replace(/^﻿/, '').trim().toLowerCase()
+}
+
+function parseCsv(text: string): {
+  rows: { phone: string; tag: string }[]
+  headers: string[]
+  firstRowSample: string[] | null
+} {
   const stripped = text.replace(/^﻿/, '')
   const lines = stripped.split(/\r?\n/).filter((l) => l.length > 0)
-  if (lines.length === 0) return []
-  const headers = parseCsvRow(lines[0]).map((h) => h.toLowerCase())
-  const phoneIdx = headers.findIndex((h) => h === 'phone')
-  const tagIdx = headers.findIndex((h) => h === 'tag')
-  if (phoneIdx === -1 || tagIdx === -1) return []
+  if (lines.length === 0) return { rows: [], headers: [], firstRowSample: null }
+  const headers = parseCsvRow(lines[0]).map((h) => h.replace(/^﻿/, '').trim())
+  const phoneIdx = headers.findIndex((h) => PHONE_HEADER_KEYS.has(normalizeHeader(h)))
+  const tagIdx = headers.findIndex((h) => TAG_HEADER_KEYS.has(normalizeHeader(h)))
+  if (phoneIdx === -1 || tagIdx === -1) {
+    return { rows: [], headers, firstRowSample: null }
+  }
   const out: { phone: string; tag: string }[] = []
+  let firstRowSample: string[] | null = null
   for (let i = 1; i < lines.length; i++) {
     const cells = parseCsvRow(lines[i])
+    if (firstRowSample === null) firstRowSample = cells
     const phone = cells[phoneIdx] ?? ''
     const tag = cells[tagIdx] ?? ''
     if (!phone && !tag) continue
     out.push({ phone, tag })
   }
-  return out
+  return { rows: out, headers, firstRowSample }
 }
 
 export async function POST(request: Request) {
@@ -85,16 +105,25 @@ export async function POST(request: Request) {
   }
 
   const text = await file.text()
-  const rows = parseCsv(text)
-  if (rows.length === 0) {
+  const parsed = parseCsv(text)
+  console.log('[bulk-upload] parsed', {
+    headers: parsed.headers,
+    rowCount: parsed.rows.length,
+    firstRowSample: parsed.firstRowSample,
+  })
+  if (parsed.rows.length === 0) {
     return NextResponse.json(
       {
         error: 'no_rows',
-        message: 'CSV must have headers "phone" and "tag" with at least one data row.',
+        message:
+          'CSV needs a phone column (phone / phone number / number) and a tag column (tag / tags / label) with at least one data row.',
+        parsed_headers: parsed.headers,
+        raw_preview: text.slice(0, 200),
       },
       { status: 400 }
     )
   }
+  const rows = parsed.rows
 
   const service = createServiceClient()
   const result: BulkResult = { processed: 0, tagged: 0, created: 0, errors: [] }

@@ -106,7 +106,7 @@ function PanelView({ panel, selected, onSelect, pendingThreadId, onPendingConsum
     >
       <div style={{ padding: '0.75rem 1rem', borderBottom: `1px solid ${borderColor}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <TavMark size={24} color="#BC9C45" />
+          {!isPersonal && <TavMark size={24} color="#BC9C45" />}
           <h1 style={{ color: headerText, fontWeight: 600, fontSize: '1.1rem', margin: 0 }}>{title}</h1>
         </div>
         <p style={{ color: headerMuted, margin: '0.1rem 0 0', fontSize: 12 }}>{phoneLabel}</p>
