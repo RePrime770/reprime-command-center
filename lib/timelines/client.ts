@@ -16,9 +16,15 @@ function authHeaders() {
   }
 }
 
+type TimelinesEnvelope<T> = {
+  status: 'ok' | 'error'
+  message?: string
+  data?: T
+}
+
 export async function getChats(panel: Panel, page = 1): Promise<TimelinesChat[]> {
   const accountId = PANEL_ACCOUNT_MAP[panel]
-  const url = `${BASE_URL}/chats/?per_page=50&page=${page}&whatsapp_account_phone=${encodeURIComponent(accountId)}`
+  const url = `${BASE_URL}/chats?per_page=50&page=${page}&whatsapp_account_phone=${encodeURIComponent(accountId)}`
   const res = await fetch(url, { headers: authHeaders(), cache: 'no-store' })
   if (!res.ok) {
     const body = await res.text().catch(() => '')
@@ -30,12 +36,12 @@ export async function getChats(panel: Panel, page = 1): Promise<TimelinesChat[]>
     })
     throw new Error(`Timelines getChats ${res.status}: ${body.slice(0, 200)}`)
   }
-  const data = (await res.json()) as { results?: TimelinesChat[] } | TimelinesChat[]
-  return Array.isArray(data) ? data : data.results ?? []
+  const json = (await res.json()) as TimelinesEnvelope<{ chats?: TimelinesChat[] }>
+  return json.data?.chats ?? []
 }
 
 export async function getMessages(chatId: number): Promise<TimelinesMessage[]> {
-  const url = `${BASE_URL}/messages/?chat_id=${chatId}`
+  const url = `${BASE_URL}/chats/${chatId}/messages`
   const res = await fetch(url, { headers: authHeaders(), cache: 'no-store' })
   if (!res.ok) {
     const body = await res.text().catch(() => '')
@@ -47,8 +53,8 @@ export async function getMessages(chatId: number): Promise<TimelinesMessage[]> {
     })
     throw new Error(`Timelines getMessages ${res.status}: ${body.slice(0, 200)}`)
   }
-  const data = (await res.json()) as { results?: TimelinesMessage[] } | TimelinesMessage[]
-  return Array.isArray(data) ? data : data.results ?? []
+  const json = (await res.json()) as TimelinesEnvelope<{ messages?: TimelinesMessage[] }>
+  return json.data?.messages ?? []
 }
 
 export async function sendMessage(
@@ -56,7 +62,7 @@ export async function sendMessage(
   text: string,
   accountId: string
 ): Promise<TimelinesMessage> {
-  const url = `${BASE_URL}/messages/`
+  const url = `${BASE_URL}/messages`
   const requestBody = JSON.stringify({
     chat_id: chatId,
     text,
@@ -79,5 +85,6 @@ export async function sendMessage(
     })
     throw new Error(`Timelines sendMessage ${res.status}: ${body.slice(0, 200)}`)
   }
-  return (await res.json()) as TimelinesMessage
+  const json = (await res.json()) as TimelinesEnvelope<TimelinesMessage>
+  return (json.data ?? (json as unknown as TimelinesMessage)) as TimelinesMessage
 }
