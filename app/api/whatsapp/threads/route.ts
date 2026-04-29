@@ -2,21 +2,27 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { getChats } from '@/lib/timelines/client'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
-import { parseTimelinesTimestamp } from '@/lib/timelines/parse'
+import { formatPhoneDisplay, parseTimelinesTimestamp } from '@/lib/timelines/parse'
 import type { Panel, TimelinesChat, DashboardThread } from '@/lib/timelines/types'
 
 export const dynamic = 'force-dynamic'
 
 function chatToThreadRow(chat: TimelinesChat, panel: Panel) {
-  const phone = normalizePhone(chat.phone) || chat.phone
+  const normalizedPhone = normalizePhone(chat.phone) || chat.phone
   const lastAt = chat.last_message_timestamp
     ? parseTimelinesTimestamp(chat.last_message_timestamp).toISOString()
     : null
+  const rawName = chat.name?.trim() || ''
+  const phoneFormatted = formatPhoneDisplay(normalizedPhone)
+  const contactName =
+    rawName && rawName !== '0' && rawName !== normalizedPhone
+      ? rawName
+      : phoneFormatted
   return {
     panel,
     channel_type: 'whatsapp' as const,
-    phone,
-    contact_name: chat.name || null,
+    phone: normalizedPhone,
+    contact_name: contactName,
     is_group: false,
     jid: chat.jid || null,
     last_message_at: lastAt,
