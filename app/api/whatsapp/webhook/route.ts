@@ -43,6 +43,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 })
   }
 
+  // BUG 3a: log raw payload keys so we can see actual shape from Timelines
+  console.log('[webhook] payload keys', Object.keys(payload as Record<string, unknown>))
+
   const message = payload.message
   const chat = payload.chat
 
@@ -69,8 +72,9 @@ export async function POST(request: Request) {
   if (redis && redisKey) {
     try {
       const existing = await redis.get(redisKey)
+      // BUG 3b: log dedup key and whether it already exists
+      console.log('[webhook] dedup key', redisKey, 'exists:', existing !== null)
       if (existing) {
-        console.log('[webhook] deduped', { uid: message.uid })
         return NextResponse.json({ ok: true, deduped: true })
       }
     } catch (err) {
@@ -96,7 +100,8 @@ export async function POST(request: Request) {
     ? parseTimelinesTimestamp(chat.last_message_timestamp).toISOString()
     : (message.timestamp ? parseTimelinesTimestamp(message.timestamp).toISOString() : null)
 
-  // Only include columns that exist in the whatsapp_threads schema
+  // Only include columns confirmed to exist in the whatsapp_threads schema
+  // (timelines_chat_id excluded — column not in DB; messages lookup uses phone-based search)
   const threadRow = {
     panel,
     channel_type: 'whatsapp' as const,
@@ -104,7 +109,6 @@ export async function POST(request: Request) {
     contact_name: chat.name || null,
     is_group: chat.is_group,
     jid: chat.jid || null,
-    timelines_chat_id: chat.id,
     last_message_at: lastAt,
   }
 
@@ -154,6 +158,8 @@ export async function POST(request: Request) {
     raw: message.data ?? null,
   }
 
+  // BUG 3c: log full message row so column-name mismatches are immediately visible
+  console.log('[webhook] inserting message', JSON.stringify(messageRow))
   console.log('[webhook] upserting message', {
     threadId: thread.id,
     uid: message.uid,
@@ -166,6 +172,8 @@ export async function POST(request: Request) {
     .from('whatsapp_messages')
     .upsert(messageRow, { onConflict: 'timelines_uid' })
 
+  // BUG 3d: log insert result whether success or failure
+  console.log('[webhook] insert result', { data: !msgErr, error: msgErr ?? null })
   if (msgErr) {
     console.error('[webhook] message upsert FAILED', {
       uid: message.uid,

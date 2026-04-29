@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
-import { getMessages, sendMessage, PANEL_ACCOUNT_MAP } from '@/lib/timelines/client'
+import { getChats, getMessages, sendMessage, PANEL_ACCOUNT_MAP } from '@/lib/timelines/client'
+import { normalizePhone } from '@/lib/timelines/normalize-phone'
 import { getMediaType, parseTimelinesTimestamp } from '@/lib/timelines/parse'
 import type { DashboardMessage, Panel, TimelinesMessage } from '@/lib/timelines/types'
 
@@ -45,9 +46,11 @@ export async function GET(request: NextRequest) {
   }
 
   const service = createServiceClient()
+  // BUG 3/5: Do NOT select timelines_chat_id — column not in DB.
+  // Use phone-based lookup to find Timelines chat ID instead.
   const { data: thread, error: threadErr } = await service
     .from('whatsapp_threads')
-    .select('id, panel, timelines_chat_id, is_group')
+    .select('id, panel, phone, is_group')
     .eq('id', threadId)
     .single()
 
@@ -55,14 +58,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'thread not found' }, { status: 404 })
   }
 
-  const chatId: number | null = thread.timelines_chat_id
-  if (!chatId) {
-    return NextResponse.json({ error: 'thread has no timelines_chat_id' }, { status: 409 })
-  }
+  const panel: Panel = thread.panel
+  const isGroup: boolean = thread.is_group
+  const threadPhone: string = thread.phone
 
+  // Find the matching Timelines chat by phone so we can fetch its messages
   let messages: TimelinesMessage[] = []
   try {
-    messages = await getMessages(chatId)
+    const allChats = await getChats(panel)
+    const matchingChat = allChats.find(
+      (c) => normalizePhone(c.phone) === threadPhone || c.phone === threadPhone
+    )
+    if (matchingChat) {
+      messages = await getMessages(matchingChat.id)
+    } else {
+      console.warn('[messages/GET] no matching Timelines chat for phone', { threadPhone, panel, totalChats: allChats.length })
+    }
   } catch (err) {
     return NextResponse.json(
       { error: 'timelines_failed', message: (err as Error).message },
@@ -70,8 +81,6 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const isGroup: boolean = thread.is_group
-  const panel: Panel = thread.panel
   const rows = messages.map((m) => {
     const row = messageToRow(m, threadId, panel)
     return { ...row, is_group_message: isGroup }
@@ -82,6 +91,7 @@ export async function GET(request: NextRequest) {
       .from('whatsapp_messages')
       .upsert(rows, { onConflict: 'timelines_uid' })
     if (upsertErr) {
+      console.error('[messages/GET] upsert failed', { message: upsertErr.message, code: upsertErr.code })
       return NextResponse.json(
         { error: 'db_upsert_failed', message: upsertErr.message },
         { status: 500 }
@@ -171,9 +181,10 @@ export async function POST(request: NextRequest) {
   }
 
   const service = createServiceClient()
+  // BUG 5: Do NOT select timelines_chat_id — sendMessage() needs phone, not chat ID
   const { data: thread, error: threadErr } = await service
     .from('whatsapp_threads')
-    .select('id, panel, phone, timelines_chat_id, is_group')
+    .select('id, panel, phone, is_group')
     .eq('id', threadId)
     .single()
 
@@ -186,11 +197,6 @@ export async function POST(request: NextRequest) {
       { error: 'panel_mismatch', message: 'cross-panel send forbidden' },
       { status: 403 }
     )
-  }
-
-  const chatId: number | null = thread.timelines_chat_id
-  if (!chatId) {
-    return NextResponse.json({ error: 'thread_has_no_chat_id' }, { status: 409 })
   }
 
   const recipientPhone: string | null = thread.phone

@@ -36,18 +36,13 @@ function getRedis(): Redis | null {
 function chatToThreadRow(chat: TimelinesChat, _panel: Panel) {
   const normalizedPhone = normalizePhone(chat.phone) || chat.phone
   const derivedPanel = panelFromAccountId(chat.whatsapp_account_id || '')
-  const lastAt = chat.last_message_timestamp
-    ? parseTimelinesTimestamp(chat.last_message_timestamp).toISOString()
-    : null
+  // BUG 4: fall back to created_timestamp when last_message_timestamp is absent
+  const tsSource = chat.last_message_timestamp || chat.created_timestamp || null
+  const lastAt = tsSource ? parseTimelinesTimestamp(tsSource).toISOString() : null
+  // BUG 2: treat any digit-only / zero / empty name as useless → fall to phone display
   const rawName = (chat.name || '').trim()
-  const isAllDigits = /^\d+$/.test(rawName)
-  const isJustZero = rawName === '0'
-  const isJustPhone =
-    rawName.replace(/\D/g, '') === normalizedPhone.replace(/\D/g, '')
-  const contactName =
-    rawName && !isJustZero && !isAllDigits && !isJustPhone
-      ? rawName
-      : formatPhoneDisplay(normalizedPhone)
+  const isUseless = !rawName || rawName === '0' || /^\d+$/.test(rawName)
+  const contactName = isUseless ? formatPhoneDisplay(normalizedPhone) : rawName
   return {
     panel: derivedPanel,
     channel_type: 'whatsapp' as const,
@@ -80,6 +75,9 @@ export async function GET(request: NextRequest) {
     const panel: Panel = panelParam
 
     const allChats: TimelinesChat[] = await getChats(panel)
+    if (allChats.length > 0) {
+      console.log('[threads] sample chat keys', Object.keys(allChats[0] as unknown as Record<string, unknown>))
+    }
     const chatsForThisPanel = allChats.filter(
       (chat) => panelFromAccountId(chat.whatsapp_account_id || '') === panel
     )

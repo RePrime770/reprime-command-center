@@ -41,8 +41,8 @@ function systemFor(panel: Panel, contactName: string | null | undefined): string
 }
 
 function modelIdFor(model: ModelKey): string {
-  if (model === 'haiku') return 'claude-haiku-4-5'
-  return 'claude-opus-4-7'
+  if (model === 'haiku') return 'claude-haiku-4-5-20251001'
+  return 'claude-opus-4-6'
 }
 
 function formatHistory(messages: DashboardMessage[]): string {
