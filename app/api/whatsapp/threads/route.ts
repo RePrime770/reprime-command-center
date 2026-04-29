@@ -1,5 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { Redis } from '@upstash/redis'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import {
+  findPersonByPhone,
+  PIPEDRIVE_FIELD_KEYS,
+  type PipedriveActivity,
+  type PipedrivePerson,
+} from '@/lib/pipedrive/client'
 import { getChats } from '@/lib/timelines/client'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
 import {
@@ -10,6 +17,21 @@ import {
 import type { Panel, TimelinesChat, DashboardThread } from '@/lib/timelines/types'
 
 export const dynamic = 'force-dynamic'
+
+const PIPEDRIVE_CACHE_TTL_SECONDS = 3600
+
+type PipedriveCachePayload = {
+  person: PipedrivePerson | null
+  activities?: PipedriveActivity[]
+  fieldKeys?: { dashboard: string; tag: string }
+}
+
+function getRedis(): Redis | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  if (!url || !token) return null
+  return new Redis({ url, token })
+}
 
 function chatToThreadRow(chat: TimelinesChat, _panel: Panel) {
   const normalizedPhone = normalizePhone(chat.phone) || chat.phone
@@ -57,11 +79,19 @@ export async function GET(request: NextRequest) {
     }
     const panel: Panel = panelParam
 
-    const chats: TimelinesChat[] = await getChats(panel)
+    const allChats: TimelinesChat[] = await getChats(panel)
+    const chatsForThisPanel = allChats.filter(
+      (chat) => panelFromAccountId(chat.whatsapp_account_id || '') === panel
+    )
+    console.log('[/api/whatsapp/threads] panel filter', {
+      panel,
+      total: allChats.length,
+      kept: chatsForThisPanel.length,
+    })
 
     const kept: TimelinesChat[] = []
     let discardedCount = 0
-    for (const c of chats) {
+    for (const c of chatsForThisPanel) {
       const raw = c.phone
       const isInvalidRaw = raw == null || raw === '' || raw === '+0' || raw === '0'
       const normalized = isInvalidRaw ? null : normalizePhone(raw)
@@ -75,7 +105,7 @@ export async function GET(request: NextRequest) {
     }
     console.log('[/api/whatsapp/threads] filtered', {
       panel,
-      total: chats.length,
+      total: chatsForThisPanel.length,
       kept: kept.length,
       discarded: discardedCount,
     })
@@ -138,6 +168,143 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const phoneToThreadId = new Map<string, string>()
+    for (const t of threads ?? []) {
+      if (t.phone && t.id && !phoneToThreadId.has(t.phone)) {
+        phoneToThreadId.set(t.phone, t.id)
+      }
+    }
+    const uniquePhones = Array.from(phoneToThreadId.keys())
+
+    let cacheHits = 0
+    let cacheMisses = 0
+    let pipedriveErrors = 0
+    let pipedriveMatches = 0
+    const redis = getRedis()
+    type EnrichmentPatch = {
+      id: string
+      pipedrive_contact_id: number
+      contact_name: string
+    }
+    const patches: EnrichmentPatch[] = []
+
+    await Promise.all(
+      uniquePhones.map(async (phone) => {
+        const cacheKey = `pipedrive:phone:${phone}`
+        let payload: PipedriveCachePayload | null = null
+
+        if (redis) {
+          try {
+            const cached = await redis.get<PipedriveCachePayload>(cacheKey)
+            if (cached) {
+              cacheHits++
+              payload = cached
+            } else {
+              cacheMisses++
+            }
+          } catch (err) {
+            console.error('[/api/whatsapp/threads] redis read failed', {
+              phone,
+              message: (err as Error).message,
+            })
+            cacheMisses++
+          }
+        } else {
+          cacheMisses++
+        }
+
+        if (!payload) {
+          try {
+            const person = await findPersonByPhone(phone)
+            payload = {
+              person,
+              activities: [],
+              fieldKeys: {
+                dashboard: PIPEDRIVE_FIELD_KEYS.NOTES_FROM_DASHBOARD,
+                tag: PIPEDRIVE_FIELD_KEYS.TAG,
+              },
+            }
+            if (redis) {
+              try {
+                await redis.set(cacheKey, payload, {
+                  ex: PIPEDRIVE_CACHE_TTL_SECONDS,
+                  nx: true,
+                })
+              } catch (err) {
+                console.error('[/api/whatsapp/threads] redis write failed', {
+                  phone,
+                  message: (err as Error).message,
+                })
+              }
+            }
+          } catch (err) {
+            pipedriveErrors++
+            console.error('[/api/whatsapp/threads] pipedrive lookup failed', {
+              phone,
+              message: (err as Error).message,
+            })
+            return
+          }
+        }
+
+        const person = payload.person
+        if (!person) return
+        pipedriveMatches++
+
+        const threadId = phoneToThreadId.get(phone)
+        if (!threadId) return
+
+        patches.push({
+          id: threadId,
+          pipedrive_contact_id: person.id,
+          contact_name: person.name,
+        })
+      })
+    )
+
+    const cacheTotal = cacheHits + cacheMisses
+    const cacheHitRate =
+      cacheTotal > 0 ? (cacheHits / cacheTotal).toFixed(2) : '0.00'
+    console.log('[/api/whatsapp/threads] pipedrive enrichment', {
+      panel,
+      uniquePhones: uniquePhones.length,
+      cacheHits,
+      cacheMisses,
+      cacheHitRate,
+      pipedriveMatches,
+      pipedriveErrors,
+    })
+
+    if (patches.length > 0) {
+      const updateResults = await Promise.all(
+        patches.map((p) =>
+          service
+            .from('whatsapp_threads')
+            .update({
+              contact_name: p.contact_name,
+              pipedrive_contact_id: p.pipedrive_contact_id,
+            })
+            .eq('id', p.id)
+        )
+      )
+      const updateErrorCount = updateResults.filter((r) => r.error).length
+      if (updateErrorCount > 0) {
+        console.error('[/api/whatsapp/threads] enrichment update errors', {
+          count: updateErrorCount,
+          panel,
+        })
+      }
+
+      const patchById = new Map(patches.map((p) => [p.id, p]))
+      for (const t of threads ?? []) {
+        const p = patchById.get(t.id)
+        if (p) {
+          t.contact_name = p.contact_name
+          t.pipedrive_contact_id = p.pipedrive_contact_id
+        }
+      }
+    }
+
     const threadIds = (threads || []).map((t) => t.id)
     let investorIds = new Set<string>()
     if (threadIds.length > 0) {
@@ -150,7 +317,7 @@ export async function GET(request: NextRequest) {
     }
 
     const previewByChatId = new Map<number, string>()
-    for (const c of chats) {
+    for (const c of allChats) {
       if (c.last_message_uid && (c as TimelinesChat & { last_message_text?: string }).last_message_text) {
         previewByChatId.set(c.id, (c as TimelinesChat & { last_message_text?: string }).last_message_text || '')
       }
