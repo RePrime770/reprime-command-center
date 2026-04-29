@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { createClient } from '@/lib/supabase/client'
 import type { DashboardThread, Panel } from '@/lib/timelines/types'
 
 type Props = {
@@ -82,6 +83,42 @@ export default function ChatList({ panel, selectedThreadId, onSelect }: Props) {
     refetchOnWindowFocus: false,
     staleTime: 30_000,
   })
+
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`threads-${panel}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_threads',
+          filter: `panel=eq.${panel}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['threads', panel] })
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' },
+        (payload: any) => {
+          if (payload.new?.thread_id) {
+            queryClient.invalidateQueries({
+              queryKey: ['messages', payload.new.thread_id],
+            })
+          }
+          queryClient.invalidateQueries({ queryKey: ['threads', panel] })
+        }
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [panel, queryClient])
 
   const threads = useMemo<DashboardThread[]>(() => {
     let list = data || []
