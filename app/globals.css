@@ -19,6 +19,15 @@
   --personal-accent: #6B7C5C;
   --personal-muted: #8A8680;
   --personal-warm: #C4B99A;
+  --rp-navy-deep: #0A1F44;
+  --rp-gold-soft: #D4B86A;
+  --rp-cream: #F5F1E8;
+  --surface-elevated: #FFFFFF;
+  --surface-divider: #E5E2DB;
+  --text-muted: #8A8680;
+  --status-success: #00A980;
+  --status-warning: #BC9C45;
+  --status-error: #FF7474;
 }
 
 * { box-sizing: border-box; }

@@ -15,7 +15,9 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "RePrime Command Center",
-  description: "Two-panel WhatsApp + voice command center",
+  description: "CRE command center",
+  icons: [{ rel: "icon", url: "/icon.svg" }],
+  viewport: "width=device-width, initial-scale=1",
 };
 
 export default function RootLayout({
