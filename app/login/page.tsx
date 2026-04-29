@@ -15,7 +15,9 @@ export default function Login() {
       email: 'g@reprime.com',
       options: {
         emailRedirectTo:
-          typeof window !== 'undefined' ? window.location.origin : '',
+          typeof window !== 'undefined'
+            ? `${window.location.origin}/auth/callback`
+            : '',
       },
     })
     setLoading(false)
