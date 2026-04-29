@@ -2,24 +2,32 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { getChats } from '@/lib/timelines/client'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
-import { formatPhoneDisplay, parseTimelinesTimestamp } from '@/lib/timelines/parse'
+import {
+  formatPhoneDisplay,
+  panelFromAccountId,
+  parseTimelinesTimestamp,
+} from '@/lib/timelines/parse'
 import type { Panel, TimelinesChat, DashboardThread } from '@/lib/timelines/types'
 
 export const dynamic = 'force-dynamic'
 
-function chatToThreadRow(chat: TimelinesChat, panel: Panel) {
+function chatToThreadRow(chat: TimelinesChat, _panel: Panel) {
   const normalizedPhone = normalizePhone(chat.phone) || chat.phone
+  const derivedPanel = panelFromAccountId(chat.whatsapp_account_id || '')
   const lastAt = chat.last_message_timestamp
     ? parseTimelinesTimestamp(chat.last_message_timestamp).toISOString()
     : null
-  const rawName = chat.name?.trim() || ''
-  const phoneFormatted = formatPhoneDisplay(normalizedPhone)
+  const rawName = (chat.name || '').trim()
+  const isAllDigits = /^\d+$/.test(rawName)
+  const isJustZero = rawName === '0'
+  const isJustPhone =
+    rawName.replace(/\D/g, '') === normalizedPhone.replace(/\D/g, '')
   const contactName =
-    rawName && rawName !== '0' && rawName !== normalizedPhone
+    rawName && !isJustZero && !isAllDigits && !isJustPhone
       ? rawName
-      : phoneFormatted
+      : formatPhoneDisplay(normalizedPhone)
   return {
-    panel,
+    panel: derivedPanel,
     channel_type: 'whatsapp' as const,
     phone: normalizedPhone,
     contact_name: contactName,
@@ -81,7 +89,7 @@ export async function GET(request: NextRequest) {
       return at - bt
     })
     const dedupedRows = Array.from(
-      new Map(sortedRows.map((r) => [r.phone, r])).values()
+      new Map(sortedRows.map((r) => [`${r.panel}:${r.phone}`, r])).values()
     )
 
     console.log('[/api/whatsapp/threads] dedup', {

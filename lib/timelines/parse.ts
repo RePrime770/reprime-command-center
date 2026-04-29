@@ -4,6 +4,13 @@ export function parseTimelinesTimestamp(ts: string): Date {
   return new Date(`${m[1]}T${m[2]}${m[3]}`)
 }
 
+export function panelFromAccountId(accountId: string): '718' | '305' {
+  const digits = accountId.replace(/\D/g, '')
+  if (digits === '17185505500' || digits === '7185505500') return '718'
+  if (digits === '13057784861' || digits === '3057784861') return '305'
+  return digits.startsWith('1718') ? '718' : '305'
+}
+
 export function formatPhoneDisplay(phone: string): string {
   if (!phone) return ''
   const m = phone.match(/^\+1(\d{3})(\d{3})(\d{4})$/)
