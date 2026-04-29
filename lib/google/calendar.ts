@@ -21,14 +21,19 @@ export async function getTodayEvents() {
     singleEvents: true,
     orderBy: 'startTime',
   })
-  return res.data.items?.map(event => ({
-    id: event.id!,
-    title: event.summary || 'Untitled',
-    startTime: event.start?.dateTime || event.start?.date!,
-    endTime: event.end?.dateTime || event.end?.date!,
-    zoomLink: event.description?.match(/https:\/\/[^\s]*zoom\.us\/j\/[^\s]*/)?.[0] || null,
-    attendees: event.attendees?.map(a => a.email!).filter(Boolean) || [],
-  })) || []
+  const zoomRegex = /https:\/\/[^\s]*zoom\.us\/j\/[^\s]*/
+  return res.data.items?.map(event => {
+    const locationMatch = event.location?.match(zoomRegex)?.[0] || null
+    const descriptionMatch = event.description?.match(zoomRegex)?.[0] || null
+    return {
+      id: event.id!,
+      title: event.summary || 'Untitled',
+      startTime: event.start?.dateTime || event.start?.date!,
+      endTime: event.end?.dateTime || event.end?.date!,
+      zoomLink: locationMatch || descriptionMatch,
+      attendees: event.attendees?.map(a => a.email!).filter(Boolean) || [],
+    }
+  }) || []
 }
 
 export async function createCalendarEvent(opts: {

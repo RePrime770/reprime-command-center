@@ -6,6 +6,8 @@ import ChatList from '@/components/chat/ChatList'
 import MessageView from '@/components/chat/MessageView'
 import ReplyBox from '@/components/chat/ReplyBox'
 import PipedriveCard from '@/components/sidebar/PipedriveCard'
+import TodayPanel from '@/components/sidebar/TodayPanel'
+import NotesPanel from '@/components/sidebar/NotesPanel'
 import InvestorPanel, { type InvestorPanelJump } from '@/components/panels/InvestorPanel'
 import type { DashboardMessage, DashboardThread, Panel } from '@/lib/timelines/types'
 
@@ -193,7 +195,9 @@ export default function Dashboard() {
   const investorWidth = layout === 'three-col' ? 360 : 380
 
   return (
-    <main style={{ display: 'flex', height: '100vh', width: '100vw', position: 'relative' }}>
+    <>
+      <TodayPanel />
+      <main style={{ display: 'flex', flex: 1, minHeight: 0, width: '100vw', position: 'relative' }}>
       <PanelView
         panel="718"
         selected={selections['718']}
@@ -255,6 +259,8 @@ export default function Dashboard() {
           )}
         </>
       )}
-    </main>
+      </main>
+      <NotesPanel />
+    </>
   )
 }
