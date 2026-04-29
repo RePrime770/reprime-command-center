@@ -1,0 +1,183 @@
+import { NextResponse, type NextRequest } from 'next/server'
+import Anthropic from '@anthropic-ai/sdk'
+import { createServerClient } from '@/lib/supabase/server'
+import { getTodayEvents } from '@/lib/google/calendar'
+
+export const dynamic = 'force-dynamic'
+
+const ALLOWED_EMAIL = 'g@reprime.com'
+
+type ConciergeType = 'running_late' | 'finished_early' | 'couldnt_make_it'
+
+type Meeting = {
+  title?: string | null
+  time?: string | null
+  attendee_name?: string | null
+}
+
+type Contact = {
+  name?: string | null
+  phone?: string | null
+} | null
+
+type Body = {
+  type?: ConciergeType
+  meeting?: Meeting
+  contact?: Contact
+  alternative_slots?: string[]
+}
+
+const CONCIERGE_TEMPLATES = {
+  running_late: {
+    en: 'Running a few minutes late — on my way. See you shortly.',
+    he: 'מגיע בעוד כמה דקות, אני בדרך. להתראות.',
+  },
+  finished_early: {
+    en: 'Wrapped up earlier than expected. Any chance you can join now?',
+    he: 'סיימתי מוקדם מהצפוי. תוכל להצטרף עכשיו?',
+  },
+}
+
+const SYSTEM_PROMPT = `Write a concise apology + reschedule message in Gideon Gratsiani's voice (CRE principal, direct, no excessive apology). Embed the provided slot list naturally. Output JSON: {en, he}.`
+
+function isBusinessHour(d: Date): boolean {
+  // Central Time approximation. Mon-Thu 9-17, Fri 9-14.
+  const day = d.getDay()
+  const hour = d.getHours()
+  if (day === 0 || day === 6) return false
+  if (day === 5) return hour >= 9 && hour < 14
+  return hour >= 9 && hour < 17
+}
+
+function fmtSlot(d: Date): string {
+  return (
+    d.toLocaleString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: 'America/Chicago',
+    }) + ' CT'
+  )
+}
+
+async function computeSlots(): Promise<string[]> {
+  let busy: Array<{ start: Date; end: Date }> = []
+  try {
+    const events = await getTodayEvents()
+    busy = events
+      .filter((e) => e.startTime && e.endTime)
+      .map((e) => ({ start: new Date(e.startTime), end: new Date(e.endTime) }))
+  } catch {
+    busy = []
+  }
+
+  const slots: string[] = []
+  const cursor = new Date()
+  cursor.setMinutes(0, 0, 0)
+  cursor.setHours(cursor.getHours() + 2)
+
+  for (let i = 0; i < 240 && slots.length < 3; i++) {
+    if (isBusinessHour(cursor)) {
+      const slotEnd = new Date(cursor.getTime() + 60 * 60 * 1000)
+      const conflicts = busy.some((b) => cursor < b.end && slotEnd > b.start)
+      if (!conflicts) {
+        slots.push(fmtSlot(cursor))
+      }
+    }
+    cursor.setHours(cursor.getHours() + 1)
+  }
+
+  return slots
+}
+
+export async function POST(request: NextRequest) {
+  const supabase = await createServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user || user.email !== ALLOWED_EMAIL) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  let body: Body
+  try {
+    body = (await request.json()) as Body
+  } catch {
+    return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
+  }
+
+  const { type, meeting, contact, alternative_slots } = body
+  if (
+    type !== 'running_late' &&
+    type !== 'finished_early' &&
+    type !== 'couldnt_make_it'
+  ) {
+    return NextResponse.json({ error: 'invalid_type' }, { status: 400 })
+  }
+
+  if (type === 'running_late' || type === 'finished_early') {
+    return NextResponse.json({
+      en: CONCIERGE_TEMPLATES[type].en,
+      he: CONCIERGE_TEMPLATES[type].he,
+      slots: [],
+    })
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    return NextResponse.json({ error: 'ANTHROPIC_API_KEY missing' }, { status: 500 })
+  }
+
+  const slots =
+    Array.isArray(alternative_slots) && alternative_slots.length > 0
+      ? alternative_slots.slice(0, 3)
+      : await computeSlots()
+
+  const m = meeting || {}
+  const lines: string[] = []
+  lines.push(`Meeting: ${m.title || 'today'}${m.time ? ` at ${m.time}` : ''}`)
+  if (m.attendee_name) lines.push(`Attendee: ${m.attendee_name}`)
+  if (contact?.name) lines.push(`Contact: ${contact.name}`)
+  lines.push(
+    slots.length > 0
+      ? `Available slots:\n${slots.map((s) => `- ${s}`).join('\n')}`
+      : 'No specific slots — propose this week generally.'
+  )
+  const userMsg = lines.join('\n')
+
+  const client = new Anthropic({ apiKey })
+
+  let parsed: { en: string; he: string }
+  try {
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userMsg }],
+    })
+    const text = response.content
+      .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
+      .map((b) => b.text)
+      .join('\n')
+      .trim()
+
+    const stripped = text
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/```\s*$/i, '')
+      .trim()
+    const obj = JSON.parse(stripped) as { en?: unknown; he?: unknown }
+    parsed = {
+      en: typeof obj.en === 'string' ? obj.en : '',
+      he: typeof obj.he === 'string' ? obj.he : '',
+    }
+  } catch (err) {
+    return NextResponse.json(
+      { error: 'anthropic_failed', message: (err as Error).message },
+      { status: 502 }
+    )
+  }
+
+  return NextResponse.json({ en: parsed.en, he: parsed.he, slots })
+}
