@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
-import { getMessages } from '@/lib/timelines/client'
+import { getMessages, sendMessage, PANEL_ACCOUNT_MAP } from '@/lib/timelines/client'
 import { getMediaType, parseTimelinesTimestamp } from '@/lib/timelines/parse'
 import type { DashboardMessage, Panel, TimelinesMessage } from '@/lib/timelines/types'
 
@@ -123,4 +123,176 @@ export async function GET(request: NextRequest) {
   )
 
   return NextResponse.json({ messages: result })
+}
+
+type SendBody = {
+  panel?: string
+  thread_id?: string
+  body?: string
+  attachment_url?: string
+  attachment_filename?: string
+  attachment_type?: string
+}
+
+export async function POST(request: NextRequest) {
+  const supabase = await createServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user || user.email !== 'g@reprime.com') {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  let payload: SendBody
+  try {
+    payload = (await request.json()) as SendBody
+  } catch {
+    return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
+  }
+
+  const panelParam = payload.panel
+  if (panelParam !== '718' && panelParam !== '305') {
+    return NextResponse.json({ error: 'invalid_panel' }, { status: 400 })
+  }
+  const panel: Panel = panelParam
+
+  const threadId = payload.thread_id
+  if (!threadId || typeof threadId !== 'string') {
+    return NextResponse.json({ error: 'thread_id_required' }, { status: 400 })
+  }
+
+  const text = (payload.body ?? '').trim()
+  const attachmentUrl = payload.attachment_url || null
+  const attachmentFilename = payload.attachment_filename || null
+  const attachmentType = payload.attachment_type || null
+
+  if (!text && !attachmentUrl) {
+    return NextResponse.json({ error: 'empty_message' }, { status: 400 })
+  }
+
+  const service = createServiceClient()
+  const { data: thread, error: threadErr } = await service
+    .from('whatsapp_threads')
+    .select('id, panel, timelines_chat_id, is_group')
+    .eq('id', threadId)
+    .single()
+
+  if (threadErr || !thread) {
+    return NextResponse.json({ error: 'thread_not_found' }, { status: 404 })
+  }
+
+  if (thread.panel !== panel) {
+    return NextResponse.json(
+      { error: 'panel_mismatch', message: 'cross-panel send forbidden' },
+      { status: 403 }
+    )
+  }
+
+  const chatId: number | null = thread.timelines_chat_id
+  if (!chatId) {
+    return NextResponse.json({ error: 'thread_has_no_chat_id' }, { status: 409 })
+  }
+
+  const accountId = PANEL_ACCOUNT_MAP[panel]
+  const wireText = attachmentUrl
+    ? text
+      ? `${text}\n${attachmentUrl}`
+      : attachmentUrl
+    : text
+
+  const optimisticRow = {
+    thread_id: threadId,
+    panel,
+    channel_type: 'whatsapp' as const,
+    direction: 'out' as const,
+    body: text || null,
+    media_url: attachmentUrl,
+    media_type: attachmentType || getMediaType(attachmentFilename),
+    media_filename: attachmentFilename,
+    timelines_uid: null,
+    from_phone: null,
+    from_name: null,
+    sent_at: new Date().toISOString(),
+    status: 'Pending',
+    is_group_message: thread.is_group,
+  }
+
+  const { data: inserted, error: insertErr } = await service
+    .from('whatsapp_messages')
+    .insert(optimisticRow)
+    .select('*')
+    .single()
+
+  if (insertErr || !inserted) {
+    return NextResponse.json(
+      { error: 'db_insert_failed', message: insertErr?.message },
+      { status: 500 }
+    )
+  }
+
+  let sent: TimelinesMessage
+  try {
+    sent = await sendMessage(chatId, wireText, accountId)
+  } catch (err) {
+    await service
+      .from('whatsapp_messages')
+      .update({ status: 'Failed' })
+      .eq('id', inserted.id)
+    return NextResponse.json(
+      { error: 'timelines_send_failed', message: (err as Error).message },
+      { status: 502 }
+    )
+  }
+
+  const sentAtIso = sent.timestamp
+    ? parseTimelinesTimestamp(sent.timestamp).toISOString()
+    : optimisticRow.sent_at
+
+  const { data: updated, error: updateErr } = await service
+    .from('whatsapp_messages')
+    .update({
+      timelines_uid: sent.uid || null,
+      status: sent.status || 'Sent',
+      sent_at: sentAtIso,
+    })
+    .eq('id', inserted.id)
+    .select('*')
+    .single()
+
+  if (updateErr) {
+    return NextResponse.json(
+      { error: 'db_update_failed', message: updateErr.message },
+      { status: 500 }
+    )
+  }
+
+  const previewBase = text || attachmentFilename || 'attachment'
+  const preview = previewBase.length > 80 ? previewBase.slice(0, 79) + '…' : previewBase
+  await service
+    .from('whatsapp_threads')
+    .update({
+      last_message_at: sentAtIso,
+      last_message_preview: preview,
+    })
+    .eq('id', threadId)
+
+  const result: DashboardMessage = {
+    id: updated.id,
+    thread_id: updated.thread_id,
+    panel: updated.panel,
+    channel_type: updated.channel_type,
+    direction: updated.direction,
+    body: updated.body,
+    media_url: updated.media_url,
+    media_type: updated.media_type,
+    media_filename: updated.media_filename,
+    timelines_uid: updated.timelines_uid,
+    from_phone: updated.from_phone,
+    from_name: updated.from_name,
+    sent_at: updated.sent_at,
+    status: updated.status,
+    is_group_message: updated.is_group_message,
+  }
+
+  return NextResponse.json(result)
 }

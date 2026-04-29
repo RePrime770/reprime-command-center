@@ -1,16 +1,20 @@
 'use client'
 
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useCallback, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import ChatList from '@/components/chat/ChatList'
 import MessageView from '@/components/chat/MessageView'
+import ReplyBox from '@/components/chat/ReplyBox'
 import type { DashboardMessage, DashboardThread, Panel } from '@/lib/timelines/types'
 
 function PanelView({ panel }: { panel: Panel }) {
   const [selected, setSelected] = useState<DashboardThread | null>(null)
+  const queryClient = useQueryClient()
+
+  const messagesKey = ['messages', selected?.id] as const
 
   const { data: messages } = useQuery({
-    queryKey: ['messages', selected?.id],
+    queryKey: messagesKey,
     enabled: !!selected,
     queryFn: async (): Promise<DashboardMessage[]> => {
       if (!selected) return []
@@ -21,6 +25,36 @@ function PanelView({ panel }: { panel: Panel }) {
     },
     refetchOnWindowFocus: false,
   })
+
+  const onOptimistic = useCallback(
+    (m: DashboardMessage) => {
+      if (!selected) return
+      queryClient.setQueryData<DashboardMessage[]>(['messages', selected.id], (prev) => [
+        ...(prev || []),
+        m,
+      ])
+    },
+    [queryClient, selected]
+  )
+
+  const onStatus = useCallback(
+    (tempId: string, status: 'ok' | 'fail', real?: DashboardMessage) => {
+      if (!selected) return
+      queryClient.setQueryData<DashboardMessage[]>(['messages', selected.id], (prev) => {
+        if (!prev) return prev
+        if (status === 'ok' && real) {
+          return prev.map((m) => (m.id === tempId ? real : m))
+        }
+        return prev.map((m) =>
+          m.id === tempId ? { ...m, status: 'Failed' } : m
+        )
+      })
+      if (status === 'ok') {
+        queryClient.invalidateQueries({ queryKey: ['threads', panel] })
+      }
+    },
+    [queryClient, selected, panel]
+  )
 
   const isPersonal = panel === '718'
   const headerBg = isPersonal ? 'var(--personal-bg)' : 'var(--rp-navy)'
@@ -53,7 +87,19 @@ function PanelView({ panel }: { panel: Panel }) {
           onSelect={setSelected}
         />
         {selected ? (
-          <MessageView thread={selected} messages={messages || []} />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <MessageView thread={selected} messages={messages || []} />
+            <div style={{ padding: '0 1rem 0.75rem', background: headerBg }}>
+              <ReplyBox
+                panel={panel}
+                threadId={selected.id}
+                threadHistory={messages || []}
+                contact={{ name: selected.contact_name, phone: selected.phone }}
+                onOptimistic={onOptimistic}
+                onStatus={onStatus}
+              />
+            </div>
+          </div>
         ) : (
           <div
             style={{
