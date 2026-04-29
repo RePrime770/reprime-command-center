@@ -1,6 +1,6 @@
 # RePrime Command Center — Reference Index
 
-Last updated: 2026-04-29 13:51 CT
+Last updated: 2026-04-29 14:35 CT
 
 ## Live URLs
 - Dashboard (production): https://project-7e87w.vercel.app
@@ -22,6 +22,7 @@ Last updated: 2026-04-29 13:51 CT
 - reprimeterminal.com — verified Apr 29 in g-8390's projects via TXT records added in the OTHER Vercel account. Status: Valid in our project. Locked-out account still owns DNS.
 - reprime-terminal.com (with hyphen) — newly purchased Apr 29 by Gideon, owned in g-8390's projects. Currently configured to redirect to reprime.com via vercel.json.
 - reprime-command-center.vercel.app — INVALID hostname. Project's actual default URL is project-7e87w.vercel.app.
+- reprimeportal.lovable.app — old acquisitions portal, preserved but inactive. Do not delete; may reactivate.
 
 ## Phone numbers
 - 718 personal: +1-718-550-5500 (WhatsApp, JID 17185505500@s.whatsapp.net)
@@ -66,3 +67,4 @@ Last updated: 2026-04-29 13:51 CT
 - Phone Link install blocked on Windows Store catalog — parked. 718 SMS via iPhone in pocket. Revisit Tuesday with Beeper Cloud as alternative.
 - Pipedrive contains 7 contacts as of Apr 29 (3 JID artifacts deleted, 1 email typo fixed).
 - reprimeterminal.com (no hyphen) DNS still owned by locked-out Vercel account (TXT verification done by Yossef, full DNS edit access still pending).
+- reprime.com DNS host unknown — Vercel account regained only contains reprime-terminal.com. SendGrid CNAMEs blocked until DNS host identified.
