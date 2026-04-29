@@ -69,10 +69,25 @@ export async function GET(request: NextRequest) {
     const service = createServiceClient()
     const rows = kept.map((c) => chatToThreadRow(c, panel))
 
-    if (rows.length > 0) {
+    const sortedRows = rows.sort((a, b) => {
+      const at = a.last_message_at ? new Date(a.last_message_at).getTime() : 0
+      const bt = b.last_message_at ? new Date(b.last_message_at).getTime() : 0
+      return at - bt
+    })
+    const dedupedRows = Array.from(
+      new Map(sortedRows.map((r) => [r.phone, r])).values()
+    )
+
+    console.log('[/api/whatsapp/threads] dedup', {
+      panel,
+      kept: rows.length,
+      deduped: dedupedRows.length,
+    })
+
+    if (dedupedRows.length > 0) {
       const { error: upsertErr } = await service
         .from('whatsapp_threads')
-        .upsert(rows, { onConflict: 'panel,phone,channel_type' })
+        .upsert(dedupedRows, { onConflict: 'panel,phone,channel_type' })
       if (upsertErr) {
         console.error('[/api/whatsapp/threads] DB error', {
           error: upsertErr?.message,
