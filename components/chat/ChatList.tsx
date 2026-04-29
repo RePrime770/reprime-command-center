@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
+import { formatPhoneDisplay } from '@/lib/timelines/parse'
 import type { DashboardThread, Panel } from '@/lib/timelines/types'
 
 type Props = {
@@ -236,6 +237,10 @@ export default function ChatList({ panel, selectedThreadId, onSelect }: Props) {
         )}
         {threads.map((t) => {
           const isSelected = t.id === selectedThreadId
+          const formattedPhone = formatPhoneDisplay(t.phone)
+          const nameIsDigits = !t.contact_name || /^\+?\d[\d\s\-()]*$/.test(t.contact_name.trim())
+          const displayName = nameIsDigits ? (formattedPhone || t.phone) : t.contact_name!
+          const showPhoneLine = !nameIsDigits && formattedPhone && formattedPhone !== displayName
           return (
             <button
               key={t.id}
@@ -275,7 +280,7 @@ export default function ChatList({ panel, selectedThreadId, onSelect }: Props) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6 }}>
                   <span style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {t.contact_name || t.phone}
+                    {displayName}
                     {t.is_investor && (
                       <span style={{ marginLeft: 6, color: theme.accent, fontSize: 11 }}>★</span>
                     )}
@@ -284,6 +289,11 @@ export default function ChatList({ panel, selectedThreadId, onSelect }: Props) {
                     {relativeTime(t.last_message_at)}
                   </span>
                 </div>
+                {showPhoneLine && (
+                  <div style={{ fontSize: 11, color: theme.muted, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {formattedPhone}
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginTop: 2 }}>
                   <span style={{ fontSize: 12, color: theme.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {truncate(t.last_message_preview, 40)}
