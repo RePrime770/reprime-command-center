@@ -37,20 +37,26 @@ const PANEL_THEME = {
 
 function formatTime(iso: string | null): string {
   if (!iso) return ''
-  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  return new Date(iso).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'America/Chicago',
+  })
 }
 
 function formatDay(iso: string | null): string {
   if (!iso) return ''
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Date(iso).toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
+    timeZone: 'America/Chicago',
   })
 }
 
 function MediaBlock({ msg }: { msg: DashboardMessage }) {
   const [expanded, setExpanded] = useState(false)
+  if (!msg.media_url && msg.media_type !== 'audio') return null
   if (!msg.media_url) return null
   if (msg.media_type === 'image') {
     return (
@@ -73,9 +79,16 @@ function MediaBlock({ msg }: { msg: DashboardMessage }) {
   }
   if (msg.media_type === 'audio') {
     return (
-      <audio controls src={msg.media_url} style={{ maxWidth: 280, marginTop: 4 }}>
-        Your browser does not support audio.
-      </audio>
+      <div>
+        <audio controls src={msg.media_url} style={{ maxWidth: 280, marginTop: 4, display: 'block' }}>
+          Your browser does not support audio.
+        </audio>
+        {msg.body && (
+          <div style={{ fontSize: 11, opacity: 0.55, marginTop: 4, fontStyle: 'italic' }}>
+            {msg.body}
+          </div>
+        )}
+      </div>
     )
   }
   if (msg.media_type === 'video') {
@@ -224,7 +237,7 @@ export default function MessageView({ thread, messages }: Props) {
                     boxShadow: '0 1px 1px rgba(0,0,0,0.06)',
                   }}
                 >
-                  {m.body && (
+                  {m.body && m.media_type !== 'audio' && (
                     <div style={{ whiteSpace: 'pre-wrap' }}>{m.body}</div>
                   )}
                   <MediaBlock msg={m} />

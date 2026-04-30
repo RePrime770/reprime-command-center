@@ -140,14 +140,52 @@ export async function POST(request: Request) {
   const sentAt = message.timestamp
     ? parseTimelinesTimestamp(message.timestamp).toISOString()
     : null
+
+  // Infer media_type from filename extension first, then fall back to message_type
+  // (WhatsApp voice notes use message_type='ptt' and have no filename extension)
+  let mediaType = getMediaType(message.attachment_filename)
+  if (!mediaType && message.has_attachment) {
+    const msgType = (message.message_type || '').toLowerCase()
+    if (msgType === 'ptt' || msgType === 'audio' || msgType === 'voice') {
+      mediaType = 'audio'
+    } else if (msgType === 'image' || msgType === 'sticker') {
+      mediaType = 'image'
+    } else if (msgType === 'video') {
+      mediaType = 'video'
+    } else if (msgType === 'document' || msgType === 'file') {
+      mediaType = 'document'
+    } else {
+      mediaType = 'document' // generic fallback
+    }
+  }
+
+  // Timelines sometimes puts voice note URL in message.data rather than attachment_url
+  const mediaUrl: string | null =
+    message.attachment_url ||
+    (message.has_attachment
+      ? ((message.data?.url as string | undefined) ||
+         (message.data?.audio_url as string | undefined) ||
+         (message.data?.download_url as string | undefined) ||
+         null)
+      : null)
+
+  console.log('[webhook] media', {
+    message_type: message.message_type,
+    has_attachment: message.has_attachment,
+    attachment_url: message.attachment_url,
+    attachment_filename: message.attachment_filename,
+    resolved_media_type: mediaType,
+    resolved_media_url: mediaUrl,
+  })
+
   const messageRow = {
     thread_id: thread.id,
     panel,
     channel_type: 'whatsapp' as const,
     direction: message.from_me ? ('out' as const) : ('in' as const),
     body: message.text || null,
-    media_url: message.attachment_url,
-    media_type: getMediaType(message.attachment_filename),
+    media_url: mediaUrl,
+    media_type: mediaType,
     media_filename: message.attachment_filename,
     timelines_uid: message.uid,
     from_phone: message.sender_phone || null,

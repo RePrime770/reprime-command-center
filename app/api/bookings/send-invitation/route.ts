@@ -4,6 +4,7 @@ import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { getPerson } from '@/lib/pipedrive/client'
 import { sendEmail } from '@/lib/sendgrid/client'
 import { buildTerminalInvitationEmail } from '@/lib/email/templates/terminal-invitation'
+import { buildGeneralMeetingEmail } from '@/lib/email/templates/general-meeting'
 import { getChats, sendMessage, PANEL_ACCOUNT_MAP } from '@/lib/timelines/client'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
 import type { Panel } from '@/lib/timelines/types'
@@ -34,10 +35,13 @@ const REPLY_TO = 'g@reprime.com'
 
 type Channel = 'whatsapp_718' | 'whatsapp_305' | 'email' | 'all'
 
+type MeetingType = 'terminal' | 'meeting'
+
 interface SendInvitationBody {
   contact: number
   channel: Channel
-  slots: string[]
+  meeting_type?: MeetingType
+  slots?: string[]
 }
 
 function appUrl(): string {
@@ -70,12 +74,13 @@ function panelFromChannel(channel: Channel): Panel | null {
 
 function buildWhatsAppCopy(
   firstName: string,
-  slots: Array<{ display: string }>,
-  inviteUrl?: string
+  inviteUrl: string,
+  meetingType: MeetingType
 ): string {
-  const slotLines = slots.map((s, i) => `${i + 1}) ${s.display}`).join('\n')
-  const tail = inviteUrl ? `\n\nOr confirm here: ${inviteUrl}\n— Gideon` : '\n— Gideon'
-  return `${firstName} — RePrime Group. 30 min, direct.\n\nPick a slot:\n${slotLines}\n\nReply with the number — Zoom + calendar lock instantly.${tail}`
+  if (meetingType === 'meeting') {
+    return `${firstName} — I'd value some time with you.\n\n30 minutes, your schedule. Pick what works:\n${inviteUrl}\n— Gideon`
+  }
+  return `${firstName} — I'm hosting a Terminal Introduction.\n\nThe Terminal is a deal sourcing machine unlike anything that exists — built to source, qualify, and close at a different level. One of a kind.\n\n30 minutes to walk you through it. Pick a time:\n${inviteUrl}\n— Gideon`
 }
 
 async function findChatIdForPhone(panel: Panel, phone: string): Promise<number | null> {
@@ -117,8 +122,11 @@ export async function POST(request: Request) {
   if (!['whatsapp_718', 'whatsapp_305', 'email', 'all'].includes(body.channel)) {
     return NextResponse.json({ error: 'invalid_channel' }, { status: 400 })
   }
-  if (!Array.isArray(body.slots) || body.slots.length !== 3 || !body.slots.every((s) => typeof s === 'string')) {
-    return NextResponse.json({ error: 'slots_must_be_three_iso_strings' }, { status: 400 })
+  // slots is optional; if provided must be an array of ISO strings
+  if (body.slots !== undefined && body.slots !== null) {
+    if (!Array.isArray(body.slots) || !body.slots.every((s) => typeof s === 'string')) {
+      return NextResponse.json({ error: 'slots_must_be_iso_strings_array' }, { status: 400 })
+    }
   }
 
   let person
@@ -139,8 +147,9 @@ export async function POST(request: Request) {
   const email = person.primary_email || pickPrimary(person.email ?? null)
   const phoneRaw = pickPrimary(person.phone ?? null)
   const phone = phoneRaw ? normalizePhone(phoneRaw) : null
+  const meetingType: MeetingType = body.meeting_type === 'meeting' ? 'meeting' : 'terminal'
 
-  const slotsWithDisplay = body.slots.map((iso) => ({
+  const slotsWithDisplay = (body.slots ?? []).map((iso) => ({
     iso,
     display: formatSlotDisplay(iso),
   }))
@@ -157,6 +166,7 @@ export async function POST(request: Request) {
     contact_email: email,
     contact_phone: phone,
     proposed_slots: slotsWithDisplay,
+    meeting_type: meetingType,
     status: 'sent',
   })
   if (insertError) {
@@ -182,11 +192,9 @@ export async function POST(request: Request) {
       errors.push({ channel: 'email', message: 'no_email_on_contact' })
     } else {
       try {
-        const tmpl = buildTerminalInvitationEmail({
-          firstName,
-          inviteUrl,
-          slots: slotsWithDisplay.map((s) => ({ display: s.display })),
-        })
+        const tmpl = meetingType === 'meeting'
+          ? buildGeneralMeetingEmail({ firstName, inviteUrl })
+          : buildTerminalInvitationEmail({ firstName, inviteUrl, slots: slotsWithDisplay.map((s) => ({ display: s.display })) })
         await sendEmail({
           to: email,
           from: FROM_EMAIL,
@@ -215,7 +223,7 @@ export async function POST(request: Request) {
             message: 'no_existing_chat_with_this_phone_on_panel',
           })
         } else {
-          const text = buildWhatsAppCopy(firstName, slotsWithDisplay, email ? undefined : inviteUrl)
+          const text = buildWhatsAppCopy(firstName, inviteUrl, meetingType)
           await sendMessage({
             phone,
             text,

@@ -1,10 +1,15 @@
 import { createServiceClient } from '@/lib/supabase/server'
 
-interface Slot { iso: string; display: string }
+interface SlotGroup {
+  date: string
+  label: string
+  times: Array<{ iso: string; display: string }>
+}
+
 interface Invitation {
   contact_first_name: string | null
   contact_name: string | null
-  proposed_slots: Slot[]
+  proposed_slots: Array<{ iso: string; display: string }>
   status: 'sent' | 'confirmed' | 'expired' | 'cancelled'
   expires_at: string | null
 }
@@ -23,6 +28,21 @@ async function loadInvitation(token: string): Promise<{ invitation: Invitation |
     return { invitation: inv, reason: 'expired' }
   }
   return { invitation: inv, reason: null }
+}
+
+async function loadAvailableSlots(): Promise<SlotGroup[]> {
+  try {
+    const baseUrl = (
+      process.env.NEXT_PUBLIC_APP_URL ||
+      'https://project-7e87w.vercel.app'
+    ).replace(/\/$/, '')
+    const res = await fetch(`${baseUrl}/api/bookings/available-slots`, { cache: 'no-store' })
+    if (!res.ok) return []
+    const json = (await res.json()) as { slots?: SlotGroup[] }
+    return json.slots ?? []
+  } catch {
+    return []
+  }
 }
 
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
@@ -46,7 +66,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   }
 
   const firstName = invitation.contact_first_name || 'there'
-  const slots = Array.isArray(invitation.proposed_slots) ? invitation.proposed_slots : []
+  const slotGroups = await loadAvailableSlots()
 
   return (
     <main style={{ minHeight: '100vh', background: '#0E3470', color: '#fff', fontFamily: 'Poppins, Arial, sans-serif' }}>
@@ -61,31 +81,46 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           A time to connect. Pick the slot that works best — confirm with one click. I&apos;ll be there.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '3rem' }}>
-          {slots.map((slot, idx) => (
-            <form key={idx} action={`/api/bookings/confirm`} method="POST">
-              <input type="hidden" name="token" value={token} />
-              <input type="hidden" name="slot_index" value={idx} />
-              <button
-                type="submit"
-                style={{
-                  width: '100%',
-                  padding: '1.25rem 2rem',
-                  background: 'transparent',
-                  color: '#fff',
-                  border: '1px solid #BC9C45',
-                  borderRadius: '4px',
-                  fontSize: '1.05rem',
-                  fontFamily: 'inherit',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                {slot.display}
-              </button>
-            </form>
-          ))}
-        </div>
+        {slotGroups.length === 0 ? (
+          <p style={{ color: '#D4B86A', fontSize: '1rem', marginTop: '3rem' }}>
+            Please reach out directly to schedule.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginTop: '3rem' }}>
+            {slotGroups.map((group) => (
+              <div key={group.date}>
+                <h2 style={{ color: '#D4B86A', fontSize: '0.9rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 0.75rem' }}>
+                  {group.label}
+                </h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  {group.times.map((slot) => (
+                    <form key={slot.iso} action="/api/bookings/confirm" method="POST">
+                      <input type="hidden" name="token" value={token} />
+                      <input type="hidden" name="slot_iso" value={slot.iso} />
+                      <button
+                        type="submit"
+                        style={{
+                          width: '100%',
+                          padding: '1rem 1.5rem',
+                          background: 'transparent',
+                          color: '#fff',
+                          border: '1px solid #BC9C45',
+                          borderRadius: '4px',
+                          fontSize: '1rem',
+                          fontFamily: 'inherit',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                        }}
+                      >
+                        {slot.display}
+                      </button>
+                    </form>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <p style={{ marginTop: '4rem', color: '#8A8680', fontSize: '0.85rem', borderTop: '1px solid #1A3560', paddingTop: '1.5rem' }}>
           Gideon Gratsiani · Founder, RePrime Group

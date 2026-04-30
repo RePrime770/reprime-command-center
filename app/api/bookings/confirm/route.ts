@@ -17,6 +17,20 @@ const FROM_EMAIL = 'g@reprime-terminal.com'
 const REPLY_TO = 'g@reprime.com'
 const PD_QUEUE_KEY = 'pagerduty:queue'
 
+function formatSlotDisplay(iso: string): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'America/Chicago',
+  })
+  return `${fmt.format(d)} Central`
+}
+
 interface Slot {
   iso: string
   display: string
@@ -177,26 +191,25 @@ async function pageGideonCritical(summary: string, customDetails: Record<string,
 
 export async function POST(request: Request) {
   let token: string | null = null
-  let slotIndexRaw: string | null = null
+  let slotIso: string | null = null
   try {
     const form = await request.formData()
     token = (form.get('token') as string | null) ?? null
-    slotIndexRaw = (form.get('slot_index') as string | null) ?? null
+    slotIso = (form.get('slot_iso') as string | null) ?? null
   } catch {
     try {
-      const body = (await request.json()) as { token?: string; slot_index?: number }
+      const body = (await request.json()) as { token?: string; slot_iso?: string }
       token = body.token ?? null
-      slotIndexRaw = body.slot_index !== undefined ? String(body.slot_index) : null
+      slotIso = body.slot_iso ?? null
     } catch {
       return htmlResponse(pageHtml({ firstName: 'there', state: 'invalid', message: 'Missing token.' }), 400)
     }
   }
 
-  if (!token || slotIndexRaw == null) {
+  if (!token || !slotIso) {
     return htmlResponse(pageHtml({ firstName: 'there', state: 'invalid', message: 'Missing token or slot.' }), 400)
   }
-  const slotIndex = Number.parseInt(slotIndexRaw, 10)
-  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex > 2) {
+  if (isNaN(new Date(slotIso).getTime())) {
     return htmlResponse(pageHtml({ firstName: 'there', state: 'invalid', message: 'Invalid slot.' }), 400)
   }
 
@@ -222,10 +235,9 @@ export async function POST(request: Request) {
     return htmlResponse(pageHtml({ firstName, state: 'expired' }), 410)
   }
 
-  const slots = Array.isArray(inv.proposed_slots) ? inv.proposed_slots : []
-  const slot = slots[slotIndex]
-  if (!slot || !slot.iso) {
-    return htmlResponse(pageHtml({ firstName, state: 'invalid', message: 'Slot index out of range.' }), 400)
+  const slot: Slot = {
+    iso: slotIso,
+    display: formatSlotDisplay(slotIso),
   }
 
   const errors: Array<{ step: string; message: string }> = []

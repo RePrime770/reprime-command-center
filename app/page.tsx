@@ -9,6 +9,7 @@ import PipedriveCard from '@/components/sidebar/PipedriveCard'
 import TodayPanel from '@/components/sidebar/TodayPanel'
 import NotesPanel from '@/components/sidebar/NotesPanel'
 import InvestorChatPanel from '@/components/panels/InvestorChatPanel'
+import BookingsPanel from '@/components/bookings/BookingsPanel'
 import type { DashboardMessage, DashboardThread, Panel } from '@/lib/timelines/types'
 
 // ── Import-names CSV button ───────────────────────────────────────────────────
@@ -233,6 +234,7 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
 
 export default function Dashboard() {
   const [selections, setSelections] = useState<SelectionMap>({ '718': null, '305': null })
+  const [showTerminal, setShowTerminal] = useState(false)
 
   const select = useCallback(
     (panel: Panel) => (thread: DashboardThread | null) =>
@@ -246,7 +248,42 @@ export default function Dashboard() {
       {/* ── Tool strip ── */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '0.3rem 1rem', background: '#0A1430', borderBottom: '1px solid rgba(188,156,69,0.15)', gap: 12, flexShrink: 0 }}>
         <ImportNamesButton />
+        <button
+          type="button"
+          onClick={() => setShowTerminal(true)}
+          style={{
+            background: 'transparent',
+            color: 'rgba(188,156,69,0.85)',
+            border: '1px solid rgba(188,156,69,0.45)',
+            borderRadius: 5,
+            padding: '0.2rem 0.5rem',
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            letterSpacing: '0.03em',
+          }}
+        >
+          ✉ Terminal
+        </button>
       </div>
+      {showTerminal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 50,
+            background: 'rgba(10,20,48,0.82)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowTerminal(false) }}
+        >
+          <BookingsPanel onClose={() => setShowTerminal(false)} />
+        </div>
+      )}
       <main style={{ display: 'flex', flex: 1, minHeight: 0, width: '100vw' }}>
         {/* 718 — Personal */}
         <PanelView

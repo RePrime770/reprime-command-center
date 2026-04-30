@@ -1,9 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import SlotSelector, { formatSlotDisplay } from './SlotSelector'
 
 type Channel = 'whatsapp_718' | 'whatsapp_305' | 'email' | 'all'
+type MeetingType = 'terminal' | 'meeting'
 
 const PREFERRED_LABEL: Record<number, string> = {
   27: 'WhatsApp',
@@ -33,6 +33,7 @@ interface Invitation {
   zoom_join_url: string | null
   created_at: string | null
   expires_at: string | null
+  meeting_type?: string | null
 }
 
 const NAVY = '#0E3470'
@@ -43,15 +44,52 @@ const TEXT = '#fff'
 const MUTED = '#8A8680'
 const BORDER = '#1A3560'
 
+function formatSlotDisplay(iso: string): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'America/Chicago',
+  })
+  return `${fmt.format(d)} Central`
+}
+
+const MEETING_CONFIG = {
+  terminal: {
+    symbol: 'ת',
+    label: 'Terminal Introduction',
+    tagline: 'RePrime Group · Terminal Introduction',
+    previewEmail: (firstName: string) =>
+      `${firstName},\n\nI'm hosting a Terminal Introduction — a deal sourcing system unlike anything that exists. Built to surface and close opportunities at a different level.\n\n30 minutes to show you what it is.\n\nPick a time: <invite-link>\n\n—\nGideon Gratsiani\nFounder, RePrime Group`,
+    previewWhatsApp: (firstName: string) =>
+      `${firstName} — I'm hosting a Terminal Introduction.\n\nThe Terminal is a deal sourcing machine unlike anything that exists — built to source, qualify, and close at a different level. One of a kind.\n\n30 minutes to walk you through it. Pick a time:\n<invite-link>\n— Gideon`,
+    emailSubject: (firstName: string) => `Terminal Introduction — ${firstName}`,
+  },
+  meeting: {
+    symbol: '·',
+    label: 'General Meeting',
+    tagline: 'RePrime Group · Meeting Request',
+    previewEmail: (firstName: string) =>
+      `${firstName},\n\nI'd value some time with you — thirty minutes, your schedule.\n\nPick what works and I'll be there:\n<invite-link>\n\n—\nGideon Gratsiani\nFounder, RePrime Group`,
+    previewWhatsApp: (firstName: string) =>
+      `${firstName} — I'd value some time with you.\n\n30 minutes, your schedule. Pick what works:\n<invite-link>\n— Gideon`,
+    emailSubject: (firstName: string) => `Let's Connect — ${firstName}`,
+  },
+} as const
+
 export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
   const [view, setView] = useState<'compose' | 'status'>('compose')
+  const [meetingType, setMeetingType] = useState<MeetingType>('terminal')
 
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<PipedriveSearchHit[]>([])
   const [searching, setSearching] = useState(false)
   const [contact, setContact] = useState<PipedriveSearchHit | null>(null)
 
-  const [slots, setSlots] = useState<string[]>([])
   const [channel, setChannel] = useState<Channel>('all')
   const [channelDefaultedFrom, setChannelDefaultedFrom] = useState<number | null>(null)
   const [sending, setSending] = useState(false)
@@ -140,38 +178,25 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
     if (view === 'status') void loadRecent()
   }, [view, loadRecent])
 
-  const onSlotsChange = useCallback((next: string[]) => setSlots(next), [])
+  const cfg = MEETING_CONFIG[meetingType]
+  const firstName = contact ? (contact.name.split(' ')[0] || contact.name) : null
 
   const previewEmail = useMemo(() => {
-    if (!contact) return null
-    const firstName = contact.name.split(' ')[0] || contact.name
-    const slotLines = slots
-      .filter(Boolean)
-      .map((iso) => `- ${formatSlotDisplay(iso)}`)
-      .join('\n')
-    const subject = `Terminal Introduction — ${firstName}`
-    const text = `${firstName},\n\nA time to connect properly — 30 minutes, direct.\n\nPick what works:\n${slotLines}\n\nConfirm: <invite-link>\n\n—\nGideon Gratsiani\nFounder, RePrime Group`
-    return { subject, text }
-  }, [contact, slots])
+    if (!firstName) return null
+    return {
+      subject: cfg.emailSubject(firstName),
+      text: cfg.previewEmail(firstName),
+    }
+  }, [firstName, cfg])
 
   const previewWhatsapp = useMemo(() => {
-    if (!contact) return null
-    const firstName = contact.name.split(' ')[0] || contact.name
-    const slotLines = slots
-      .filter(Boolean)
-      .map((iso, i) => `${i + 1}) ${formatSlotDisplay(iso)}`)
-      .join('\n')
-    return `${firstName} — RePrime Group. 30 min, direct.\n\nPick a slot:\n${slotLines}\n\nReply with the number — Zoom + calendar lock instantly.\n— Gideon`
-  }, [contact, slots])
+    if (!firstName) return null
+    return cfg.previewWhatsApp(firstName)
+  }, [firstName, cfg])
 
   async function send() {
     if (!contact) {
       setToast('Pick a contact first.')
-      return
-    }
-    const cleanSlots = slots.filter(Boolean)
-    if (cleanSlots.length !== 3) {
-      setToast('All three slots are required.')
       return
     }
     setSending(true)
@@ -180,7 +205,7 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
       const res = await fetch('/api/bookings/send-invitation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contact: contact.id, channel, slots: cleanSlots }),
+        body: JSON.stringify({ contact: contact.id, channel, meeting_type: meetingType }),
       })
       const json = (await res.json()) as {
         invitation_id?: string
@@ -222,29 +247,25 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
         display: 'flex',
         flexDirection: 'column',
         gap: '1rem',
-        minWidth: '480px',
+        minWidth: '520px',
+        maxWidth: '680px',
+        width: '100%',
       }}
     >
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span style={{ color: GOLD, fontSize: '1.5rem', fontFamily: 'Georgia,serif', fontWeight: 700 }}>ת</span>
+          <span style={{ color: GOLD, fontSize: '1.5rem', fontFamily: 'Georgia,serif', fontWeight: 700 }}>
+            {meetingType === 'terminal' ? 'ת' : '·'}
+          </span>
           <span style={{ color: GOLD_LIGHT, letterSpacing: '0.08em', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-            Bookings · Terminal Introduction
+            {cfg.tagline}
           </span>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            type="button"
-            onClick={() => setView('compose')}
-            style={tabBtn(view === 'compose')}
-          >
+          <button type="button" onClick={() => setView('compose')} style={tabBtn(view === 'compose')}>
             Compose
           </button>
-          <button
-            type="button"
-            onClick={() => setView('status')}
-            style={tabBtn(view === 'status')}
-          >
+          <button type="button" onClick={() => setView('status')} style={tabBtn(view === 'status')}>
             Status
           </button>
           {onClose && (
@@ -257,6 +278,29 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
 
       {view === 'compose' && (
         <>
+          {/* ── Meeting type toggle ── */}
+          <section>
+            <label style={labelStyle}>Invitation Type</label>
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
+              <button
+                type="button"
+                onClick={() => setMeetingType('terminal')}
+                style={typeBtn(meetingType === 'terminal')}
+              >
+                <span style={{ fontFamily: 'Georgia,serif', marginRight: '0.35rem' }}>ת</span>
+                Terminal Introduction
+              </button>
+              <button
+                type="button"
+                onClick={() => setMeetingType('meeting')}
+                style={typeBtn(meetingType === 'meeting')}
+              >
+                · General Meeting
+              </button>
+            </div>
+          </section>
+
+          {/* ── Contact search ── */}
           <section>
             <label style={labelStyle}>Contact</label>
             {contact ? (
@@ -313,10 +357,7 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
             )}
           </section>
 
-          <section>
-            <SlotSelector onChange={onSlotsChange} />
-          </section>
-
+          {/* ── Channel ── */}
           <section>
             <label style={labelStyle}>Channel</label>
             {channelDefaultedFrom !== null && (
@@ -345,33 +386,36 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
             </div>
           </section>
 
-          <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-            {(channel === 'email' || channel === 'all') && previewEmail && (
-              <div style={previewBox}>
-                <div style={previewTitle}>Email preview</div>
-                <div style={{ color: GOLD_LIGHT, fontSize: '0.8rem', marginBottom: '0.5rem' }}>
-                  Subject: {previewEmail.subject}
+          {/* ── Preview ── */}
+          {contact && (
+            <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              {(channel === 'email' || channel === 'all') && previewEmail && (
+                <div style={previewBox}>
+                  <div style={previewTitle}>Email preview</div>
+                  <div style={{ color: GOLD_LIGHT, fontSize: '0.8rem', marginBottom: '0.5rem' }}>
+                    Subject: {previewEmail.subject}
+                  </div>
+                  <pre style={previewBody}>{previewEmail.text}</pre>
                 </div>
-                <pre style={previewBody}>{previewEmail.text}</pre>
-              </div>
-            )}
-            {(channel !== 'email') && previewWhatsapp && (
-              <div style={previewBox}>
-                <div style={previewTitle}>WhatsApp preview</div>
-                <pre style={previewBody}>{previewWhatsapp}</pre>
-              </div>
-            )}
-          </section>
+              )}
+              {channel !== 'email' && previewWhatsapp && (
+                <div style={previewBox}>
+                  <div style={previewTitle}>WhatsApp preview</div>
+                  <pre style={previewBody}>{previewWhatsapp}</pre>
+                </div>
+              )}
+            </section>
+          )}
 
           <footer style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ color: toast?.startsWith('Failed') || toast?.startsWith('No channels') ? '#FF6F61' : GOLD_LIGHT, fontSize: '0.8rem' }}>
-              {toast ?? ' '}
+              {toast ?? ' '}
             </span>
             <button
               type="button"
               onClick={send}
-              disabled={sending || !contact || slots.filter(Boolean).length !== 3}
-              style={primaryBtn(sending || !contact || slots.filter(Boolean).length !== 3)}
+              disabled={sending || !contact}
+              style={primaryBtn(sending || !contact)}
             >
               {sending ? 'Sending…' : 'Send Invitation'}
             </button>
@@ -390,6 +434,7 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
               <thead>
                 <tr style={{ color: MUTED, textAlign: 'left' }}>
                   <th style={th}>Contact</th>
+                  <th style={th}>Type</th>
                   <th style={th}>Status</th>
                   <th style={th}>Slot</th>
                   <th style={th}>Sent</th>
@@ -399,6 +444,9 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
                 {recent.map((r) => (
                   <tr key={r.id} style={{ borderTop: `1px solid ${BORDER}` }}>
                     <td style={td}>{r.contact_name || r.contact_first_name || '—'}</td>
+                    <td style={{ ...td, color: r.meeting_type === 'terminal' ? GOLD : GOLD_LIGHT, fontSize: '0.75rem' }}>
+                      {r.meeting_type === 'terminal' ? 'ת Terminal' : r.meeting_type === 'meeting' ? '· Meeting' : '—'}
+                    </td>
                     <td style={{ ...td, color: r.status === 'confirmed' ? GOLD : r.status === 'expired' ? '#FF6F61' : GOLD_LIGHT }}>
                       {r.status}
                     </td>
@@ -414,6 +462,8 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
     </div>
   )
 }
+
+// ── Style helpers ─────────────────────────────────────────────────────────────
 
 const labelStyle: React.CSSProperties = {
   color: MUTED,
@@ -472,6 +522,21 @@ function tabBtn(active: boolean): React.CSSProperties {
     fontSize: '0.8rem',
     fontFamily: 'inherit',
     cursor: 'pointer',
+  }
+}
+
+function typeBtn(active: boolean): React.CSSProperties {
+  return {
+    padding: '0.5rem 1rem',
+    background: active ? GOLD : 'transparent',
+    color: active ? NAVY : TEXT,
+    border: `1px solid ${active ? GOLD : BORDER}`,
+    borderRadius: '4px',
+    fontSize: '0.88rem',
+    fontWeight: active ? 600 : 400,
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+    letterSpacing: '0.02em',
   }
 }
 
