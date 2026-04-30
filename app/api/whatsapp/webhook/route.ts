@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
+import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase/server'
 import { PANEL_ACCOUNT_MAP } from '@/lib/timelines/client'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
@@ -238,7 +239,64 @@ export async function POST(request: Request) {
     }
   }
 
+  // ── AI priority classification (inbound only, non-fatal) ─────────────────────
+  // Only classify inbound text messages — skip outbound, media-only, and group msgs
+  if (!message.from_me && !chat.is_group && message.text) {
+    void classifyAndFlag(service, thread.id, message.text, chat.name || null).catch(
+      (err) => console.error('[webhook] classify non-fatal', (err as Error).message)
+    )
+  }
+
   return NextResponse.json({ ok: true, written: true })
+}
+
+// ── Priority classifier ───────────────────────────────────────────────────────
+
+type SupabaseService = ReturnType<typeof createServiceClient>
+
+async function classifyAndFlag(
+  service: SupabaseService,
+  threadId: string,
+  text: string,
+  contactName: string | null
+): Promise<void> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return
+
+  const client = new Anthropic({ apiKey })
+
+  // Cheap classification — Haiku, single token answer
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5',
+    max_tokens: 4,
+    system: `You classify inbound messages for a real estate investment firm.
+Reply with only the word PRIORITY or NORMAL.
+Mark PRIORITY if the message contains ANY of: investment interest, deal inquiry, money/amount, commitment language ("I want to invest", "let's move forward", "ready to"), urgency ("asap", "urgent", "need to talk today"), or a referral opportunity.
+Mark NORMAL for everything else.`,
+    messages: [
+      {
+        role: 'user',
+        content: contactName
+          ? `From: ${contactName}\nMessage: ${text.slice(0, 400)}`
+          : `Message: ${text.slice(0, 400)}`,
+      },
+    ],
+  })
+
+  const answer = response.content
+    .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
+    .map((b) => b.text.trim().toUpperCase())
+    .join('')
+
+  if (answer.startsWith('PRIORITY')) {
+    // Mark the thread as priority — column must exist:
+    // ALTER TABLE whatsapp_threads ADD COLUMN IF NOT EXISTS is_priority boolean DEFAULT false;
+    await service
+      .from('whatsapp_threads')
+      .update({ is_priority: true })
+      .eq('id', threadId)
+    console.log('[webhook] flagged thread as priority', { threadId, contactName })
+  }
 }
 
 export async function GET() {

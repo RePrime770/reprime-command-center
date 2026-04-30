@@ -189,6 +189,7 @@ export default function TodayPanel() {
                   title: ev.title,
                   startTime: ev.startTime,
                   attendees: ev.attendees,
+                  zoomLink: ev.zoomLink,
                 }}
               />
             </div>

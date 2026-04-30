@@ -55,6 +55,8 @@ export interface DashboardThread {
   unread_count: number
   pipedrive_contact_id: number | null
   is_investor: boolean
+  /** AI-flagged as important (deal interest, urgency, commitment language) */
+  is_priority: boolean
 }
 
 export interface DashboardMessage {

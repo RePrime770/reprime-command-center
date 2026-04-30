@@ -17,6 +17,7 @@ export interface ConciergeMeeting {
   attendees?: AttendeeLike[] | null
   attendee_name?: string | null
   thread_id?: string | null
+  zoomLink?: string | null
 }
 
 interface Props {
@@ -115,6 +116,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
             title: meeting.title,
             time: meeting.time || meeting.startTime,
             attendee_name: resolvedName,
+            zoom_link: meeting.zoomLink ?? null,
           },
           contact: resolvedPhone || resolvedName
             ? { name: resolvedName, phone: resolvedPhone }

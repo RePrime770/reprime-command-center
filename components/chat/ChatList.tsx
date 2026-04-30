@@ -258,6 +258,19 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
           const displayName = nameIsDigits ? (formattedPhone || t.phone) : t.contact_name!
           const showPhoneLine = !nameIsDigits && formattedPhone && formattedPhone !== displayName
           const hasUnread = t.unread_count > 0
+          const isPriority = !!t.is_priority
+          const leftBorder = hasUnread
+            ? '3px solid #ef4444'
+            : isPriority
+            ? '3px solid #BC9C45'
+            : '3px solid transparent'
+          const rowBg = isSelected
+            ? theme.selected
+            : hasUnread
+            ? 'rgba(239,68,68,0.07)'
+            : isPriority
+            ? 'rgba(188,156,69,0.06)'
+            : 'transparent'
           return (
             <button
               key={t.id}
@@ -269,8 +282,8 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
                 gap: 10,
                 padding: '0.6rem 0.75rem',
                 border: 'none',
-                borderLeft: hasUnread ? '3px solid #ef4444' : '3px solid transparent',
-                background: isSelected ? theme.selected : hasUnread ? 'rgba(239,68,68,0.07)' : 'transparent',
+                borderLeft: leftBorder,
+                background: rowBg,
                 color: theme.text,
                 cursor: 'pointer',
                 textAlign: 'left',
@@ -301,6 +314,12 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
                     {displayName}
                     {t.is_investor && (
                       <span style={{ marginLeft: 6, color: theme.accent, fontSize: 11 }}>★</span>
+                    )}
+                    {isPriority && !hasUnread && (
+                      <span style={{ marginLeft: 5, fontSize: 11, color: '#BC9C45' }} title="AI-flagged: important">⚡</span>
+                    )}
+                    {isPriority && hasUnread && (
+                      <span style={{ marginLeft: 5, fontSize: 11, color: '#fca5a5' }} title="AI-flagged: important">⚡</span>
                     )}
                   </span>
                   <span style={{ fontSize: 11, color: hasUnread ? '#fca5a5' : theme.muted, flexShrink: 0, fontWeight: hasUnread ? 600 : 400 }}>

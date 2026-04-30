@@ -13,6 +13,7 @@ type Meeting = {
   title?: string | null
   time?: string | null
   attendee_name?: string | null
+  zoom_link?: string | null
 }
 
 type Contact = {
@@ -30,11 +31,15 @@ type Body = {
 const CONCIERGE_TEMPLATES = {
   running_late: {
     en: 'Running a few minutes late — on my way. See you shortly.',
+    en_zoom: 'Running a few minutes late — I\'ll be on in just a moment.',
     he: 'מגיע בעוד כמה דקות, אני בדרך. להתראות.',
+    he_zoom: 'מגיע בעוד כמה דקות — אהיה בזום תוך רגע.',
   },
   finished_early: {
     en: 'Wrapped up earlier than expected. Any chance you can join now?',
+    en_zoom: 'Finished a few minutes early — if you\'re ready, we can jump on the Zoom now.',
     he: 'סיימתי מוקדם מהצפוי. תוכל להצטרף עכשיו?',
+    he_zoom: 'סיימתי מוקדם — אם אתה מוכן, אנחנו יכולים להיכנס לזום עכשיו.',
   },
 }
 
@@ -118,9 +123,11 @@ export async function POST(request: NextRequest) {
   }
 
   if (type === 'running_late' || type === 'finished_early') {
+    const isZoom = !!(meeting as Meeting)?.zoom_link
+    const tmpl = CONCIERGE_TEMPLATES[type]
     return NextResponse.json({
-      en: CONCIERGE_TEMPLATES[type].en,
-      he: CONCIERGE_TEMPLATES[type].he,
+      en: isZoom ? tmpl.en_zoom : tmpl.en,
+      he: isZoom ? tmpl.he_zoom : tmpl.he,
       slots: [],
     })
   }
@@ -135,9 +142,10 @@ export async function POST(request: NextRequest) {
       ? alternative_slots.slice(0, 3)
       : await computeSlots()
 
-  const m = meeting || {}
+  const m = (meeting || {}) as Meeting
   const lines: string[] = []
   lines.push(`Meeting: ${m.title || 'today'}${m.time ? ` at ${m.time}` : ''}`)
+  if (m.zoom_link) lines.push('Format: Zoom call (not in-person)')
   if (m.attendee_name) lines.push(`Attendee: ${m.attendee_name}`)
   if (contact?.name) lines.push(`Contact: ${contact.name}`)
   lines.push(
