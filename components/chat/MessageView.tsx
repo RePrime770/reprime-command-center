@@ -5,6 +5,26 @@ import { isHebrew } from '@/lib/timelines/parse'
 import type { DashboardMessage, DashboardThread } from '@/lib/timelines/types'
 import TagChips from './TagChips'
 
+// ── TTS speed ────────────────────────────────────────────────────────────────
+const SPEED_KEY = 'tts-speed-v1'
+const SPEEDS = [1, 1.2, 1.4, 1.8, 2] as const
+type TtsSpeed = (typeof SPEEDS)[number]
+
+function getStoredSpeed(): TtsSpeed {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(SPEED_KEY) : null
+    if (!raw) return 1
+    const v = parseFloat(raw) as TtsSpeed
+    return (SPEEDS as readonly number[]).includes(v) ? v : 1
+  } catch {
+    return 1
+  }
+}
+
+function saveSpeed(s: TtsSpeed) {
+  try { localStorage.setItem(SPEED_KEY, String(s)) } catch {}
+}
+
 type Props = {
   thread: DashboardThread
   messages: DashboardMessage[]
@@ -58,7 +78,7 @@ function formatDay(iso: string | null): string {
 
 type SpeakState = 'idle' | 'loading' | 'playing' | 'paused' | 'error'
 
-function useTTS(text: string) {
+function useTTS(text: string, speed: TtsSpeed) {
   const [state, setState] = useState<SpeakState>('idle')
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const urlRef = useRef<string | null>(null)
@@ -78,6 +98,11 @@ function useTTS(text: string) {
     setState('idle')
   }, [text])
 
+  // Apply speed change to currently loaded audio (even mid-play)
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.playbackRate = speed
+  }, [speed])
+
   const toggle = async () => {
     if (!text.trim()) return
     if (state === 'playing') { audioRef.current?.pause(); return }
@@ -95,6 +120,7 @@ function useTTS(text: string) {
       const url = URL.createObjectURL(blob)
       urlRef.current = url
       const audio = new Audio(url)
+      audio.playbackRate = speed
       audio.onended = () => setState('idle')
       audio.onpause = () => { if (!audio.ended) setState('paused') }
       audio.onplay = () => setState('playing')
@@ -110,8 +136,8 @@ function useTTS(text: string) {
 
 // ── Per-message speaker (tiny, beside the bubble) ─────────────────────────────
 
-function MessageSpeaker({ text }: { text: string }) {
-  const { state, toggle } = useTTS(text)
+function MessageSpeaker({ text, speed }: { text: string; speed: TtsSpeed }) {
+  const { state, toggle } = useTTS(text, speed)
   if (!text.trim()) return null
   return (
     <button
@@ -142,7 +168,7 @@ function MessageSpeaker({ text }: { text: string }) {
 
 // ── Thread-level speaker (reads all inbound messages in order) ────────────────
 
-function ThreadSpeaker({ messages, muted }: { messages: DashboardMessage[]; muted: string }) {
+function ThreadSpeaker({ messages, muted, speed }: { messages: DashboardMessage[]; muted: string; speed: TtsSpeed }) {
   const combinedText = useMemo(() => {
     return [...messages]
       .filter((m) => m.direction === 'in' && m.body && m.media_type !== 'audio')
@@ -155,7 +181,7 @@ function ThreadSpeaker({ messages, muted }: { messages: DashboardMessage[]; mute
       .join('\n\n')
   }, [messages])
 
-  const { state, toggle } = useTTS(combinedText)
+  const { state, toggle } = useTTS(combinedText, speed)
 
   if (!combinedText.trim()) return null
 
@@ -191,6 +217,42 @@ function ThreadSpeaker({ messages, muted }: { messages: DashboardMessage[]; mute
       {' '}
       {state === 'loading' ? 'Loading…' : state === 'playing' ? 'Pause' : 'Read thread'}
     </button>
+  )
+}
+
+// ── Speed control ────────────────────────────────────────────────────────────
+
+function SpeedControl({ speed, onChange, muted }: { speed: TtsSpeed; onChange: (s: TtsSpeed) => void; muted: string }) {
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+      {SPEEDS.map((s) => {
+        const active = s === speed
+        return (
+          <button
+            key={s}
+            type="button"
+            onClick={() => onChange(s)}
+            title={`Playback speed ${s}×`}
+            style={{
+              background: active ? 'rgba(255,255,255,0.14)' : 'none',
+              border: `1px solid ${active ? muted : 'transparent'}`,
+              borderRadius: 4,
+              cursor: 'pointer',
+              padding: '1px 5px',
+              fontSize: 10,
+              color: active ? muted : muted,
+              opacity: active ? 1 : 0.45,
+              fontFamily: 'inherit',
+              fontWeight: active ? 700 : 400,
+              lineHeight: 1.6,
+              transition: 'opacity 0.15s',
+            }}
+          >
+            {s}×
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -269,6 +331,12 @@ function MediaBlock({ msg }: { msg: DashboardMessage }) {
 export default function MessageView({ thread, messages }: Props) {
   const theme = PANEL_THEME[thread.panel]
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [speed, setSpeed] = useState<TtsSpeed>(() => getStoredSpeed())
+
+  function handleSpeedChange(s: TtsSpeed) {
+    setSpeed(s)
+    saveSpeed(s)
+  }
 
   const sorted = useMemo(() => {
     // Newest first — most recent message at the top, right below the compose box
@@ -318,8 +386,9 @@ export default function MessageView({ thread, messages }: Props) {
           {thread.is_group && (
             <span style={{ color: theme.muted, fontSize: 11 }}>group</span>
           )}
-          {/* Thread-level reader — reads all their inbound messages in order */}
-          <ThreadSpeaker messages={messages} muted={theme.muted} />
+          {/* Speed presets + thread reader */}
+          <SpeedControl speed={speed} onChange={handleSpeedChange} muted={theme.muted} />
+          <ThreadSpeaker messages={messages} muted={theme.muted} speed={speed} />
         </div>
         <TagChips threadId={thread.id} panel={thread.panel} />
       </div>
@@ -405,7 +474,7 @@ export default function MessageView({ thread, messages }: Props) {
                   </div>
                 </div>
                 {/* Per-message speaker — only on inbound text messages */}
-                {hasReadableText && <MessageSpeaker text={m.body!} />}
+                {hasReadableText && <MessageSpeaker text={m.body!} speed={speed} />}
               </div>
             </div>
           )

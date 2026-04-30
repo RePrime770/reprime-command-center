@@ -76,15 +76,8 @@ export async function GET(request: NextRequest) {
     }
   } catch (err) {
     const msg = (err as Error).message ?? ''
-    if (msg.includes('403')) {
-      // Quota exhausted — serve from DB cache; don't hard-fail
-      console.warn('[messages/GET] Timelines 403 quota — serving DB cache', { threadPhone, panel })
-    } else {
-      return NextResponse.json(
-        { error: 'timelines_failed', message: msg },
-        { status: 502 }
-      )
-    }
+    // Always fall back to DB cache — Timelines being down/quota/auth should never blank the thread
+    console.warn('[messages/GET] Timelines failed — serving DB cache', { threadPhone, panel, error: msg.slice(0, 200) })
   }
 
   const rows = messages.map((m) => {
