@@ -242,7 +242,14 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
           </div>
         )}
         {!isLoading && threads.length === 0 && !error && (
-          <div style={{ padding: '1rem', color: theme.muted, fontSize: 13 }}>No conversations.</div>
+          <div style={{ padding: '1rem', color: theme.muted, fontSize: 13 }}>
+            No conversations.
+            {hideInvestors && (
+              <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.5 }}>
+                Investor-tagged contacts appear in the <strong style={{ color: theme.accent }}>★ Investors</strong> panel on the right.
+              </div>
+            )}
+          </div>
         )}
         {threads.map((t) => {
           const isSelected = t.id === selectedThreadId
