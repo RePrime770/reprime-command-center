@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import ChatList from '@/components/chat/ChatList'
 import MessageView from '@/components/chat/MessageView'
@@ -10,6 +10,80 @@ import TodayPanel from '@/components/sidebar/TodayPanel'
 import NotesPanel from '@/components/sidebar/NotesPanel'
 import InvestorChatPanel from '@/components/panels/InvestorChatPanel'
 import type { DashboardMessage, DashboardThread, Panel } from '@/lib/timelines/types'
+
+// ── Import-names CSV button ───────────────────────────────────────────────────
+function ImportNamesButton() {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'err'>('idle')
+  const [msg, setMsg] = useState('')
+
+  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setStatus('loading')
+    setMsg('')
+    try {
+      const fd = new FormData()
+      fd.append('csv', file)
+      const res = await fetch('/api/contacts/import-names', { method: 'POST', body: fd })
+      const json = await res.json()
+      if (!res.ok) {
+        setStatus('err')
+        setMsg(json.message || json.error || `Error ${res.status}`)
+      } else {
+        setStatus('ok')
+        setMsg(`✓ ${json.updated} names updated, ${json.skipped} skipped`)
+        // Fade back to idle after 5s
+        setTimeout(() => { setStatus('idle'); setMsg('') }, 5000)
+      }
+    } catch (ex: unknown) {
+      setStatus('err')
+      setMsg((ex as Error).message)
+    }
+    // Reset file input
+    if (inputRef.current) inputRef.current.value = ''
+  }
+
+  const color = status === 'ok' ? '#22c55e' : status === 'err' ? '#ef4444' : 'rgba(255,255,255,0.45)'
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".csv,text/csv"
+        style={{ display: 'none' }}
+        onChange={onFileChange}
+      />
+      <button
+        type="button"
+        disabled={status === 'loading'}
+        onClick={() => inputRef.current?.click()}
+        title="Import contact names from CSV (columns: phone, name)"
+        style={{
+          background: 'transparent',
+          color,
+          border: `1px solid ${color}`,
+          borderRadius: 5,
+          padding: '0.2rem 0.5rem',
+          fontSize: 11,
+          fontWeight: 600,
+          cursor: status === 'loading' ? 'not-allowed' : 'pointer',
+          fontFamily: 'inherit',
+          letterSpacing: '0.03em',
+          opacity: status === 'loading' ? 0.6 : 1,
+        }}
+      >
+        {status === 'loading' ? '⏳ Importing…' : '📋 Import Names'}
+      </button>
+      {msg && (
+        <span style={{ fontSize: 11, color, maxWidth: 280, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {msg}
+        </span>
+      )}
+    </div>
+  )
+}
 
 type SelectionMap = Record<Panel, DashboardThread | null>
 
@@ -169,6 +243,10 @@ export default function Dashboard() {
   return (
     <>
       <TodayPanel />
+      {/* ── Tool strip ── */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '0.3rem 1rem', background: '#0A1430', borderBottom: '1px solid rgba(188,156,69,0.15)', gap: 12, flexShrink: 0 }}>
+        <ImportNamesButton />
+      </div>
       <main style={{ display: 'flex', flex: 1, minHeight: 0, width: '100vw' }}>
         {/* 718 — Personal */}
         <PanelView
