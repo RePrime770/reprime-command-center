@@ -360,14 +360,7 @@ export default function InvestorChatPanel() {
               overflow: 'hidden',
             }}
           >
-            <MessageView thread={selected} messages={messages || []} />
-            <div
-              style={{
-                padding: '0 1rem 0.75rem',
-                background: NAVY,
-                flexShrink: 0,
-              }}
-            >
+            <div style={{ padding: '0.5rem 1rem 0', background: NAVY, flexShrink: 0 }}>
               {/* Show which number we're sending from */}
               <div style={{ fontSize: 11, color: MUTED, marginBottom: 2, paddingLeft: 2 }}>
                 Sending via{' '}
@@ -384,6 +377,7 @@ export default function InvestorChatPanel() {
                 onStatus={onStatus}
               />
             </div>
+            <MessageView thread={selected} messages={messages || []} />
           </div>
         ) : (
           <div

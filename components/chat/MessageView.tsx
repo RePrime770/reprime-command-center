@@ -114,18 +114,19 @@ export default function MessageView({ thread, messages }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const sorted = useMemo(() => {
+    // Newest first — most recent message at the top, right below the compose box
     return [...messages].sort((a, b) => {
       const ta = a.sent_at ? new Date(a.sent_at).getTime() : 0
       const tb = b.sent_at ? new Date(b.sent_at).getTime() : 0
-      return ta - tb
+      return tb - ta
     })
   }, [messages])
 
-  // Always scroll to bottom: when thread switches OR when new messages arrive
+  // Scroll to TOP when thread switches or new messages arrive (newest is at top)
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    el.scrollTop = el.scrollHeight
+    el.scrollTop = 0
   }, [thread.id, sorted.length])
 
   return (
@@ -163,13 +164,10 @@ export default function MessageView({ thread, messages }: Props) {
         <TagChips threadId={thread.id} panel={thread.panel} />
       </div>
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column' }}>
-        {sorted.length === 0 ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.muted, fontSize: 13 }}>No messages yet.</div>
-        ) : (
-        <>
-        {/* Spacer: pushes messages to the bottom so reply box is right below the last message */}
-        <div style={{ flex: '1 1 0' }} />
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0.75rem 1rem' }}>
+        {sorted.length === 0 && (
+          <div style={{ color: theme.muted, fontSize: 13, padding: '1rem 0', textAlign: 'center' }}>No messages yet.</div>
+        )}
         {sorted.map((m, idx) => {
           const prev = sorted[idx - 1]
           const showDay =
@@ -245,8 +243,6 @@ export default function MessageView({ thread, messages }: Props) {
             </div>
           )
         })}
-        </>
-        )}
       </div>
     </div>
   )

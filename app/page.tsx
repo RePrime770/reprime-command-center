@@ -198,8 +198,7 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
         {selected ? (
           <>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
-              <MessageView thread={selected} messages={messages || []} />
-              <div style={{ padding: '0 1rem 0.75rem', background: headerBg, flexShrink: 0 }}>
+              <div style={{ padding: '0.5rem 1rem 0', background: headerBg, flexShrink: 0 }}>
                 <ReplyBox
                   panel={panel}
                   threadId={selected.id}
@@ -209,6 +208,7 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
                   onStatus={onStatus}
                 />
               </div>
+              <MessageView thread={selected} messages={messages || []} />
             </div>
             {showPipedrive && <PipedriveCard thread={selected} panel={panel} />}
           </>
