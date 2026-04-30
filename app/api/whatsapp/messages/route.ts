@@ -27,7 +27,7 @@ function messageToRow(msg: TimelinesMessage, threadId: string, panel: Panel) {
     sent_at: sentAt,
     status: msg.status || null,
     is_group_message: false,
-    raw: msg.data ?? null,
+    // raw column does not exist in whatsapp_messages schema — omitted
   }
 }
 

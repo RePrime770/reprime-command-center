@@ -155,7 +155,7 @@ export async function POST(request: Request) {
     sent_at: sentAt,
     status: message.status || null,
     is_group_message: chat.is_group,
-    raw: message.data ?? null,
+    // raw column does not exist in whatsapp_messages schema — omitted
   }
 
   // BUG 3c: log full message row so column-name mismatches are immediately visible
