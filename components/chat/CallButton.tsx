@@ -25,9 +25,27 @@ export default function CallButton({ panel, phone, isGroup, contactName }: Props
   const onClick = () => {
     if (panel === '305') {
       const url = `https://voice.google.com/u/0/calls?a=nc,${encodeURIComponent(e164)}`
-      window.open(url, '_blank', 'noopener,noreferrer')
+      // Side popup: stays out of the way, reuses same window on repeat clicks,
+      // does not navigate the dashboard tab away.
+      const w = 460
+      const h = 720
+      const left = Math.max(0, window.screenX + (window.outerWidth - w))
+      const top = Math.max(0, window.screenY + 40)
+      const features = `popup=true,noopener,noreferrer,width=${w},height=${h},left=${left},top=${top}`
+      const popup = window.open(url, 'reprime-voice', features)
+      // If the browser blocked the popup, fall back to a new tab so the call still happens.
+      if (!popup) window.open(url, '_blank', 'noopener,noreferrer')
     } else {
-      window.location.href = `tel:${e164}`
+      // tel: URI — let the OS handle it via Continuity / Phone Link.
+      // Use a hidden anchor + click to avoid navigating the dashboard tab.
+      const a = document.createElement('a')
+      a.href = `tel:${e164}`
+      a.rel = 'noopener noreferrer'
+      a.target = '_self'
+      a.style.display = 'none'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
     }
   }
 
