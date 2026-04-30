@@ -43,7 +43,7 @@ export async function GET() {
   // Step 2: Fetch those threads
   const { data: rows, error: threadErr } = await service
     .from('whatsapp_threads')
-    .select('id, panel, channel_type, phone, contact_name, is_group, jid, last_message_at, last_message_preview, unread_count, pipedrive_contact_id')
+    .select('id, panel, channel_type, phone, contact_name, is_group, jid, last_message_at, last_message_preview, unread_count, pipedrive_contact_id, is_priority')
     .in('id', investorThreadIds)
     .order('last_message_at', { ascending: false, nullsFirst: false })
 
@@ -64,6 +64,7 @@ export async function GET() {
     unread_count: t.unread_count ?? 0,
     pipedrive_contact_id: t.pipedrive_contact_id,
     is_investor: true,
+    is_priority: t.is_priority ?? false,
   }))
 
   return NextResponse.json({ threads })

@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import CallButton from '@/components/chat/CallButton'
 import ChatList from '@/components/chat/ChatList'
 import MessageView from '@/components/chat/MessageView'
 import ReplyBox from '@/components/chat/ReplyBox'
@@ -167,26 +168,33 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
           <p style={{ color: headerMuted, margin: '0.1rem 0 0', fontSize: 12 }}>{phoneLabel}</p>
         </div>
         {selected && (
-          <button
-            type="button"
-            onClick={() => setShowPipedrive((v) => !v)}
-            title={showPipedrive ? 'Hide CRM info' : 'Show CRM info'}
-            style={{
-              background: showPipedrive ? headerText : 'transparent',
-              color: showPipedrive ? headerBg : headerMuted,
-              border: `1px solid ${borderColor}`,
-              borderRadius: 6,
-              padding: '0.25rem 0.55rem',
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              letterSpacing: '0.04em',
-              flexShrink: 0,
-            }}
-          >
-            CRM
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <CallButton
+              panel={panel}
+              phone={selected.phone}
+              isGroup={selected.is_group}
+              contactName={selected.contact_name}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPipedrive((v) => !v)}
+              title={showPipedrive ? 'Hide CRM info' : 'Show CRM info'}
+              style={{
+                background: showPipedrive ? headerText : 'transparent',
+                color: showPipedrive ? headerBg : headerMuted,
+                border: `1px solid ${borderColor}`,
+                borderRadius: 6,
+                padding: '0.25rem 0.55rem',
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                letterSpacing: '0.04em',
+              }}
+            >
+              CRM
+            </button>
+          </div>
         )}
       </div>
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>

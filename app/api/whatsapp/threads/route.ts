@@ -357,6 +357,7 @@ export async function GET(request: NextRequest) {
         unread_count: number | null
         pipedrive_contact_id: number | null
         timelines_chat_id: number | null
+        is_priority: boolean | null
       }) => ({
         id: t.id,
         panel: t.panel,
@@ -370,6 +371,7 @@ export async function GET(request: NextRequest) {
         unread_count: t.unread_count ?? 0,
         pipedrive_contact_id: t.pipedrive_contact_id,
         is_investor: investorIds.has(t.id),
+        is_priority: t.is_priority ?? false,
       })
     )
 
