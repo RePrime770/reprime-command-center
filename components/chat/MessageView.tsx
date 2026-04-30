@@ -54,6 +54,148 @@ function formatDay(iso: string | null): string {
   })
 }
 
+// ── Shared TTS logic ──────────────────────────────────────────────────────────
+
+type SpeakState = 'idle' | 'loading' | 'playing' | 'paused' | 'error'
+
+function useTTS(text: string) {
+  const [state, setState] = useState<SpeakState>('idle')
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const urlRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause()
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current)
+    }
+  }, [])
+
+  // Reset if text changes
+  useEffect(() => {
+    audioRef.current?.pause()
+    audioRef.current = null
+    if (urlRef.current) { URL.revokeObjectURL(urlRef.current); urlRef.current = null }
+    setState('idle')
+  }, [text])
+
+  const toggle = async () => {
+    if (!text.trim()) return
+    if (state === 'playing') { audioRef.current?.pause(); return }
+    if (state === 'paused' && audioRef.current) { void audioRef.current.play(); return }
+    setState('loading')
+    try {
+      const language = /[֐-׿]/.test(text) ? 'he' : 'en'
+      const res = await fetch('/api/voice/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text.slice(0, 4000), language }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      urlRef.current = url
+      const audio = new Audio(url)
+      audio.onended = () => setState('idle')
+      audio.onpause = () => { if (!audio.ended) setState('paused') }
+      audio.onplay = () => setState('playing')
+      audioRef.current = audio
+      await audio.play()
+    } catch {
+      setState('error')
+    }
+  }
+
+  return { state, toggle }
+}
+
+// ── Per-message speaker (tiny, beside the bubble) ─────────────────────────────
+
+function MessageSpeaker({ text }: { text: string }) {
+  const { state, toggle } = useTTS(text)
+  if (!text.trim()) return null
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      title={state === 'playing' ? 'Pause' : state === 'error' ? 'Failed — retry' : 'Read aloud'}
+      style={{
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        padding: '2px 4px',
+        fontSize: 13,
+        lineHeight: 1,
+        opacity: state === 'idle' ? 0.3 : 1,
+        color: state === 'playing' ? '#22c55e' : state === 'error' ? '#ef4444' : 'inherit',
+        alignSelf: 'flex-end',
+        marginBottom: 4,
+        flexShrink: 0,
+        transition: 'opacity 0.15s',
+      }}
+      onMouseEnter={(e) => { if (state === 'idle') (e.currentTarget as HTMLButtonElement).style.opacity = '0.75' }}
+      onMouseLeave={(e) => { if (state === 'idle') (e.currentTarget as HTMLButtonElement).style.opacity = '0.3' }}
+    >
+      {state === 'loading' ? '⏳' : state === 'playing' ? '⏸' : '🔊'}
+    </button>
+  )
+}
+
+// ── Thread-level speaker (reads all inbound messages in order) ────────────────
+
+function ThreadSpeaker({ messages, muted }: { messages: DashboardMessage[]; muted: string }) {
+  const combinedText = useMemo(() => {
+    return [...messages]
+      .filter((m) => m.direction === 'in' && m.body && m.media_type !== 'audio')
+      .sort((a, b) => {
+        const ta = a.sent_at ? new Date(a.sent_at).getTime() : 0
+        const tb = b.sent_at ? new Date(b.sent_at).getTime() : 0
+        return ta - tb // oldest first for reading order
+      })
+      .map((m) => m.body!)
+      .join('\n\n')
+  }, [messages])
+
+  const { state, toggle } = useTTS(combinedText)
+
+  if (!combinedText.trim()) return null
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      title={
+        state === 'playing'
+          ? 'Pause thread'
+          : state === 'paused'
+          ? 'Resume thread'
+          : 'Read all their messages aloud'
+      }
+      style={{
+        background: 'none',
+        border: `1px solid ${state === 'playing' ? '#22c55e' : muted}`,
+        borderRadius: 5,
+        cursor: 'pointer',
+        padding: '2px 7px',
+        fontSize: 11,
+        color: state === 'playing' ? '#22c55e' : state === 'error' ? '#ef4444' : muted,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        marginLeft: 'auto',
+        flexShrink: 0,
+        fontFamily: 'inherit',
+        transition: 'color 0.15s, border-color 0.15s',
+      }}
+    >
+      {state === 'loading' ? '⏳' : state === 'playing' ? '⏸' : '🔊'}
+      {' '}
+      {state === 'loading' ? 'Loading…' : state === 'playing' ? 'Pause' : 'Read thread'}
+    </button>
+  )
+}
+
+// ── MediaBlock ────────────────────────────────────────────────────────────────
+
 function MediaBlock({ msg }: { msg: DashboardMessage }) {
   const [expanded, setExpanded] = useState(false)
   if (!msg.media_url && msg.media_type !== 'audio') return null
@@ -122,6 +264,8 @@ function MediaBlock({ msg }: { msg: DashboardMessage }) {
   )
 }
 
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function MessageView({ thread, messages }: Props) {
   const theme = PANEL_THEME[thread.panel]
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -155,6 +299,7 @@ export default function MessageView({ thread, messages }: Props) {
         overflow: 'hidden',
       }}
     >
+      {/* ── Header ── */}
       <div
         style={{
           padding: '0.75rem 1rem',
@@ -165,18 +310,21 @@ export default function MessageView({ thread, messages }: Props) {
           background: theme.bg,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, flexShrink: 0 }}>
             {thread.contact_name || thread.phone}
           </h2>
           <span style={{ color: theme.muted, fontSize: 12 }}>{thread.phone}</span>
           {thread.is_group && (
-            <span style={{ color: theme.muted, fontSize: 11, marginLeft: 'auto' }}>group</span>
+            <span style={{ color: theme.muted, fontSize: 11 }}>group</span>
           )}
+          {/* Thread-level reader — reads all their inbound messages in order */}
+          <ThreadSpeaker messages={messages} muted={theme.muted} />
         </div>
         <TagChips threadId={thread.id} panel={thread.panel} />
       </div>
 
+      {/* ── Messages ── */}
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0.75rem 1rem' }}>
         {sorted.length === 0 && (
           <div style={{ color: theme.muted, fontSize: 13, padding: '1rem 0', textAlign: 'center' }}>No messages yet.</div>
@@ -190,6 +338,7 @@ export default function MessageView({ thread, messages }: Props) {
               new Date(m.sent_at).toDateString() !== new Date(prev.sent_at).toDateString())
           const isOut = m.direction === 'out'
           const rtl = isHebrew(m.body)
+          const hasReadableText = !isOut && !!m.body && m.media_type !== 'audio'
           return (
             <div key={m.id}>
               {showDay && (
@@ -216,9 +365,12 @@ export default function MessageView({ thread, messages }: Props) {
                   {m.from_name}
                 </div>
               )}
+              {/* Bubble row — inbound gets a tiny speaker button beside it */}
               <div
                 style={{
                   display: 'flex',
+                  alignItems: 'flex-end',
+                  gap: 4,
                   justifyContent: isOut ? 'flex-end' : 'flex-start',
                   marginBottom: 6,
                 }}
@@ -252,6 +404,8 @@ export default function MessageView({ thread, messages }: Props) {
                     {formatTime(m.sent_at)}
                   </div>
                 </div>
+                {/* Per-message speaker — only on inbound text messages */}
+                {hasReadableText && <MessageSpeaker text={m.body!} />}
               </div>
             </div>
           )
