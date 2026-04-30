@@ -140,41 +140,21 @@ export default function ReplyBox({
   return (
     <div
       style={{
-        marginTop: '0.75rem',
-        padding: '0.6rem',
+        marginTop: '0.5rem',
+        padding: '0.5rem 0.6rem',
         background: surface,
         border: `1px solid ${border}`,
         borderRadius: 8,
         color: textColor,
       }}
     >
-      <textarea
-        ref={taRef}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        onKeyDown={onKeyDown}
-        dir={rtl ? 'rtl' : 'ltr'}
-        placeholder="Type a message…"
-        rows={1}
-        style={{
-          width: '100%',
-          resize: 'none',
-          background: 'transparent',
-          border: 'none',
-          outline: 'none',
-          color: textColor,
-          fontFamily: 'inherit',
-          fontSize: '0.95rem',
-          lineHeight: `${LINE_HEIGHT_PX}px`,
-          minHeight: `${LINE_HEIGHT_PX}px`,
-        }}
-      />
+      {/* ── Toolbar row: above the textarea ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '0.35rem',
-          marginTop: '0.4rem',
+          gap: '0.3rem',
+          marginBottom: '0.4rem',
           flexWrap: 'wrap',
         }}
       >
@@ -201,8 +181,42 @@ export default function ReplyBox({
           onUpload={(url, filename, type) => setAttachment({ url, filename, type })}
           disabled={sending}
         />
-        <span style={{ flex: 1 }} />
-        <span style={{ fontSize: '0.7rem', color: muted }}>{body.length}</span>
+      </div>
+
+      {/* ── Textarea ── */}
+      <textarea
+        ref={taRef}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        onKeyDown={onKeyDown}
+        dir={rtl ? 'rtl' : 'ltr'}
+        placeholder="Type a message…"
+        rows={1}
+        style={{
+          width: '100%',
+          resize: 'none',
+          background: 'transparent',
+          border: 'none',
+          outline: 'none',
+          color: textColor,
+          fontFamily: 'inherit',
+          fontSize: '0.95rem',
+          lineHeight: `${LINE_HEIGHT_PX}px`,
+          minHeight: `${LINE_HEIGHT_PX}px`,
+        }}
+      />
+
+      {/* ── Bottom row: char count + Send ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: '0.4rem',
+          marginTop: '0.35rem',
+        }}
+      >
+        <span style={{ fontSize: '0.7rem', color: muted }}>{body.length > 0 ? body.length : ''}</span>
         <button
           type="button"
           onClick={() => doSend()}
@@ -212,7 +226,7 @@ export default function ReplyBox({
             color: canSend ? accentText : muted,
             border: 'none',
             borderRadius: 4,
-            padding: '0.4rem 0.9rem',
+            padding: '0.35rem 1rem',
             fontWeight: 600,
             fontSize: '0.85rem',
             cursor: canSend ? 'pointer' : 'not-allowed',

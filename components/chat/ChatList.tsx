@@ -10,6 +10,8 @@ type Props = {
   panel: Panel
   selectedThreadId: string | null
   onSelect: (thread: DashboardThread) => void
+  /** When true, investor-tagged threads are hidden from this panel (they live in the Investors panel) */
+  hideInvestors?: boolean
 }
 
 type SortMode = 'recent' | 'unread'
@@ -65,7 +67,7 @@ function truncate(s: string | null, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + '…' : s
 }
 
-export default function ChatList({ panel, selectedThreadId, onSelect }: Props) {
+export default function ChatList({ panel, selectedThreadId, onSelect, hideInvestors = false }: Props) {
   const theme = PANEL_THEME[panel]
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortMode>('recent')
@@ -126,6 +128,10 @@ export default function ChatList({ panel, selectedThreadId, onSelect }: Props) {
 
   const threads = useMemo<DashboardThread[]>(() => {
     let list = data || []
+    // Remove investor-tagged contacts from 718/305 panels — they live in the Investors panel
+    if (hideInvestors) {
+      list = list.filter((t) => !t.is_investor)
+    }
     if (filter === 'direct') {
       list = list.filter((t) => !t.is_group)
     } else if (filter === 'groups') {

@@ -90,11 +90,19 @@ export default function SpeakerButton({ text }: Props) {
       ? (
           <span
             aria-hidden
-            className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+            style={{
+              display: 'inline-block',
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              border: '2px solid currentColor',
+              borderTopColor: 'transparent',
+              animation: 'spin 0.7s linear infinite',
+            }}
           />
         )
       : state === 'playing'
-        ? '⏸️'
+        ? '⏸'
         : '🔊'
 
   return (
@@ -107,15 +115,25 @@ export default function SpeakerButton({ text }: Props) {
           ? 'Playback failed'
           : state === 'playing'
             ? 'Pause'
-            : 'Read aloud (Matilda)'
+            : 'Read aloud'
       }
       aria-label="Read aloud"
-      className={[
-        'inline-flex items-center justify-center rounded-md px-2 py-1 text-sm border transition-colors',
-        'bg-white text-gray-800 border-gray-300 hover:bg-gray-50',
-        state === 'loading' ? 'opacity-60 cursor-wait' : '',
-        state === 'error' ? 'border-red-300 text-red-600' : '',
-      ].join(' ')}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0.3rem 0.55rem',
+        borderRadius: 6,
+        fontSize: 14,
+        border: '1.5px solid',
+        borderColor: state === 'error' ? '#ef4444' : state === 'playing' ? '#22c55e' : 'rgba(255,255,255,0.18)',
+        background: state === 'playing' ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.07)',
+        color: state === 'error' ? '#ef4444' : '#fff',
+        cursor: (state === 'loading' || !text.trim()) ? 'not-allowed' : 'pointer',
+        opacity: (state === 'loading' || !text.trim()) ? 0.5 : 1,
+        fontFamily: 'inherit',
+        transition: 'background 0.15s, border-color 0.15s',
+      }}
     >
       {icon}
     </button>

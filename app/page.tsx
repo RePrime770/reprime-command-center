@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import ChatList from '@/components/chat/ChatList'
 import MessageView from '@/components/chat/MessageView'
@@ -8,7 +8,7 @@ import ReplyBox from '@/components/chat/ReplyBox'
 import PipedriveCard from '@/components/sidebar/PipedriveCard'
 import TodayPanel from '@/components/sidebar/TodayPanel'
 import NotesPanel from '@/components/sidebar/NotesPanel'
-import InvestorPanel, { type InvestorPanelJump } from '@/components/panels/InvestorPanel'
+import InvestorChatPanel from '@/components/panels/InvestorChatPanel'
 import type { DashboardMessage, DashboardThread, Panel } from '@/lib/timelines/types'
 
 type SelectionMap = Record<Panel, DashboardThread | null>
@@ -17,17 +17,13 @@ type PanelViewProps = {
   panel: Panel
   selected: DashboardThread | null
   onSelect: (thread: DashboardThread | null) => void
-  pendingThreadId: string | null
-  onPendingConsumed: () => void
 }
 
-function PanelView({ panel, selected, onSelect, pendingThreadId, onPendingConsumed }: PanelViewProps) {
+function PanelView({ panel, selected, onSelect }: PanelViewProps) {
   const queryClient = useQueryClient()
 
-  const messagesKey = ['messages', selected?.id] as const
-
   const { data: messages } = useQuery({
-    queryKey: messagesKey,
+    queryKey: ['messages', selected?.id],
     enabled: !!selected,
     queryFn: async (): Promise<DashboardMessage[]> => {
       if (!selected) return []
@@ -38,20 +34,6 @@ function PanelView({ panel, selected, onSelect, pendingThreadId, onPendingConsum
     },
     refetchOnWindowFocus: false,
   })
-
-  // If a jump from InvestorPanel asked for a specific thread on this panel,
-  // pick it from the threads cache once it lands.
-  const cachedThreads = queryClient.getQueryData<DashboardThread[]>(['threads', panel])
-  useEffect(() => {
-    if (!pendingThreadId) return
-    const list = cachedThreads
-    if (!list) return
-    const match = list.find((t) => t.id === pendingThreadId)
-    if (match) {
-      onSelect(match)
-      onPendingConsumed()
-    }
-  }, [pendingThreadId, cachedThreads, onSelect, onPendingConsumed])
 
   const onOptimistic = useCallback(
     (m: DashboardMessage) => {
@@ -112,6 +94,7 @@ function PanelView({ panel, selected, onSelect, pendingThreadId, onPendingConsum
           panel={panel}
           selectedThreadId={selected?.id ?? null}
           onSelect={onSelect}
+          hideInvestors
         />
         {selected ? (
           <>
@@ -149,32 +132,8 @@ function PanelView({ panel, selected, onSelect, pendingThreadId, onPendingConsum
   )
 }
 
-function useViewportWidth(): number {
-  const [w, setW] = useState(() =>
-    typeof window === 'undefined' ? 1920 : window.innerWidth
-  )
-  useEffect(() => {
-    const onResize = () => setW(window.innerWidth)
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-  return w
-}
-
 export default function Dashboard() {
-  const width = useViewportWidth()
-  const layout: 'three-col' | 'drawer' | 'mobile' = useMemo(() => {
-    if (width >= 1800) return 'three-col'
-    if (width >= 1200) return 'drawer'
-    return 'mobile'
-  }, [width])
-
   const [selections, setSelections] = useState<SelectionMap>({ '718': null, '305': null })
-  const [pendingByPanel, setPendingByPanel] = useState<Record<Panel, string | null>>({
-    '718': null,
-    '305': null,
-  })
-  const [drawerOpen, setDrawerOpen] = useState(false)
 
   const select = useCallback(
     (panel: Panel) => (thread: DashboardThread | null) =>
@@ -182,83 +141,24 @@ export default function Dashboard() {
     []
   )
 
-  const consumePending = useCallback(
-    (panel: Panel) => () => setPendingByPanel((prev) => ({ ...prev, [panel]: null })),
-    []
-  )
-
-  const handleJump = useCallback((target: InvestorPanelJump) => {
-    setPendingByPanel((prev) => ({ ...prev, [target.panel]: target.threadId }))
-    if (layout === 'drawer') setDrawerOpen(false)
-  }, [layout])
-
-  const investorWidth = layout === 'three-col' ? 360 : 380
-
   return (
     <>
       <TodayPanel />
-      <main style={{ display: 'flex', flex: 1, minHeight: 0, width: '100vw', position: 'relative' }}>
-      <PanelView
-        panel="718"
-        selected={selections['718']}
-        onSelect={select('718')}
-        pendingThreadId={pendingByPanel['718']}
-        onPendingConsumed={consumePending('718')}
-      />
-      <PanelView
-        panel="305"
-        selected={selections['305']}
-        onSelect={select('305')}
-        pendingThreadId={pendingByPanel['305']}
-        onPendingConsumed={consumePending('305')}
-      />
-
-      {layout === 'three-col' && (
-        <div style={{ width: investorWidth, flexShrink: 0, borderLeft: '1px solid var(--rp-border, rgba(188,156,69,0.25))' }}>
-          <InvestorPanel onJump={handleJump} />
-        </div>
-      )}
-
-      {layout === 'drawer' && (
-        <>
-          <button
-            onClick={() => setDrawerOpen((v) => !v)}
-            aria-label="Toggle investor panel"
-            style={{
-              position: 'absolute',
-              top: 12,
-              right: drawerOpen ? investorWidth + 12 : 12,
-              zIndex: 20,
-              background: '#0A1430',
-              color: 'var(--rp-gold, #BC9C45)',
-              border: '1px solid var(--rp-gold, #BC9C45)',
-              borderRadius: 999,
-              padding: '4px 12px',
-              fontSize: 12,
-              fontFamily: 'inherit',
-              cursor: 'pointer',
-              transition: 'right 0.2s ease',
-            }}
-          >
-            {drawerOpen ? 'Close investors' : 'Investors'}
-          </button>
-          {drawerOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                bottom: 0,
-                width: investorWidth,
-                zIndex: 15,
-                boxShadow: '-4px 0 16px rgba(0,0,0,0.35)',
-              }}
-            >
-              <InvestorPanel onJump={handleJump} />
-            </div>
-          )}
-        </>
-      )}
+      <main style={{ display: 'flex', flex: 1, minHeight: 0, width: '100vw' }}>
+        {/* 718 — Personal */}
+        <PanelView
+          panel="718"
+          selected={selections['718']}
+          onSelect={select('718')}
+        />
+        {/* 305 — RePrime */}
+        <PanelView
+          panel="305"
+          selected={selections['305']}
+          onSelect={select('305')}
+        />
+        {/* ★ Investors — third full panel, always visible */}
+        <InvestorChatPanel />
       </main>
       <NotesPanel />
     </>

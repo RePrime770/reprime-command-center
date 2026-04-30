@@ -7,10 +7,11 @@ type State = 'idle' | 'recording' | 'loading'
 
 type Props = {
   language: Language
-  onTranscript: (text: string, rtl: boolean) => void
+  onTranscript: (text: string, rtl?: boolean) => void
 }
 
 const FLAG: Record<Language, string> = { en: '🇺🇸', he: '🇮🇱' }
+const LABEL: Record<Language, string> = { en: 'EN', he: 'HE' }
 
 export default function MicButton({ language, onTranscript }: Props) {
   const [state, setState] = useState<State>('idle')
@@ -34,7 +35,7 @@ export default function MicButton({ language, onTranscript }: Props) {
     setState('loading')
     try {
       const fd = new FormData()
-      fd.append('audio', blob, `voice.webm`)
+      fd.append('audio', blob, 'voice.webm')
       const res = await fetch(`/api/voice/transcribe-${language}`, {
         method: 'POST',
         body: fd,
@@ -43,7 +44,7 @@ export default function MicButton({ language, onTranscript }: Props) {
         const detail = await res.text().catch(() => '')
         throw new Error(`Transcribe failed (${res.status}) ${detail}`)
       }
-      const data = (await res.json()) as { text: string; rtl: boolean }
+      const data = (await res.json()) as { text: string; rtl?: boolean }
       onTranscript(data.text ?? '', !!data.rtl)
       setError(null)
     } catch (e) {
@@ -89,6 +90,8 @@ export default function MicButton({ language, onTranscript }: Props) {
     recorderRef.current = null
   }
 
+  // Click once → start recording (button stays ON).
+  // Click again → stop recording and transcribe.
   const onClick = () => {
     if (state === 'idle') void start()
     else if (state === 'recording') stop()
@@ -97,36 +100,82 @@ export default function MicButton({ language, onTranscript }: Props) {
   const recording = state === 'recording'
   const loading = state === 'loading'
 
+  const baseStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '0.3rem 0.55rem',
+    borderRadius: 6,
+    fontSize: 12,
+    fontWeight: 600,
+    fontFamily: 'inherit',
+    cursor: loading ? 'wait' : 'pointer',
+    border: '1.5px solid',
+    transition: 'background 0.15s, border-color 0.15s, box-shadow 0.15s',
+    userSelect: 'none',
+    outline: 'none',
+    opacity: loading ? 0.7 : 1,
+  }
+
+  const idleStyle: React.CSSProperties = {
+    ...baseStyle,
+    background: 'rgba(255,255,255,0.07)',
+    borderColor: 'rgba(255,255,255,0.18)',
+    color: '#fff',
+  }
+
+  const recordingStyle: React.CSSProperties = {
+    ...baseStyle,
+    background: '#dc2626',
+    borderColor: '#ef4444',
+    color: '#fff',
+    boxShadow: '0 0 0 3px rgba(220,38,38,0.35)',
+    animation: 'mic-pulse 1s ease-in-out infinite',
+  }
+
+  const style = recording ? recordingStyle : idleStyle
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={loading}
-      title={
-        error
-          ? error
-          : recording
-            ? 'Stop recording'
-            : `Record (${language.toUpperCase()})`
-      }
-      aria-label={`Record voice in ${language === 'he' ? 'Hebrew' : 'English'}`}
-      className={[
-        'inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm border transition-colors',
-        recording
-          ? 'bg-red-600 text-white border-red-600 animate-pulse'
-          : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-50',
-        loading ? 'opacity-60 cursor-wait' : '',
-      ].join(' ')}
-    >
-      <span aria-hidden>{FLAG[language]}</span>
-      {loading ? (
-        <span
-          aria-hidden
-          className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
-        />
-      ) : (
-        <span aria-hidden>🎤</span>
-      )}
-    </button>
+    <>
+      <style>{`
+        @keyframes mic-pulse {
+          0%, 100% { box-shadow: 0 0 0 3px rgba(220,38,38,0.35); }
+          50%       { box-shadow: 0 0 0 6px rgba(220,38,38,0.15); }
+        }
+      `}</style>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={loading}
+        title={
+          error
+            ? error
+            : recording
+              ? `Stop recording (${LABEL[language]})`
+              : `Record in ${language === 'he' ? 'Hebrew' : 'English'} — click once to start, again to stop`
+        }
+        aria-label={`Record voice in ${language === 'he' ? 'Hebrew' : 'English'}`}
+        style={style}
+      >
+        <span aria-hidden>{FLAG[language]}</span>
+        {loading ? (
+          <span
+            aria-hidden
+            style={{
+              display: 'inline-block',
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              border: '2px solid currentColor',
+              borderTopColor: 'transparent',
+              animation: 'spin 0.7s linear infinite',
+            }}
+          />
+        ) : (
+          <span aria-hidden>{recording ? '⏹' : '🎤'}</span>
+        )}
+        <span>{LABEL[language]}</span>
+      </button>
+    </>
   )
 }
