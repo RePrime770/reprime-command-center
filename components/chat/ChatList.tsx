@@ -94,7 +94,10 @@ export default function ChatList({ panel, selectedThreadId, onSelect }: Props) {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          // INSERT only — '*' causes an infinite loop because the threads
+          // GET endpoint itself upserts (UPDATE) on every call, which fires
+          // realtime → invalidates → refetches → upserts again → ∞
+          event: 'INSERT',
           schema: 'public',
           table: 'whatsapp_threads',
           filter: `panel=eq.${panel}`,
