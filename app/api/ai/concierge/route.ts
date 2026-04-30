@@ -7,7 +7,14 @@ export const dynamic = 'force-dynamic'
 
 const ALLOWED_EMAIL = 'g@reprime.com'
 
-type ConciergeType = 'running_late' | 'finished_early' | 'couldnt_make_it'
+type ConciergeType =
+  | 'running_late'
+  | 'running_late_zoom'
+  | 'running_late_office'
+  | 'finished_early'
+  | 'couldnt_make_it'
+  | 'postpone'
+  | 'move_earlier'
 
 type Meeting = {
   title?: string | null
@@ -35,6 +42,14 @@ const CONCIERGE_TEMPLATES = {
     he: 'מגיע בעוד כמה דקות, אני בדרך. להתראות.',
     he_zoom: 'מגיע בעוד כמה דקות — אהיה בזום תוך רגע.',
   },
+  running_late_zoom: {
+    en: 'Running a few minutes late — I\'ll be on the Zoom call in just a moment. Apologies.',
+    he: 'מגיע בעוד כמה דקות — אהיה בזום תוך רגע. מתנצל.',
+  },
+  running_late_office: {
+    en: 'Running a few minutes late — on my way, be there shortly.',
+    he: 'מגיע בעוד כמה דקות, אני בדרך, אוחר מעט.',
+  },
   finished_early: {
     en: 'Wrapped up earlier than expected. Any chance you can join now?',
     en_zoom: 'Finished a few minutes early — if you\'re ready, we can jump on the Zoom now.',
@@ -43,7 +58,11 @@ const CONCIERGE_TEMPLATES = {
   },
 }
 
-const SYSTEM_PROMPT = `Write a concise apology + reschedule message in Gideon Gratsiani's voice (CRE principal, direct, no excessive apology). Embed the provided slot list naturally. Output JSON: {en, he}.`
+const AI_TYPE_PROMPTS: Partial<Record<ConciergeType, string>> = {
+  postpone: 'Write a brief, professional message saying I need to push back our meeting and proposing alternative slots. Embed the slot list naturally. Direct, no excessive apology.',
+  move_earlier: 'Write a brief, professional message saying I\'m free earlier than expected and would like to move our meeting sooner if they\'re available. Propose the available slots. Direct and friendly.',
+  couldnt_make_it: 'Write a concise apology message saying I can\'t make our meeting and propose alternative slots naturally. Direct, no excessive apology.',
+}
 
 function isBusinessHour(d: Date): boolean {
   // Central Time approximation. Mon-Thu 9-17, Fri 9-14.
@@ -114,14 +133,28 @@ export async function POST(request: NextRequest) {
   }
 
   const { type, meeting, contact, alternative_slots } = body
-  if (
-    type !== 'running_late' &&
-    type !== 'finished_early' &&
-    type !== 'couldnt_make_it'
-  ) {
+  const VALID_TYPES: ConciergeType[] = [
+    'running_late',
+    'running_late_zoom',
+    'running_late_office',
+    'finished_early',
+    'couldnt_make_it',
+    'postpone',
+    'move_earlier',
+  ]
+  if (!type || !VALID_TYPES.includes(type)) {
     return NextResponse.json({ error: 'invalid_type' }, { status: 400 })
   }
 
+  // Template-only types — return instantly, no AI needed
+  if (type === 'running_late_zoom') {
+    const tmpl = CONCIERGE_TEMPLATES.running_late_zoom
+    return NextResponse.json({ en: tmpl.en, he: tmpl.he, slots: [] })
+  }
+  if (type === 'running_late_office') {
+    const tmpl = CONCIERGE_TEMPLATES.running_late_office
+    return NextResponse.json({ en: tmpl.en, he: tmpl.he, slots: [] })
+  }
   if (type === 'running_late' || type === 'finished_early') {
     const isZoom = !!(meeting as Meeting)?.zoom_link
     const tmpl = CONCIERGE_TEMPLATES[type]
@@ -144,7 +177,7 @@ export async function POST(request: NextRequest) {
 
   const m = (meeting || {}) as Meeting
   const lines: string[] = []
-  lines.push(`Meeting: ${m.title || 'today'}${m.time ? ` at ${m.time}` : ''}`)
+  if (m.title) lines.push(`Meeting: ${m.title}${m.time ? ` at ${m.time}` : ''}`)
   if (m.zoom_link) lines.push('Format: Zoom call (not in-person)')
   if (m.attendee_name) lines.push(`Attendee: ${m.attendee_name}`)
   if (contact?.name) lines.push(`Contact: ${contact.name}`)
@@ -154,6 +187,7 @@ export async function POST(request: NextRequest) {
       : 'No specific slots — propose this week generally.'
   )
   const userMsg = lines.join('\n')
+  const taskPrompt = AI_TYPE_PROMPTS[type] ?? AI_TYPE_PROMPTS['couldnt_make_it']!
 
   const client = new Anthropic({ apiKey })
 
@@ -162,7 +196,7 @@ export async function POST(request: NextRequest) {
     const response = await client.messages.create({
       model: 'claude-haiku-4-5',
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      system: `You write brief WhatsApp messages in Gideon Gratsiani's voice (CRE principal, direct, no excessive apology). Task: ${taskPrompt} Output JSON only: {"en": "...", "he": "..."}.`,
       messages: [{ role: 'user', content: userMsg }],
     })
     const text = response.content

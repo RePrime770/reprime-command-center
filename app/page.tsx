@@ -6,6 +6,7 @@ import CallButton from '@/components/chat/CallButton'
 import ChatList from '@/components/chat/ChatList'
 import MessageView from '@/components/chat/MessageView'
 import ReplyBox from '@/components/chat/ReplyBox'
+import TopBarConcierge from '@/components/chat/TopBarConcierge'
 import PipedriveCard from '@/components/sidebar/PipedriveCard'
 import TodayPanel from '@/components/sidebar/TodayPanel'
 import NotesPanel from '@/components/sidebar/NotesPanel'
@@ -34,22 +35,21 @@ function ImportNamesButton() {
         setMsg(json.message || json.error || `Error ${res.status}`)
       } else {
         setStatus('ok')
-        setMsg(`✓ ${json.updated} names updated, ${json.skipped} skipped`)
-        // Fade back to idle after 5s
+        setMsg(`✓ ${json.updated} updated, ${json.skipped} skipped`)
         setTimeout(() => { setStatus('idle'); setMsg('') }, 5000)
       }
     } catch (ex: unknown) {
       setStatus('err')
       setMsg((ex as Error).message)
     }
-    // Reset file input
     if (inputRef.current) inputRef.current.value = ''
   }
 
-  const color = status === 'ok' ? '#22c55e' : status === 'err' ? '#ef4444' : 'rgba(255,255,255,0.45)'
+  const color =
+    status === 'ok' ? '#22c55e' : status === 'err' ? '#ef4444' : 'rgba(188,156,69,0.85)'
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <input
         ref={inputRef}
         type="file"
@@ -67,19 +67,20 @@ function ImportNamesButton() {
           color,
           border: `1px solid ${color}`,
           borderRadius: 5,
-          padding: '0.2rem 0.5rem',
+          padding: '0.2rem 0.55rem',
           fontSize: 11,
           fontWeight: 600,
           cursor: status === 'loading' ? 'not-allowed' : 'pointer',
           fontFamily: 'inherit',
           letterSpacing: '0.03em',
           opacity: status === 'loading' ? 0.6 : 1,
+          flexShrink: 0,
         }}
       >
-        {status === 'loading' ? '⏳ Importing…' : '📋 Import Names'}
+        {status === 'loading' ? '⏳' : '📋'} Import Names
       </button>
       {msg && (
-        <span style={{ fontSize: 11, color, maxWidth: 280, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={{ fontSize: 10, color, maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {msg}
         </span>
       )}
@@ -87,7 +88,7 @@ function ImportNamesButton() {
   )
 }
 
-type SelectionMap = Record<Panel, DashboardThread | null>
+// ── Panel view ────────────────────────────────────────────────────────────────
 
 type PanelViewProps = {
   panel: Panel
@@ -142,13 +143,13 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
     [queryClient, selected, panel]
   )
 
-  const isPersonal = panel === '718'
-  const headerBg = isPersonal ? 'var(--personal-bg)' : 'var(--rp-navy)'
-  const headerText = isPersonal ? 'var(--personal-text)' : 'var(--rp-gold)'
-  const headerMuted = isPersonal ? 'var(--personal-muted)' : 'var(--rp-gold-lite)'
-  const borderColor = isPersonal ? 'var(--personal-border)' : 'var(--rp-border)'
-  const phoneLabel = isPersonal ? '+1 (718) 550-5500' : '+1 (305) 778-4861'
-  const title = isPersonal ? '718 — Personal' : '305 — RePrime'
+  const is718 = panel === '718'
+  const headerBg = is718 ? 'var(--personal-bg)' : 'var(--rp-navy)'
+  const headerText = is718 ? 'var(--personal-text)' : 'var(--rp-gold)'
+  const headerMuted = is718 ? 'var(--personal-muted)' : 'var(--rp-gold-lite)'
+  const borderColor = is718 ? 'var(--personal-border)' : 'var(--rp-border)'
+  const phoneLabel = is718 ? '+1 (718) 550-5500' : '+1 (305) 778-4861'
+  const title = is718 ? '718 — Personal' : '305 — RePrime'
 
   return (
     <div
@@ -158,7 +159,7 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
         flexDirection: 'column',
         background: headerBg,
         color: headerText,
-        borderRight: isPersonal ? `1px solid ${borderColor}` : undefined,
+        borderRight: `1px solid ${borderColor}`,
         minWidth: 0,
       }}
     >
@@ -240,21 +241,41 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
   )
 }
 
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+type SelectionMap = Record<Panel, DashboardThread | null>
+
 export default function Dashboard() {
   const [selections, setSelections] = useState<SelectionMap>({ '718': null, '305': null })
+  const [activeThread, setActiveThread] = useState<DashboardThread | null>(null)
   const [showTerminal, setShowTerminal] = useState(false)
 
   const select = useCallback(
-    (panel: Panel) => (thread: DashboardThread | null) =>
-      setSelections((prev) => ({ ...prev, [panel]: thread })),
+    (panel: Panel) => (thread: DashboardThread | null) => {
+      setSelections((prev) => ({ ...prev, [panel]: thread }))
+      if (thread) setActiveThread(thread)
+    },
     []
   )
 
   return (
     <>
       <TodayPanel />
-      {/* ── Tool strip ── */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '0.3rem 1rem', background: '#0A1430', borderBottom: '1px solid rgba(188,156,69,0.15)', gap: 12, flexShrink: 0 }}>
+
+      {/* ── Top control bar ────────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0.28rem 0.9rem',
+          background: '#080F24',
+          borderBottom: '1px solid rgba(188,156,69,0.18)',
+          gap: 10,
+          flexShrink: 0,
+          overflowX: 'auto',
+        }}
+      >
+        {/* Utility buttons */}
         <ImportNamesButton />
         <button
           type="button"
@@ -270,11 +291,34 @@ export default function Dashboard() {
             cursor: 'pointer',
             fontFamily: 'inherit',
             letterSpacing: '0.03em',
+            flexShrink: 0,
           }}
         >
           ✉ Terminal
         </button>
+
+        {/* Divider */}
+        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(188,156,69,0.2)', flexShrink: 0 }} />
+
+        {/* Concierge quick-actions — target whoever's chat is open */}
+        <TopBarConcierge activeThread={activeThread} />
+
+        {/* Active-thread indicator */}
+        {activeThread && (
+          <span
+            style={{
+              fontSize: 10,
+              color: 'rgba(188,156,69,0.55)',
+              flexShrink: 0,
+              marginLeft: 'auto',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            → {activeThread.contact_name || activeThread.phone}
+          </span>
+        )}
       </div>
+
       {showTerminal && (
         <div
           style={{
@@ -292,20 +336,21 @@ export default function Dashboard() {
           <BookingsPanel onClose={() => setShowTerminal(false)} />
         </div>
       )}
+
       <main style={{ display: 'flex', flex: 1, minHeight: 0, width: '100vw' }}>
-        {/* 718 — Personal */}
-        <PanelView
-          panel="718"
-          selected={selections['718']}
-          onSelect={select('718')}
-        />
-        {/* 305 — RePrime */}
+        {/* ── 305 — RePrime (left) ── */}
         <PanelView
           panel="305"
           selected={selections['305']}
           onSelect={select('305')}
         />
-        {/* ★ Investors — third full panel, always visible */}
+        {/* ── 718 — Personal (center) ── */}
+        <PanelView
+          panel="718"
+          selected={selections['718']}
+          onSelect={select('718')}
+        />
+        {/* ── Investors (right) ── */}
         <InvestorChatPanel />
       </main>
       <NotesPanel />
