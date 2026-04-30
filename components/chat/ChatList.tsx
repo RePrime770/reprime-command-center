@@ -257,6 +257,7 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
           const nameIsDigits = !t.contact_name || /^\+?\d[\d\s\-()]*$/.test(t.contact_name.trim())
           const displayName = nameIsDigits ? (formattedPhone || t.phone) : t.contact_name!
           const showPhoneLine = !nameIsDigits && formattedPhone && formattedPhone !== displayName
+          const hasUnread = t.unread_count > 0
           return (
             <button
               key={t.id}
@@ -268,7 +269,8 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
                 gap: 10,
                 padding: '0.6rem 0.75rem',
                 border: 'none',
-                background: isSelected ? theme.selected : 'transparent',
+                borderLeft: hasUnread ? '3px solid #ef4444' : '3px solid transparent',
+                background: isSelected ? theme.selected : hasUnread ? 'rgba(239,68,68,0.07)' : 'transparent',
                 color: theme.text,
                 cursor: 'pointer',
                 textAlign: 'left',
@@ -281,13 +283,13 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
                   width: 36,
                   height: 36,
                   borderRadius: '50%',
-                  background: theme.accent,
-                  color: panel === '305' ? 'var(--rp-navy)' : '#fff',
+                  background: hasUnread ? '#ef4444' : theme.accent,
+                  color: '#fff',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: 13,
-                  fontWeight: 600,
+                  fontWeight: 700,
                   flexShrink: 0,
                 }}
               >
@@ -295,13 +297,13 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6 }}>
-                  <span style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontWeight: hasUnread ? 800 : 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: hasUnread ? '#fff' : theme.text }}>
                     {displayName}
                     {t.is_investor && (
                       <span style={{ marginLeft: 6, color: theme.accent, fontSize: 11 }}>★</span>
                     )}
                   </span>
-                  <span style={{ fontSize: 11, color: theme.muted, flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, color: hasUnread ? '#fca5a5' : theme.muted, flexShrink: 0, fontWeight: hasUnread ? 600 : 400 }}>
                     {relativeTime(t.last_message_at)}
                   </span>
                 </div>
@@ -311,19 +313,20 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
                   </div>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                  <span style={{ fontSize: 12, color: theme.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 12, color: hasUnread ? 'rgba(255,255,255,0.7)' : theme.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: hasUnread ? 'italic' : 'normal' }}>
                     {truncate(t.last_message_preview, 40)}
                   </span>
-                  {t.unread_count > 0 && (
+                  {hasUnread && (
                     <span
                       style={{
-                        background: theme.accent,
-                        color: panel === '305' ? 'var(--rp-navy)' : '#fff',
+                        background: '#ef4444',
+                        color: '#fff',
                         borderRadius: 999,
                         fontSize: 10,
-                        fontWeight: 700,
-                        padding: '1px 7px',
+                        fontWeight: 800,
+                        padding: '2px 7px',
                         flexShrink: 0,
+                        boxShadow: '0 0 0 2px rgba(239,68,68,0.3)',
                       }}
                     >
                       {t.unread_count}

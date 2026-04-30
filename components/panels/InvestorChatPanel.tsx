@@ -253,6 +253,7 @@ export default function InvestorChatPanel() {
             )}
             {threads.map((t) => {
               const isSelected = t.id === selected?.id
+              const hasUnread = t.unread_count > 0
               const formattedPhone = formatPhoneDisplay(t.phone)
               const nameIsDigits = !t.contact_name || /^\+?\d[\d\s\-()]*$/.test(t.contact_name.trim())
               const displayName = nameIsDigits ? (formattedPhone || t.phone) : t.contact_name!
@@ -267,12 +268,12 @@ export default function InvestorChatPanel() {
                     gap: 10,
                     padding: '0.6rem 0.75rem',
                     border: 'none',
-                    background: isSelected ? SELECTED_BG : 'transparent',
+                    background: isSelected ? SELECTED_BG : hasUnread ? 'rgba(239,68,68,0.07)' : 'transparent',
                     color: TEXT,
                     cursor: 'pointer',
                     textAlign: 'left',
                     borderBottom: `1px solid ${BORDER}`,
-                    borderLeft: isSelected ? `3px solid ${GOLD}` : '3px solid transparent',
+                    borderLeft: isSelected ? `3px solid ${GOLD}` : hasUnread ? '3px solid #ef4444' : '3px solid transparent',
                     fontFamily: 'inherit',
                   }}
                 >
@@ -282,15 +283,15 @@ export default function InvestorChatPanel() {
                       width: 36,
                       height: 36,
                       borderRadius: '50%',
-                      background: isSelected ? GOLD : 'rgba(188,156,69,0.2)',
-                      color: NAVY,
+                      background: isSelected ? GOLD : hasUnread ? '#ef4444' : 'rgba(188,156,69,0.2)',
+                      color: isSelected ? NAVY : '#fff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: 13,
                       fontWeight: 700,
                       flexShrink: 0,
-                      border: `1px solid ${BORDER}`,
+                      border: `1px solid ${hasUnread ? 'rgba(239,68,68,0.5)' : BORDER}`,
                     }}
                   >
                     {initials(t.contact_name, t.phone)}
@@ -298,15 +299,15 @@ export default function InvestorChatPanel() {
 
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 4 }}>
-                      <span style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isSelected ? GOLD_LITE : TEXT }}>
+                      <span style={{ fontWeight: hasUnread ? 800 : 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isSelected ? GOLD_LITE : hasUnread ? '#fff' : TEXT }}>
                         {displayName}
                       </span>
-                      <span style={{ fontSize: 10, color: MUTED, flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, color: hasUnread ? '#fca5a5' : MUTED, flexShrink: 0, fontWeight: hasUnread ? 600 : 400 }}>
                         {relativeTime(t.last_message_at)}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                      <span style={{ fontSize: 11, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 11, color: hasUnread ? 'rgba(255,255,255,0.7)' : MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: hasUnread ? 'italic' : 'normal' }}>
                         {truncate(t.last_message_preview, 36)}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
@@ -325,15 +326,16 @@ export default function InvestorChatPanel() {
                         >
                           {t.panel === '718' ? '718' : '305'}
                         </span>
-                        {t.unread_count > 0 && (
+                        {hasUnread && (
                           <span
                             style={{
-                              background: GOLD,
-                              color: NAVY,
+                              background: '#ef4444',
+                              color: '#fff',
                               borderRadius: 999,
                               fontSize: 10,
-                              fontWeight: 700,
-                              padding: '1px 6px',
+                              fontWeight: 800,
+                              padding: '2px 6px',
+                              boxShadow: '0 0 0 2px rgba(239,68,68,0.3)',
                             }}
                           >
                             {t.unread_count}
