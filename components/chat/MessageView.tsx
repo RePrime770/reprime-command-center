@@ -112,7 +112,6 @@ function MediaBlock({ msg }: { msg: DashboardMessage }) {
 export default function MessageView({ thread, messages }: Props) {
   const theme = PANEL_THEME[thread.panel]
   const scrollRef = useRef<HTMLDivElement>(null)
-  const lastCount = useRef<number>(0)
 
   const sorted = useMemo(() => {
     return [...messages].sort((a, b) => {
@@ -122,14 +121,12 @@ export default function MessageView({ thread, messages }: Props) {
     })
   }, [messages])
 
+  // Always scroll to bottom: when thread switches OR when new messages arrive
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    if (sorted.length !== lastCount.current) {
-      el.scrollTop = el.scrollHeight
-      lastCount.current = sorted.length
-    }
-  }, [sorted, thread.id])
+    el.scrollTop = el.scrollHeight
+  }, [thread.id, sorted.length])
 
   return (
     <div
@@ -166,10 +163,13 @@ export default function MessageView({ thread, messages }: Props) {
         <TagChips threadId={thread.id} panel={thread.panel} />
       </div>
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0.75rem 1rem' }}>
-        {sorted.length === 0 && (
-          <div style={{ color: theme.muted, fontSize: 13, padding: '1rem 0' }}>No messages yet.</div>
-        )}
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column' }}>
+        {sorted.length === 0 ? (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.muted, fontSize: 13 }}>No messages yet.</div>
+        ) : (
+        <>
+        {/* Spacer: pushes messages to the bottom so reply box is right below the last message */}
+        <div style={{ flex: '1 1 0' }} />
         {sorted.map((m, idx) => {
           const prev = sorted[idx - 1]
           const showDay =
@@ -245,6 +245,8 @@ export default function MessageView({ thread, messages }: Props) {
             </div>
           )
         })}
+        </>
+        )}
       </div>
     </div>
   )
