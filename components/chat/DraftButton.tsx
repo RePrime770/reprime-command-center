@@ -24,6 +24,29 @@ const MODEL_OPTIONS: Array<{ value: ModelKey; label: string }> = [
   { value: 'opus-thinking', label: '💡 Opus 4.7 + Thinking' },
 ]
 
+const STORAGE_KEY = 'draft-model-v1'
+const RESET_HOURS = 24
+
+/** Read stored model — resets to haiku if older than 24 h or not set */
+function getInitialModel(): ModelKey {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
+    if (!raw) return 'haiku'
+    const { model, savedAt } = JSON.parse(raw) as { model: ModelKey; savedAt: number }
+    const hoursElapsed = (Date.now() - savedAt) / 3_600_000
+    if (hoursElapsed >= RESET_HOURS) return 'haiku'
+    return model
+  } catch {
+    return 'haiku'
+  }
+}
+
+function persistModel(m: ModelKey) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ model: m, savedAt: Date.now() }))
+  } catch {}
+}
+
 export default function DraftButton({
   panel,
   threadId,
@@ -32,7 +55,7 @@ export default function DraftButton({
   onDraft,
   disabled,
 }: Props) {
-  const [model, setModel] = useState<ModelKey>('opus')
+  const [model, setModel] = useState<ModelKey>(() => getInitialModel())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -73,7 +96,7 @@ export default function DraftButton({
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
       <select
         value={model}
-        onChange={(e) => setModel(e.target.value as ModelKey)}
+        onChange={(e) => { const m = e.target.value as ModelKey; setModel(m); persistModel(m) }}
         disabled={isDisabled}
         title="Model"
         style={{
