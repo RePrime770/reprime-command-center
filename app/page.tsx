@@ -21,6 +21,7 @@ type PanelViewProps = {
 
 function PanelView({ panel, selected, onSelect }: PanelViewProps) {
   const queryClient = useQueryClient()
+  const [showPipedrive, setShowPipedrive] = useState(false)
 
   const { data: messages } = useQuery({
     queryKey: ['messages', selected?.id],
@@ -85,9 +86,33 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
         minWidth: 0,
       }}
     >
-      <div style={{ padding: '0.75rem 1rem', borderBottom: `1px solid ${borderColor}` }}>
-        <h1 style={{ color: headerText, fontWeight: 600, fontSize: '1.1rem', margin: 0 }}>{title}</h1>
-        <p style={{ color: headerMuted, margin: '0.1rem 0 0', fontSize: 12 }}>{phoneLabel}</p>
+      <div style={{ padding: '0.75rem 1rem', borderBottom: `1px solid ${borderColor}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <h1 style={{ color: headerText, fontWeight: 600, fontSize: '1.1rem', margin: 0 }}>{title}</h1>
+          <p style={{ color: headerMuted, margin: '0.1rem 0 0', fontSize: 12 }}>{phoneLabel}</p>
+        </div>
+        {selected && (
+          <button
+            type="button"
+            onClick={() => setShowPipedrive((v) => !v)}
+            title={showPipedrive ? 'Hide CRM info' : 'Show CRM info'}
+            style={{
+              background: showPipedrive ? headerText : 'transparent',
+              color: showPipedrive ? headerBg : headerMuted,
+              border: `1px solid ${borderColor}`,
+              borderRadius: 6,
+              padding: '0.25rem 0.55rem',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              letterSpacing: '0.04em',
+              flexShrink: 0,
+            }}
+          >
+            CRM
+          </button>
+        )}
       </div>
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <ChatList
@@ -111,7 +136,7 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
                 />
               </div>
             </div>
-            <PipedriveCard thread={selected} panel={panel} />
+            {showPipedrive && <PipedriveCard thread={selected} panel={panel} />}
           </>
         ) : (
           <div
