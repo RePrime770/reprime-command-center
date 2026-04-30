@@ -15,14 +15,43 @@ type WebhookPayload = {
   event?: string
 }
 
-function panelFromAccountId(accountId: string | undefined | null): Panel | null {
-  if (!accountId) return null
-  const digits = accountId.replace(/\D/g, '')
-  if (digits.endsWith('17185505500') || digits === '17185505500') return '718'
-  if (digits.endsWith('13057784861') || digits === '13057784861') return '305'
-  for (const [panel, phone] of Object.entries(PANEL_ACCOUNT_MAP)) {
-    if (accountId === phone) return panel as Panel
-  }
+/** Match any string containing our account digits */
+function matchPanel(value: string | undefined | null): Panel | null {
+  if (!value) return null
+  const digits = value.replace(/\D/g, '')
+  if (digits.endsWith('17185505500') || digits === '7185505500') return '718'
+  if (digits.endsWith('13057784861') || digits === '3057784861') return '305'
+  return null
+}
+
+/**
+ * Determine panel from all available fields.
+ * Timelines sometimes omits whatsapp_account_id so we fall back to
+ * the message sender/recipient phones (one of them is always our number).
+ */
+function resolvePanel(
+  chat: TimelinesChat,
+  message: TimelinesMessage
+): Panel | null {
+  // 1. Explicit account id (most reliable when present)
+  const fromAccountId = matchPanel(chat.whatsapp_account_id)
+  if (fromAccountId) return fromAccountId
+
+  // 2. Message phones: for outbound our number = sender; for inbound = recipient
+  const ourPhone = message.from_me ? message.sender_phone : message.recipient_phone
+  const fromPhone = matchPanel(ourPhone)
+  if (fromPhone) return fromPhone
+
+  // 3. Try both sender and recipient regardless of direction
+  const fromSender = matchPanel(message.sender_phone)
+  if (fromSender) return fromSender
+  const fromRecipient = matchPanel(message.recipient_phone)
+  if (fromRecipient) return fromRecipient
+
+  // 4. Chat JID (sometimes encodes the account phone)
+  const fromJid = matchPanel(chat.jid)
+  if (fromJid) return fromJid
+
   return null
 }
 
@@ -84,13 +113,21 @@ export async function POST(request: Request) {
     }
   }
 
-  const panel = panelFromAccountId(chat.whatsapp_account_id)
+  const panel = resolvePanel(chat, message)
   console.log('[webhook] panel inference', {
     whatsapp_account_id: chat.whatsapp_account_id,
-    panel,
+    sender_phone: message.sender_phone,
+    recipient_phone: message.recipient_phone,
+    from_me: message.from_me,
+    chat_jid: chat.jid,
+    resolved_panel: panel,
   })
   if (!panel) {
-    console.log('[webhook] skipped — unknown account', { whatsapp_account_id: chat.whatsapp_account_id })
+    console.log('[webhook] skipped — could not resolve panel', {
+      whatsapp_account_id: chat.whatsapp_account_id,
+      sender_phone: message.sender_phone,
+      recipient_phone: message.recipient_phone,
+    })
     return NextResponse.json({ ok: true, skipped: 'unknown account' })
   }
 
