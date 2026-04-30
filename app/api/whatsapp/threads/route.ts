@@ -74,9 +74,22 @@ export async function GET(request: NextRequest) {
     }
     const panel: Panel = panelParam
 
-    const allChats: TimelinesChat[] = await getAllChats(panel)
-    if (allChats.length > 0) {
-      console.log('[threads] sample chat keys', Object.keys(allChats[0] as unknown as Record<string, unknown>))
+    let allChats: TimelinesChat[] = []
+    let timelinesSkipped = false
+    try {
+      allChats = await getAllChats(panel)
+      if (allChats.length > 0) {
+        console.log('[threads] sample chat keys', Object.keys(allChats[0] as unknown as Record<string, unknown>))
+      }
+    } catch (timelinesErr: unknown) {
+      const msg = (timelinesErr as Error).message ?? ''
+      // 403 = quota exhausted — serve from DB cache instead of hard-failing
+      if (msg.includes('403')) {
+        console.warn('[/api/whatsapp/threads] Timelines 403 quota — falling back to DB cache', { panel, msg: msg.slice(0, 200) })
+        timelinesSkipped = true
+      } else {
+        throw timelinesErr
+      }
     }
     const chatsForThisPanel = allChats.filter(
       (chat) => panelFromAccountId(chat.whatsapp_account_id || '') === panel
@@ -118,7 +131,8 @@ export async function GET(request: NextRequest) {
     }
 
     const service = createServiceClient()
-    const rows = kept.map((c) => chatToThreadRow(c, panel))
+    // When Timelines was skipped (quota 403) kept is empty — skip upsert entirely
+    const rows = timelinesSkipped ? [] : kept.map((c) => chatToThreadRow(c, panel))
 
     const sortedRows = rows.sort((a, b) => {
       const at = a.last_message_at ? new Date(a.last_message_at).getTime() : 0

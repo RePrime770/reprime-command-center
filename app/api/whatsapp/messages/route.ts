@@ -75,10 +75,16 @@ export async function GET(request: NextRequest) {
       console.warn('[messages/GET] no matching Timelines chat for phone', { threadPhone, panel, totalChats: allChats.length })
     }
   } catch (err) {
-    return NextResponse.json(
-      { error: 'timelines_failed', message: (err as Error).message },
-      { status: 502 }
-    )
+    const msg = (err as Error).message ?? ''
+    if (msg.includes('403')) {
+      // Quota exhausted — serve from DB cache; don't hard-fail
+      console.warn('[messages/GET] Timelines 403 quota — serving DB cache', { threadPhone, panel })
+    } else {
+      return NextResponse.json(
+        { error: 'timelines_failed', message: msg },
+        { status: 502 }
+      )
+    }
   }
 
   const rows = messages.map((m) => {
@@ -249,13 +255,20 @@ export async function POST(request: NextRequest) {
       whatsappAccountPhone: accountId,
     })
   } catch (err) {
+    const msg = (err as Error).message ?? ''
+    const isQuota = msg.includes('403')
     await service
       .from('whatsapp_messages')
-      .update({ status: 'Failed' })
+      .update({ status: isQuota ? 'QuotaExceeded' : 'Failed' })
       .eq('id', inserted.id)
     return NextResponse.json(
-      { error: 'timelines_send_failed', message: (err as Error).message },
-      { status: 502 }
+      {
+        error: isQuota ? 'timelines_quota_exceeded' : 'timelines_send_failed',
+        message: isQuota
+          ? 'Timelines API monthly quota exceeded — resets May 1. Message saved; retry tomorrow.'
+          : msg,
+      },
+      { status: isQuota ? 429 : 502 }
     )
   }
 

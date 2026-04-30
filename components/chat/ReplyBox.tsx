@@ -32,7 +32,7 @@ export default function ReplyBox({
   const [body, setBody] = useState('')
   const [attachment, setAttachment] = useState<{ url: string; filename: string; type: string } | null>(null)
   const [sending, setSending] = useState(false)
-  const [lastFailed, setLastFailed] = useState<{ tempId: string; body: string; attachment: typeof attachment } | null>(null)
+  const [lastFailed, setLastFailed] = useState<{ tempId: string; body: string; attachment: typeof attachment; isQuota?: boolean } | null>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
 
   const rtl = isHebrew(body)
@@ -97,8 +97,9 @@ export default function ReplyBox({
         }),
       })
       if (!res.ok) {
-        const txt = await res.text().catch(() => '')
-        throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`)
+        const json = await res.json().catch(() => null)
+        const isQuota = res.status === 429 || json?.error === 'timelines_quota_exceeded'
+        throw Object.assign(new Error(json?.message || `HTTP ${res.status}`), { isQuota })
       }
       const real: DashboardMessage = await res.json()
       onStatus?.(tempId, 'ok', real)
@@ -106,7 +107,8 @@ export default function ReplyBox({
       setLastFailed(null)
     } catch (err) {
       onStatus?.(tempId, 'fail')
-      setLastFailed({ tempId, body: sendBody, attachment: sendAttachment })
+      const isQuota = !!(err as { isQuota?: boolean }).isQuota
+      setLastFailed({ tempId, body: sendBody, attachment: sendAttachment, isQuota })
     } finally {
       setSending(false)
     }
@@ -227,25 +229,31 @@ export default function ReplyBox({
             alignItems: 'center',
             gap: '0.5rem',
             fontSize: '0.75rem',
-            color: 'var(--rp-red)',
+            color: lastFailed.isQuota ? 'var(--rp-gold, #BC9C45)' : 'var(--rp-red)',
           }}
         >
-          <span>✗ Send failed.</span>
-          <button
-            type="button"
-            onClick={retry}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--rp-red)',
-              color: 'var(--rp-red)',
-              borderRadius: 4,
-              padding: '0.15rem 0.5rem',
-              fontSize: '0.75rem',
-              cursor: 'pointer',
-            }}
-          >
-            Retry
-          </button>
+          <span>
+            {lastFailed.isQuota
+              ? '⚠ API quota exceeded — resets May 1. Message saved.'
+              : '✗ Send failed.'}
+          </span>
+          {!lastFailed.isQuota && (
+            <button
+              type="button"
+              onClick={retry}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--rp-red)',
+                color: 'var(--rp-red)',
+                borderRadius: 4,
+                padding: '0.15rem 0.5rem',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+              }}
+            >
+              Retry
+            </button>
+          )}
         </div>
       )}
     </div>
