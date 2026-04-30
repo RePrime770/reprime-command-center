@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
-import { getChats, getMessages, sendMessage, PANEL_ACCOUNT_MAP } from '@/lib/timelines/client'
+import { getAllChats, getMessages, sendMessage, PANEL_ACCOUNT_MAP } from '@/lib/timelines/client'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
 import { getMediaType, parseTimelinesTimestamp } from '@/lib/timelines/parse'
 import type { DashboardMessage, Panel, TimelinesMessage } from '@/lib/timelines/types'
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
   // Find the matching Timelines chat by phone so we can fetch its messages
   let messages: TimelinesMessage[] = []
   try {
-    const allChats = await getChats(panel)
+    const allChats = await getAllChats(panel)
     const matchingChat = allChats.find(
       (c) => normalizePhone(c.phone) === threadPhone || c.phone === threadPhone
     )

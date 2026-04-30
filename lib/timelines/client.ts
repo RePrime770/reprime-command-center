@@ -40,6 +40,17 @@ export async function getChats(panel: Panel, page = 1): Promise<TimelinesChat[]>
   return json.data?.chats ?? []
 }
 
+/** Fetches ALL pages of chats (up to maxPages × 50) for a panel. */
+export async function getAllChats(panel: Panel, maxPages = 6): Promise<TimelinesChat[]> {
+  const all: TimelinesChat[] = []
+  for (let page = 1; page <= maxPages; page++) {
+    const batch = await getChats(panel, page)
+    all.push(...batch)
+    if (batch.length < 50) break   // last page
+  }
+  return all
+}
+
 export async function getMessages(chatId: number): Promise<TimelinesMessage[]> {
   const url = `${BASE_URL}/chats/${chatId}/messages`
   const res = await fetch(url, { headers: authHeaders(), cache: 'no-store' })

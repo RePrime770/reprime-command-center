@@ -7,7 +7,7 @@ import {
   type PipedriveActivity,
   type PipedrivePerson,
 } from '@/lib/pipedrive/client'
-import { getChats } from '@/lib/timelines/client'
+import { getAllChats } from '@/lib/timelines/client'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
 import {
   formatPhoneDisplay,
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     }
     const panel: Panel = panelParam
 
-    const allChats: TimelinesChat[] = await getChats(panel)
+    const allChats: TimelinesChat[] = await getAllChats(panel)
     if (allChats.length > 0) {
       console.log('[threads] sample chat keys', Object.keys(allChats[0] as unknown as Record<string, unknown>))
     }
@@ -95,7 +95,9 @@ export async function GET(request: NextRequest) {
       const normalized = isInvalidRaw ? null : normalizePhone(raw)
       const isGroupJid =
         typeof c.whatsapp_account_id === 'string' && c.whatsapp_account_id.endsWith('@g.us')
-      if (isInvalidRaw || !normalized || c.is_group === true || isGroupJid) {
+      // Skip if the contact phone matches the account phone (self-chat — sends would 403)
+      const isSelfPhone = normalized === '+17185505500' || normalized === '+13057784861'
+      if (isInvalidRaw || !normalized || c.is_group === true || isGroupJid || isSelfPhone) {
         discardedCount++
         continue
       }

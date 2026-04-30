@@ -115,9 +115,9 @@ function PanelView({ panel, selected, onSelect, pendingThreadId, onPendingConsum
         />
         {selected ? (
           <>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
               <MessageView thread={selected} messages={messages || []} />
-              <div style={{ padding: '0 1rem 0.75rem', background: headerBg }}>
+              <div style={{ padding: '0 1rem 0.75rem', background: headerBg, flexShrink: 0 }}>
                 <ReplyBox
                   panel={panel}
                   threadId={selected.id}

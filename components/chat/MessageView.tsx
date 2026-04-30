@@ -136,11 +136,12 @@ export default function MessageView({ thread, messages }: Props) {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
+        minHeight: 0,
         background: theme.bg,
         color: theme.text,
         flex: 1,
         minWidth: 0,
+        overflow: 'hidden',
       }}
     >
       <div
@@ -165,7 +166,7 @@ export default function MessageView({ thread, messages }: Props) {
         <TagChips threadId={thread.id} panel={thread.panel} />
       </div>
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '0.75rem 1rem' }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0.75rem 1rem' }}>
         {sorted.length === 0 && (
           <div style={{ color: theme.muted, fontSize: 13, padding: '1rem 0' }}>No messages yet.</div>
         )}
