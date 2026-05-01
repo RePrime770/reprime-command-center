@@ -58,76 +58,206 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           ? 'This invitation has expired.'
           : 'This invitation link is not valid.'
     return (
-      <main style={{ minHeight: '100vh', background: '#0E3470', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', fontFamily: 'Poppins, Arial, sans-serif' }}>
+      <main style={{ minHeight: '100vh', background: '#0A1628', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', fontFamily: 'Poppins, Arial, sans-serif' }}>
         <div style={{ maxWidth: 480, textAlign: 'center' }}>
-          <h1 style={{ color: '#BC9C45', fontWeight: 600 }}>{message}</h1>
+          <p style={{ color: 'rgba(188,156,69,0.5)', fontSize: '0.68rem', letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: '1rem' }}>RePrime Group</p>
+          <h1 style={{ color: '#BC9C45', fontWeight: 500, fontSize: '1.1rem', letterSpacing: '0.04em' }}>{message}</h1>
         </div>
       </main>
     )
   }
 
-  const firstName = invitation.contact_first_name || 'there'
+  const firstName = invitation.contact_first_name || invitation.contact_name?.split(' ')[0] || 'there'
   const isTerminal = invitation.meeting_type !== 'meeting'
   const slotGroups = await loadAvailableSlots()
 
   return (
-    <main style={{ minHeight: '100vh', background: '#0E3470', color: '#fff', fontFamily: 'Poppins, Arial, sans-serif' }}>
-      <header style={{ borderBottom: '1px solid #1A3560', padding: '1.5rem 2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <span style={{ color: '#D4B86A', letterSpacing: '0.1em', fontSize: '0.85rem', textTransform: 'uppercase' }}>
-          RePrime Group · {isTerminal ? 'Terminal Introduction' : 'Meeting Request'}
+    <main style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(170deg, #080f1f 0%, #0a1628 40%, #0e1f48 100%)',
+      color: '#fff',
+      fontFamily: 'Poppins, Arial, sans-serif',
+    }}>
+      {/* Minimal header */}
+      <header style={{ padding: '1.75rem 2.5rem' }}>
+        <span style={{
+          color: '#BC9C45',
+          fontSize: '0.65rem',
+          letterSpacing: '0.24em',
+          textTransform: 'uppercase',
+          fontWeight: 600,
+          opacity: 0.75,
+        }}>
+          RePrime Group
         </span>
       </header>
 
-      <section style={{ maxWidth: 720, margin: '0 auto', padding: '4rem 2rem' }}>
-        <h1 style={{ color: '#BC9C45', fontSize: '2rem', fontWeight: 600, margin: 0 }}>{firstName},</h1>
-        <p style={{ color: '#D4B86A', fontSize: '1.1rem', lineHeight: 1.7, marginTop: '1.5rem' }}>
-          {isTerminal
-            ? "A time to connect. Pick the slot that works best — confirm with one click. I'll be there."
-            : "Pick the time that works — confirm with one click and it's locked."}
+      {/* Hero + slots */}
+      <section style={{
+        maxWidth: 560,
+        margin: '0 auto',
+        padding: '1.5rem 2.5rem 6rem',
+        textAlign: 'center',
+      }}>
+
+        {/* ── Name ── */}
+        <h1 style={{
+          color: '#BC9C45',
+          fontSize: 'clamp(2.8rem, 8vw, 4.8rem)',
+          fontWeight: 700,
+          fontFamily: 'Georgia, serif',
+          letterSpacing: '0.01em',
+          margin: '0 0 0.5rem',
+          lineHeight: 1.05,
+        }}>
+          {firstName}
+        </h1>
+
+        {/* PRIVATE INTRODUCTION */}
+        <p style={{
+          color: 'rgba(212,184,106,0.6)',
+          fontSize: '0.65rem',
+          letterSpacing: '0.28em',
+          textTransform: 'uppercase',
+          margin: '0 0 2.25rem',
+          fontWeight: 500,
+        }}>
+          Private Introduction
         </p>
 
+        {/* Divider */}
+        <div style={{ width: 44, height: 1, background: 'rgba(188,156,69,0.35)', margin: '0 auto 2.25rem' }} />
+
+        {/* TERMINAL */}
+        {isTerminal && (
+          <>
+            <h2 style={{
+              color: '#D4B86A',
+              fontSize: 'clamp(1.6rem, 5vw, 2.8rem)',
+              fontWeight: 300,
+              fontFamily: 'Georgia, serif',
+              letterSpacing: '0.6em',
+              textTransform: 'uppercase',
+              margin: '0 0 0.5rem',
+              paddingLeft: '0.6em',
+            }}>
+              Terminal
+            </h2>
+
+            <p style={{
+              color: 'rgba(212,184,106,0.45)',
+              fontSize: '0.8rem',
+              fontStyle: 'italic',
+              letterSpacing: '0.06em',
+              margin: '0 0 2.25rem',
+            }}>
+              by RePrime
+            </p>
+
+            {/* Divider */}
+            <div style={{ width: 44, height: 1, background: 'rgba(188,156,69,0.35)', margin: '0 auto 1.75rem' }} />
+          </>
+        )}
+
+        {/* PRIVATE MEMBERSHIP / BY INVITATION ONLY */}
+        <p style={{
+          color: 'rgba(255,255,255,0.25)',
+          fontSize: '0.58rem',
+          letterSpacing: '0.24em',
+          textTransform: 'uppercase',
+          margin: '0 0 0.3rem',
+          fontWeight: 500,
+        }}>
+          Private Membership
+        </p>
+        <p style={{
+          color: 'rgba(255,255,255,0.16)',
+          fontSize: '0.58rem',
+          letterSpacing: '0.24em',
+          textTransform: 'uppercase',
+          margin: '0 0 3.5rem',
+          fontWeight: 500,
+        }}>
+          By Invitation Only
+        </p>
+
+        {/* ── Slots ── */}
         {slotGroups.length === 0 ? (
-          <p style={{ color: '#D4B86A', fontSize: '1rem', marginTop: '3rem' }}>
+          <p style={{
+            color: 'rgba(212,184,106,0.35)',
+            fontSize: '0.88rem',
+            letterSpacing: '0.04em',
+            lineHeight: 1.7,
+          }}>
             Please reach out directly to schedule.
           </p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginTop: '3rem' }}>
-            {slotGroups.map((group) => (
-              <div key={group.date}>
-                <h2 style={{ color: '#D4B86A', fontSize: '0.9rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 0.75rem' }}>
-                  {group.label}
-                </h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                  {group.times.map((slot) => (
-                    <form key={slot.iso} action="/api/bookings/confirm" method="POST">
-                      <input type="hidden" name="token" value={token} />
-                      <input type="hidden" name="slot_iso" value={slot.iso} />
-                      <button
-                        type="submit"
-                        style={{
-                          width: '100%',
-                          padding: '1rem 1.5rem',
-                          background: 'transparent',
-                          color: '#fff',
-                          border: '1px solid #BC9C45',
-                          borderRadius: '4px',
-                          fontSize: '1rem',
-                          fontFamily: 'inherit',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                        }}
-                      >
-                        {slot.display}
-                      </button>
-                    </form>
-                  ))}
+          <>
+            <p style={{
+              color: 'rgba(212,184,106,0.65)',
+              fontSize: '0.7rem',
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              marginBottom: '2rem',
+              fontWeight: 500,
+            }}>
+              Select a time →
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+              {slotGroups.map((group) => (
+                <div key={group.date} style={{ textAlign: 'left' }}>
+                  <h3 style={{
+                    color: 'rgba(212,184,106,0.5)',
+                    fontSize: '0.62rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.2em',
+                    margin: '0 0 0.7rem',
+                  }}>
+                    {group.label}
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {group.times.map((slot) => (
+                      <form key={slot.iso} action="/api/bookings/confirm" method="POST">
+                        <input type="hidden" name="token" value={token} />
+                        <input type="hidden" name="slot_iso" value={slot.iso} />
+                        <button
+                          type="submit"
+                          style={{
+                            width: '100%',
+                            padding: '0.9rem 1.5rem',
+                            background: 'rgba(188,156,69,0.05)',
+                            color: 'rgba(255,255,255,0.8)',
+                            border: '1px solid rgba(188,156,69,0.22)',
+                            borderRadius: '2px',
+                            fontSize: '0.88rem',
+                            fontFamily: 'inherit',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            letterSpacing: '0.02em',
+                            lineHeight: 1.4,
+                            transition: 'border-color 0.15s, background 0.15s',
+                          }}
+                        >
+                          {slot.display}
+                        </button>
+                      </form>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
 
-        <p style={{ marginTop: '4rem', color: '#8A8680', fontSize: '0.85rem', borderTop: '1px solid #1A3560', paddingTop: '1.5rem' }}>
+        {/* Footer */}
+        <p style={{
+          marginTop: '5rem',
+          color: 'rgba(255,255,255,0.13)',
+          fontSize: '0.68rem',
+          letterSpacing: '0.1em',
+        }}>
           Gideon Gratsiani · Founder, RePrime Group
         </p>
       </section>
