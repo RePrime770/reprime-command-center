@@ -137,7 +137,6 @@ export default function TopBarConcierge({ activeThread }: Props) {
               border: `1px solid ${a.color}`,
               color: a.color,
               cursor: 'pointer',
-              opacity: activeThread ? 1 : 0.55,
             }}
           >
             {a.emoji} {a.label}

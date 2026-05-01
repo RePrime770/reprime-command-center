@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-type ConciergeType = 'running_late' | 'finished_early' | 'couldnt_make_it'
+type ConciergeType = 'running_late' | 'couldnt_make_it'
 
 type Channel = 'whatsapp_305' | 'whatsapp_718' | 'sms_phone_link' | 'google_voice_305'
 type Lang = 'en' | 'he'
@@ -257,11 +257,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
               }}
             >
               <h2 style={{ margin: 0, fontSize: 16, color: '#D4B86A' }}>
-                {open === 'running_late'
-                  ? 'Running late'
-                  : open === 'finished_early'
-                  ? 'Finished early'
-                  : "Couldn't make it"}
+                {open === 'running_late' ? 'Running late' : "Couldn't make it"}
                 {meeting.title ? ` — ${meeting.title}` : ''}
               </h2>
               <button
