@@ -25,16 +25,24 @@ export default function CallButton({ panel, phone, isGroup, contactName }: Props
   const onClick = () => {
     if (panel === '305') {
       const url = `https://voice.google.com/u/0/calls?a=nc,${encodeURIComponent(e164)}`
-      // Side popup: stays out of the way, reuses same window on repeat clicks,
-      // does not navigate the dashboard tab away.
+      // Force popup window (not new tab). Chrome's heuristic:
+      //   - `popup=1` is the recognized truthy form (NOT `popup=true`)
+      //   - explicit width + height triggers popup behavior
+      //   - `noopener`/`noreferrer` MUST NOT be in features string for
+      //     Chrome to treat as popup; set opener=null after instead
       const w = 460
       const h = 720
       const left = Math.max(0, window.screenX + (window.outerWidth - w))
       const top = Math.max(0, window.screenY + 40)
-      const features = `popup=true,noopener,noreferrer,width=${w},height=${h},left=${left},top=${top}`
+      const features = `popup=1,width=${w},height=${h},left=${left},top=${top}`
       const popup = window.open(url, 'reprime-voice', features)
-      // If the browser blocked the popup, fall back to a new tab so the call still happens.
-      if (!popup) window.open(url, '_blank', 'noopener,noreferrer')
+      if (popup) {
+        try { popup.opener = null } catch { /* cross-origin — fine */ }
+      } else {
+        // Browser blocked the popup entirely — fall back to a new tab so
+        // the call still happens.
+        window.open(url, '_blank', 'noopener,noreferrer')
+      }
     } else {
       // tel: URI — let the OS handle it via Continuity / Phone Link.
       // Use a hidden anchor + click to avoid navigating the dashboard tab.
