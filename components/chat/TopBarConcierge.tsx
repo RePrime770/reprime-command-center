@@ -221,7 +221,7 @@ export default function TopBarConcierge({ activeThread }: Props) {
                     />
                   </label>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <span style={{ fontSize: 11, color: '#D4B86A', letterSpacing: 0.4 }}>עברית</span>
+                    <span style={{ fontSize: 11, color: '#D4B86A', letterSpacing: 0.4 }}>Hebrew</span>
                     <textarea
                       value={he}
                       onChange={(e) => setHe(e.target.value)}

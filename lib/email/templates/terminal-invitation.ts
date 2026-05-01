@@ -29,8 +29,7 @@ const TEMPLATE = `<!DOCTYPE html>
     <tr><td align="center" style="padding:2rem 1rem;">
       <table width="100%" style="max-width:600px; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
         <tr><td style="background:#0E3470; padding:1.75rem 2rem; border-bottom:3px solid #BC9C45;">
-          <span style="font-size:2rem; color:#BC9C45; font-weight:700; font-family:Georgia,serif; vertical-align:middle;">ת</span>
-          <span style="color:#D4B86A; letter-spacing:0.1em; font-size:0.8rem; text-transform:uppercase; margin-left:0.75rem;">RePrime Group · Terminal Introduction</span>
+          <span style="color:#D4B86A; letter-spacing:0.1em; font-size:0.8rem; text-transform:uppercase;">RePrime Group · Terminal Introduction</span>
         </td></tr>
         {{PERSONAL_MESSAGE_SECTION}}
         <tr><td style="padding:2.5rem 2rem;">

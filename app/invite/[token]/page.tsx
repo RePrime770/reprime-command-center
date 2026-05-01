@@ -73,7 +73,6 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   return (
     <main style={{ minHeight: '100vh', background: '#0E3470', color: '#fff', fontFamily: 'Poppins, Arial, sans-serif' }}>
       <header style={{ borderBottom: '1px solid #1A3560', padding: '1.5rem 2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <span style={{ fontSize: '2rem', color: '#BC9C45', fontWeight: 700, fontFamily: 'serif' }}>{isTerminal ? 'ת' : '·'}</span>
         <span style={{ color: '#D4B86A', letterSpacing: '0.1em', fontSize: '0.85rem', textTransform: 'uppercase' }}>
           RePrime Group · {isTerminal ? 'Terminal Introduction' : 'Meeting Request'}
         </span>

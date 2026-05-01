@@ -91,7 +91,6 @@ function pageHtml(opts: {
   <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;">
     <div style="max-width:560px;width:100%;">
       <header style="border-bottom:1px solid #1A3560;padding-bottom:1.5rem;display:flex;align-items:center;gap:1rem;margin-bottom:3rem;">
-        <span style="font-size:2rem;color:#BC9C45;font-weight:700;font-family:Georgia,serif;">ת</span>
         <span style="color:#D4B86A;letter-spacing:0.1em;font-size:0.85rem;text-transform:uppercase;">RePrime Group · Terminal Introduction</span>
       </header>
       <h1 style="color:#BC9C45;font-size:1.85rem;font-weight:600;margin:0 0 1.5rem;">${heading}</h1>
@@ -344,8 +343,7 @@ export async function POST(request: Request) {
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:2rem 1rem;">
 <table width="100%" style="max-width:600px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
 <tr><td style="background:#0E3470;padding:1.75rem 2rem;border-bottom:3px solid #BC9C45;">
-<span style="font-size:2rem;color:#BC9C45;font-weight:700;font-family:Georgia,serif;">ת</span>
-<span style="color:#D4B86A;letter-spacing:0.1em;font-size:0.8rem;text-transform:uppercase;margin-left:0.75rem;">RePrime Group · Terminal Confirmed</span>
+<span style="color:#D4B86A;letter-spacing:0.1em;font-size:0.8rem;text-transform:uppercase;">RePrime Group · Terminal Confirmed</span>
 </td></tr>
 <tr><td style="padding:2.5rem 2rem;">
 <p style="color:#1F1D1A;font-size:1.05rem;margin:0 0 1.25rem;">${firstName},</p>

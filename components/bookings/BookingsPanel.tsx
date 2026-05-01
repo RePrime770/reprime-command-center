@@ -60,7 +60,7 @@ function formatSlotDisplay(iso: string): string {
 
 const MEETING_CONFIG = {
   terminal: {
-    symbol: 'ת',
+    symbol: 'T',
     label: 'Terminal Introduction',
     tagline: 'RePrime Group · Terminal Introduction',
     previewEmail: (firstName: string) =>
@@ -84,7 +84,13 @@ const MEETING_CONFIG = {
 // Default channels: WhatsApp 305 + Email (most common combo)
 const DEFAULT_CHANNELS: Set<ChannelOption> = new Set(['whatsapp_305', 'email'])
 
-export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
+interface BookingsPanelProps {
+  onClose?: () => void
+  autofillPhone?: string | null
+  autofillName?: string | null
+}
+
+export default function BookingsPanel({ onClose, autofillPhone, autofillName }: BookingsPanelProps) {
   const [view, setView] = useState<'compose' | 'status'>('compose')
   const [meetingType, setMeetingType] = useState<MeetingType>('terminal')
 
@@ -105,6 +111,35 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
 
   const searchAbort = useRef<AbortController | null>(null)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ── Auto-fill from active thread (phone lookup → Pipedrive) ──────────────────
+  useEffect(() => {
+    if (contact) return  // already have a contact, don't overwrite
+    const term = autofillPhone?.replace(/\D+/g, '') || autofillName || ''
+    if (!term) return
+    let cancelled = false
+    ;(async () => {
+      setSearching(true)
+      try {
+        const res = await fetch(`/api/pipedrive/search?q=${encodeURIComponent(term)}&limit=5`, { cache: 'no-store' })
+        if (!res.ok || cancelled) return
+        const json = (await res.json()) as { results?: PipedriveSearchHit[] }
+        if (cancelled) return
+        const hits = json.results ?? []
+        if (hits.length === 1) {
+          setContact(hits[0])
+        } else if (hits.length > 1) {
+          setResults(hits)
+          setQuery(autofillName || autofillPhone || '')
+        }
+      } catch { /* non-fatal */ } finally {
+        if (!cancelled) setSearching(false)
+      }
+    })()
+    return () => { cancelled = true }
+  // Only run once on mount (or when autofill props change)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autofillPhone, autofillName])
 
   // ── Contact search ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -322,9 +357,6 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
       {/* ── Header ── */}
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span style={{ color: GOLD, fontSize: '2rem', fontFamily: 'Georgia,serif', fontWeight: 700 }}>
-            {meetingType === 'terminal' ? 'ת' : '·'}
-          </span>
           <span style={{ color: GOLD_LIGHT, letterSpacing: '0.08em', fontSize: '0.88rem', textTransform: 'uppercase', fontWeight: 600 }}>
             {cfg.tagline}
           </span>
@@ -345,7 +377,7 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
             <label style={labelStyle}>Invitation Type</label>
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
               <button type="button" onClick={() => setMeetingType('terminal')} style={typeBtn(meetingType === 'terminal')}>
-                <span style={{ fontFamily: 'Georgia,serif', marginRight: '0.35rem' }}>ת</span>Terminal Introduction
+                Terminal Introduction
               </button>
               <button type="button" onClick={() => setMeetingType('meeting')} style={typeBtn(meetingType === 'meeting')}>
                 · General Meeting
@@ -568,7 +600,7 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
                   <tr key={r.id} style={{ borderTop: `1px solid ${BORDER}` }}>
                     <td style={td}>{r.contact_name || r.contact_first_name || '—'}</td>
                     <td style={{ ...td, color: r.meeting_type === 'terminal' ? GOLD : GOLD_LIGHT, fontSize: '0.75rem' }}>
-                      {r.meeting_type === 'terminal' ? 'ת Terminal' : r.meeting_type === 'meeting' ? '· Meeting' : '—'}
+                      {r.meeting_type === 'terminal' ? 'Terminal' : r.meeting_type === 'meeting' ? 'Meeting' : '—'}
                     </td>
                     <td style={{ ...td, color: r.status === 'confirmed' ? '#22c55e' : r.status === 'expired' ? '#FF6F61' : GOLD_LIGHT }}>
                       {r.status}
