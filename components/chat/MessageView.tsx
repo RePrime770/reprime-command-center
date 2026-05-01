@@ -366,12 +366,12 @@ export default function MessageView({ thread, messages }: Props) {
     })
   }, [messages])
 
-  // Scroll to TOP when thread switches or new messages arrive (newest is at top)
+  // Scroll to TOP only when switching threads — not when new messages arrive
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
     el.scrollTop = 0
-  }, [thread.id, sorted.length])
+  }, [thread.id])
 
   return (
     <div

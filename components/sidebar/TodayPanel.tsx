@@ -300,18 +300,19 @@ export default function TodayPanel() {
     background: 'var(--rp-navy)',
     color: 'var(--rp-white)',
     borderBottom: '1px solid var(--rp-border)',
-    padding: '0.3rem 0.85rem',
+    padding: '0.75rem 1rem',
     display: 'flex',
     alignItems: 'center',
-    gap: '0.6rem',
+    gap: '1rem',
     overflowX: 'auto',
     flexShrink: 0,
+    minHeight: 90,
   }
 
   const labelStyle: React.CSSProperties = {
     color: 'var(--rp-gold)',
-    fontSize: 11,
-    fontWeight: 600,
+    fontSize: 13,
+    fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     flexShrink: 0,
@@ -360,12 +361,12 @@ export default function TodayPanel() {
           flexShrink: 0,
           display: 'inline-flex',
           alignItems: 'center',
-          gap: 6,
+          gap: 10,
           background: 'var(--rp-surface)',
           borderLeft: isNextUp ? '3px solid var(--rp-gold)' : '3px solid transparent',
-          borderRadius: 5,
-          padding: '0.22rem 0.6rem',
-          fontSize: 12,
+          borderRadius: 6,
+          padding: '0.55rem 0.9rem',
+          fontSize: 13,
           whiteSpace: 'nowrap',
         }
 
@@ -375,7 +376,7 @@ export default function TodayPanel() {
         return (
           <div key={ev.id} style={cardStyle} title={ev.title}>
             {/* Time */}
-            <span style={{ color: 'var(--rp-gold-lite)', fontSize: 11 }}>
+            <span style={{ color: 'var(--rp-gold-lite)', fontSize: 13 }}>
               {timeAbs}
               {timeRel && <span style={{ opacity: 0.75 }}> · {timeRel}</span>}
             </span>
@@ -399,7 +400,7 @@ export default function TodayPanel() {
                 href={ev.zoomLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: 'var(--rp-gold)', textDecoration: 'none', fontWeight: 700, fontSize: 11 }}
+                style={{ color: 'var(--rp-gold)', textDecoration: 'none', fontWeight: 700, fontSize: 13 }}
               >
                 Zoom↗
               </a>
@@ -423,8 +424,8 @@ export default function TodayPanel() {
                 borderRadius: 4,
                 color: reminderOn ? (hasThread ? '#22c55e' : '#BC9C45') : 'rgba(255,255,255,0.35)',
                 cursor: isToggling ? 'wait' : 'pointer',
-                fontSize: 11,
-                padding: '1px 4px',
+                fontSize: 16,
+                padding: '3px 6px',
                 fontFamily: 'inherit',
                 lineHeight: 1,
                 flexShrink: 0,

@@ -186,16 +186,17 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
   }
 
   const baseBtn: React.CSSProperties = {
-    fontSize: 11,
-    padding: '4px 8px',
+    fontSize: 14,
+    padding: '8px 18px',
     borderRadius: 6,
     border: '1px solid transparent',
     cursor: 'pointer',
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     background: 'transparent',
     color: 'inherit',
+    fontWeight: 600,
   }
 
   return (

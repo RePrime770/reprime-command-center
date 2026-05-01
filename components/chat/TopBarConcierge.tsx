@@ -108,15 +108,15 @@ export default function TopBarConcierge({ activeThread }: Props) {
 
   const btnBase: React.CSSProperties = {
     background: 'transparent',
-    borderRadius: 5,
-    padding: '0.18rem 0.42rem',
-    fontSize: 10,
+    borderRadius: 6,
+    padding: '0.45rem 1rem',
+    fontSize: 13,
     fontWeight: 600,
     fontFamily: 'inherit',
-    letterSpacing: '0.03em',
+    letterSpacing: '0.02em',
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 3,
+    gap: 6,
   }
 
   return (
