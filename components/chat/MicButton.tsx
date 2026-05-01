@@ -13,9 +13,14 @@ type Props = {
 // ── Browser Speech Recognition type shim ─────────────────────────────────────
 // The Web Speech API is implemented in Chrome/Edge. TypeScript's lib.dom doesn't
 // always include the webkit-prefixed variant; cast through unknown to be safe.
+interface SpeechRecognitionResultLike {
+  isFinal: boolean
+  length: number
+  [i: number]: { transcript: string }
+}
 interface SpeechRecognitionEventLike {
   resultIndex: number
-  results: { length: number; isFinal: boolean; [i: number]: { transcript: string }[] }[]
+  results: SpeechRecognitionResultLike[]
 }
 interface SpeechRecognitionLike {
   lang: string
