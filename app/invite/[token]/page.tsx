@@ -73,21 +73,10 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
-      images: [
-        {
-          url: imageUrl,
-          width: 1200,
-          height: 630,
-          alt: 'Terminal Introduction — RePrime Group',
-        },
-      ],
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: 'Terminal Introduction — RePrime Group' }],
       type: 'website',
     },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      images: [imageUrl],
-    },
+    twitter: { card: 'summary_large_image', title, images: [imageUrl] },
   }
 }
 
@@ -97,16 +86,14 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
 
   if (!invitation || reason) {
     const message =
-      reason === 'used'
-        ? 'This invitation has already been used.'
-        : reason === 'expired'
-          ? 'This invitation has expired.'
-          : 'This invitation link is not valid.'
+      reason === 'used' ? 'This invitation has already been used.'
+      : reason === 'expired' ? 'This invitation has expired.'
+      : 'This invitation link is not valid.'
     return (
-      <main style={{ minHeight: '100vh', background: '#0A1628', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', fontFamily: 'Poppins, Arial, sans-serif' }}>
-        <div style={{ maxWidth: 480, textAlign: 'center' }}>
-          <p style={{ color: 'rgba(188,156,69,0.5)', fontSize: '0.68rem', letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: '1rem' }}>RePrime Group</p>
-          <h1 style={{ color: '#BC9C45', fontWeight: 500, fontSize: '1.1rem', letterSpacing: '0.04em' }}>{message}</h1>
+      <main style={{ minHeight: '100vh', background: '#080d18', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', fontFamily: 'Georgia, serif' }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ color: 'rgba(188,156,69,0.6)', fontSize: '0.65rem', letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: '1.5rem', fontFamily: 'Poppins, Arial, sans-serif' }}>RePrime Group</p>
+          <p style={{ color: '#BC9C45', fontSize: '1.1rem', letterSpacing: '0.04em', fontStyle: 'italic' }}>{message}</p>
         </div>
       </main>
     )
@@ -119,149 +106,144 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   return (
     <main style={{
       minHeight: '100vh',
-      background: 'linear-gradient(170deg, #080f1f 0%, #0a1628 40%, #0e1f48 100%)',
+      background: '#080d18',
       color: '#fff',
       fontFamily: 'Poppins, Arial, sans-serif',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '4rem 1.5rem',
     }}>
-      {/* Minimal header */}
-      <header style={{ padding: '1.75rem 2.5rem' }}>
-        <span style={{
-          color: '#BC9C45',
-          fontSize: '0.65rem',
-          letterSpacing: '0.24em',
-          textTransform: 'uppercase',
-          fontWeight: 600,
-          opacity: 0.75,
-        }}>
-          RePrime Group
-        </span>
-      </header>
+      <div style={{ width: '100%', maxWidth: 520, textAlign: 'center' }}>
 
-      {/* Hero + slots */}
-      <section style={{
-        maxWidth: 560,
-        margin: '0 auto',
-        padding: '1.5rem 2.5rem 6rem',
-        textAlign: 'center',
-      }}>
-
-        {/* ── Name ── */}
+        {/* ── Guest name ── */}
         <h1 style={{
-          color: '#BC9C45',
-          fontSize: 'clamp(2.8rem, 8vw, 4.8rem)',
-          fontWeight: 700,
           fontFamily: 'Georgia, serif',
+          fontSize: 'clamp(3.5rem, 10vw, 5.5rem)',
+          fontWeight: 700,
+          color: '#C9A84C',
+          margin: '0 0 0.4rem',
+          lineHeight: 1,
           letterSpacing: '0.01em',
-          margin: '0 0 0.5rem',
-          lineHeight: 1.05,
         }}>
           {firstName}
         </h1>
 
-        {/* PRIVATE INTRODUCTION */}
+        {/* Private Introduction */}
         <p style={{
-          color: 'rgba(212,184,106,0.6)',
-          fontSize: '0.65rem',
+          color: 'rgba(201,168,76,0.7)',
+          fontSize: '0.72rem',
           letterSpacing: '0.28em',
           textTransform: 'uppercase',
-          margin: '0 0 2.25rem',
+          margin: '0 0 2.75rem',
           fontWeight: 500,
         }}>
           Private Introduction
         </p>
 
-        {/* Divider */}
-        <div style={{ width: 44, height: 1, background: 'rgba(188,156,69,0.35)', margin: '0 auto 2.25rem' }} />
-
-        {/* TERMINAL */}
+        {/* ══ Terminal Logo Block ══ */}
         {isTerminal && (
-          <>
+          <div style={{ margin: '0 0 2.75rem' }}>
+            {/* Top rule */}
+            <div style={{
+              height: '1px',
+              background: 'linear-gradient(90deg, transparent 0%, #C9A84C 25%, #C9A84C 75%, transparent 100%)',
+              marginBottom: '1.5rem',
+            }} />
+
+            {/* TERMINAL */}
             <h2 style={{
-              color: '#D4B86A',
-              fontSize: 'clamp(1.6rem, 5vw, 2.8rem)',
-              fontWeight: 300,
               fontFamily: 'Georgia, serif',
-              letterSpacing: '0.6em',
+              fontSize: 'clamp(1.9rem, 5.5vw, 3rem)',
+              fontWeight: 400,
+              color: '#C9A84C',
+              letterSpacing: '0.38em',
               textTransform: 'uppercase',
-              margin: '0 0 0.5rem',
-              paddingLeft: '0.6em',
+              margin: '0 0 0.55rem',
+              paddingLeft: '0.38em',
             }}>
               Terminal
             </h2>
 
+            {/* by RePrime */}
             <p style={{
-              color: 'rgba(212,184,106,0.45)',
-              fontSize: '0.8rem',
+              fontFamily: 'Georgia, serif',
+              color: 'rgba(201,168,76,0.75)',
+              fontSize: '1rem',
               fontStyle: 'italic',
-              letterSpacing: '0.06em',
-              margin: '0 0 2.25rem',
+              letterSpacing: '0.04em',
+              margin: '0 0 1.5rem',
             }}>
               by RePrime
             </p>
 
-            {/* Divider */}
-            <div style={{ width: 44, height: 1, background: 'rgba(188,156,69,0.35)', margin: '0 auto 1.75rem' }} />
-          </>
+            {/* Bottom rule */}
+            <div style={{
+              height: '1px',
+              background: 'linear-gradient(90deg, transparent 0%, #C9A84C 25%, #C9A84C 75%, transparent 100%)',
+            }} />
+          </div>
         )}
 
-        {/* PRIVATE MEMBERSHIP / BY INVITATION ONLY */}
+        {/* Private Membership · By Invitation Only */}
         <p style={{
-          color: 'rgba(255,255,255,0.25)',
-          fontSize: '0.58rem',
-          letterSpacing: '0.24em',
+          color: 'rgba(255,255,255,0.55)',
+          fontSize: '0.65rem',
+          letterSpacing: '0.2em',
           textTransform: 'uppercase',
-          margin: '0 0 0.3rem',
+          margin: '0 0 0.4rem',
           fontWeight: 500,
         }}>
           Private Membership
         </p>
         <p style={{
-          color: 'rgba(255,255,255,0.16)',
-          fontSize: '0.58rem',
-          letterSpacing: '0.24em',
+          color: 'rgba(255,255,255,0.38)',
+          fontSize: '0.65rem',
+          letterSpacing: '0.2em',
           textTransform: 'uppercase',
-          margin: '0 0 3.5rem',
-          fontWeight: 500,
+          margin: '0 0 3rem',
+          fontWeight: 400,
         }}>
           By Invitation Only
         </p>
 
-        {/* ── Slots ── */}
+        {/* ── Time slots ── */}
         {slotGroups.length === 0 ? (
           <p style={{
-            color: 'rgba(212,184,106,0.35)',
-            fontSize: '0.88rem',
-            letterSpacing: '0.04em',
-            lineHeight: 1.7,
+            color: 'rgba(201,168,76,0.45)',
+            fontSize: '0.9rem',
+            letterSpacing: '0.03em',
+            lineHeight: 1.8,
+            fontStyle: 'italic',
           }}>
             Please reach out directly to schedule.
           </p>
         ) : (
           <>
             <p style={{
-              color: 'rgba(212,184,106,0.65)',
+              color: 'rgba(201,168,76,0.85)',
               fontSize: '0.7rem',
-              letterSpacing: '0.2em',
+              letterSpacing: '0.22em',
               textTransform: 'uppercase',
               marginBottom: '2rem',
-              fontWeight: 500,
+              fontWeight: 600,
             }}>
               Select a time →
             </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2.25rem', textAlign: 'left' }}>
               {slotGroups.map((group) => (
-                <div key={group.date} style={{ textAlign: 'left' }}>
-                  <h3 style={{
-                    color: 'rgba(212,184,106,0.5)',
-                    fontSize: '0.62rem',
+                <div key={group.date}>
+                  <p style={{
+                    color: 'rgba(201,168,76,0.6)',
+                    fontSize: '0.6rem',
                     fontWeight: 600,
                     textTransform: 'uppercase',
-                    letterSpacing: '0.2em',
-                    margin: '0 0 0.7rem',
+                    letterSpacing: '0.22em',
+                    margin: '0 0 0.6rem',
                   }}>
                     {group.label}
-                  </h3>
+                  </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                     {group.times.map((slot) => (
                       <form key={slot.iso} action="/api/bookings/confirm" method="POST">
@@ -272,17 +254,16 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
                           style={{
                             width: '100%',
                             padding: '0.9rem 1.5rem',
-                            background: 'rgba(188,156,69,0.05)',
-                            color: 'rgba(255,255,255,0.8)',
-                            border: '1px solid rgba(188,156,69,0.22)',
+                            background: 'rgba(201,168,76,0.07)',
+                            color: 'rgba(255,255,255,0.88)',
+                            border: '1px solid rgba(201,168,76,0.28)',
                             borderRadius: '2px',
-                            fontSize: '0.88rem',
+                            fontSize: '0.9rem',
                             fontFamily: 'inherit',
                             cursor: 'pointer',
                             textAlign: 'left',
                             letterSpacing: '0.02em',
                             lineHeight: 1.4,
-                            transition: 'border-color 0.15s, background 0.15s',
                           }}
                         >
                           {slot.display}
@@ -296,16 +277,17 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           </>
         )}
 
-        {/* Footer */}
+        {/* Signature */}
         <p style={{
-          marginTop: '5rem',
-          color: 'rgba(255,255,255,0.13)',
+          marginTop: '4.5rem',
+          color: 'rgba(255,255,255,0.18)',
           fontSize: '0.68rem',
           letterSpacing: '0.1em',
         }}>
           Gideon Gratsiani · Founder, RePrime Group
         </p>
-      </section>
+
+      </div>
     </main>
   )
 }
