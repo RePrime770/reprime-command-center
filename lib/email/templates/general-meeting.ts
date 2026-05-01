@@ -1,10 +1,18 @@
 interface GeneralMeetingParams {
   firstName: string
   inviteUrl: string
+  /** Gideon's personal note — appears above the professional template in the email */
+  personalMessage?: string
 }
 
 export function buildGeneralMeetingEmail(p: GeneralMeetingParams): { subject: string; html: string; text: string } {
   const subject = `Let's Connect — ${p.firstName}`
+
+  const personalSection = p.personalMessage
+    ? `<tr><td style="padding:1.75rem 2rem 0; border-bottom:1px solid #E5E2DB;">
+        <p style="color:#1F1D1A; font-size:1rem; line-height:1.75; margin:0; white-space:pre-wrap;">${p.personalMessage.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+      </td></tr>`
+    : ''
 
   const html = `
 <!DOCTYPE html>
@@ -17,6 +25,7 @@ export function buildGeneralMeetingEmail(p: GeneralMeetingParams): { subject: st
         <tr><td style="background:#0E3470; padding:1.75rem 2rem; border-bottom:3px solid #BC9C45;">
           <span style="color:#D4B86A; letter-spacing:0.1em; font-size:0.8rem; text-transform:uppercase;">RePrime Group · Meeting Request</span>
         </td></tr>
+        ${personalSection}
         <tr><td style="padding:2.5rem 2rem;">
           <p style="color:#1F1D1A; font-size:1.05rem; margin:0 0 1.25rem; line-height:1.6;">${p.firstName},</p>
           <p style="color:#1F1D1A; font-size:1rem; margin:0 0 1.25rem; line-height:1.7;">I'd value some time with you — thirty minutes, your schedule.</p>
@@ -34,7 +43,8 @@ export function buildGeneralMeetingEmail(p: GeneralMeetingParams): { subject: st
 </body>
 </html>`.trim()
 
-  const text = `${p.firstName},
+  const personalPart = p.personalMessage ? `${p.personalMessage}\n\n` : ''
+  const text = `${personalPart}${p.firstName},
 
 I'd value some time with you — thirty minutes, your schedule.
 

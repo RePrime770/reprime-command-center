@@ -93,6 +93,7 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
   const [searching, setSearching] = useState(false)
   const [contact, setContact] = useState<PipedriveSearchHit | null>(null)
 
+  const [personalMessage, setPersonalMessage] = useState('')
   const [channels, setChannels] = useState<Set<ChannelOption>>(new Set(DEFAULT_CHANNELS))
   const [channelHint, setChannelHint] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
@@ -203,13 +204,19 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
 
   const previewEmail = useMemo(() => {
     if (!firstName) return null
-    return { subject: cfg.emailSubject(firstName), text: cfg.previewEmail(firstName) }
-  }, [firstName, cfg])
+    const body = personalMessage.trim()
+      ? `${personalMessage.trim()}\n\n— — —\n\n${cfg.previewEmail(firstName)}`
+      : cfg.previewEmail(firstName)
+    return { subject: cfg.emailSubject(firstName), text: body }
+  }, [firstName, cfg, personalMessage])
 
   const previewWhatsapp = useMemo(() => {
     if (!firstName) return null
+    if (personalMessage.trim()) {
+      return `${personalMessage.trim()}\n\nPick a time: [booking link — inserted on send]\n— Gideon`
+    }
     return cfg.previewWhatsApp(firstName)
-  }, [firstName, cfg])
+  }, [firstName, cfg, personalMessage])
 
   async function send() {
     if (!contact) { setToast('Pick a contact first.'); setToastIsError(true); return }
@@ -224,6 +231,7 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
           contact: contact.id,
           channels: Array.from(channels),
           meeting_type: meetingType,
+          personal_message: personalMessage.trim() || undefined,
         }),
       })
       const json = (await res.json()) as {
@@ -356,7 +364,7 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
                     {[contact.emails?.[0], contact.phones?.[0]].filter(Boolean).join(' · ') || '—'}
                   </div>
                 </div>
-                <button type="button" onClick={() => { setContact(null); setQuery(''); setChannelHint(null); setChannels(new Set(DEFAULT_CHANNELS)) }} style={ghostBtn}>
+                <button type="button" onClick={() => { setContact(null); setQuery(''); setChannelHint(null); setChannels(new Set(DEFAULT_CHANNELS)); setPersonalMessage('') }} style={ghostBtn}>
                   Change
                 </button>
               </div>
@@ -388,6 +396,41 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
                   </ul>
                 )}
                 {searching && <div style={{ color: MUTED, fontSize: '0.75rem', marginTop: '0.25rem' }}>Searching…</div>}
+              </div>
+            )}
+          </section>
+
+          {/* ── Personal note ── */}
+          <section>
+            <label style={labelStyle}>
+              Personal note
+              <span style={{ color: MUTED, fontWeight: 400, letterSpacing: 0, textTransform: 'none', marginLeft: '0.4rem', fontSize: '0.72rem' }}>— optional, your own words</span>
+            </label>
+            <textarea
+              value={personalMessage}
+              onChange={(e) => setPersonalMessage(e.target.value)}
+              placeholder={
+                contact
+                  ? `Hey ${contact.name.split(' ')[0]}, great seeing you last week — looking forward to showing you this…`
+                  : 'Hey Mindy, great seeing you last week — looking forward to showing you this…'
+              }
+              rows={3}
+              style={{
+                ...inputStyle,
+                marginTop: '0.4rem',
+                resize: 'vertical',
+                lineHeight: 1.55,
+                fontSize: '0.92rem',
+                borderColor: personalMessage.trim() ? GOLD : BORDER,
+              }}
+            />
+            {personalMessage.trim() ? (
+              <div style={{ fontSize: '0.7rem', color: GOLD_LIGHT, marginTop: '0.25rem' }}>
+                ✓ Your personal note will appear above the professional template in the email, and as the full WhatsApp message.
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.7rem', color: MUTED, marginTop: '0.25rem' }}>
+                Leave blank to use the standard template. Fill in to lead with your own words.
               </div>
             )}
           </section>

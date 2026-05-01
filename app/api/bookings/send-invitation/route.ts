@@ -46,6 +46,8 @@ interface SendInvitationBody {
   channel?: Channel
   meeting_type?: MeetingType
   slots?: string[]
+  /** Optional personal note from Gideon — prepended to email and used as full WhatsApp body */
+  personal_message?: string
 }
 
 function appUrl(): string {
@@ -72,8 +74,13 @@ function formatSlotDisplay(iso: string): string {
 function buildWhatsAppCopy(
   firstName: string,
   inviteUrl: string,
-  meetingType: MeetingType
+  meetingType: MeetingType,
+  personalMessage?: string
 ): string {
+  // If Gideon wrote a personal note, that IS the message — just append the link
+  if (personalMessage) {
+    return `${personalMessage}\n\nPick a time: ${inviteUrl}\n— Gideon`
+  }
   if (meetingType === 'meeting') {
     return `${firstName} — I'd value some time with you.\n\n30 minutes, your schedule. Pick what works:\n${inviteUrl}\n— Gideon`
   }
@@ -166,6 +173,7 @@ export async function POST(request: Request) {
   const phoneRaw = pickPrimary(person.phone ?? null)
   const phone = phoneRaw ? normalizePhone(phoneRaw) : null
   const meetingType: MeetingType = body.meeting_type === 'meeting' ? 'meeting' : 'terminal'
+  const personalMessage = typeof body.personal_message === 'string' ? body.personal_message.trim() : ''
 
   const slotsWithDisplay = (body.slots ?? []).map((iso) => ({
     iso,
@@ -208,8 +216,8 @@ export async function POST(request: Request) {
     } else {
       try {
         const tmpl = meetingType === 'meeting'
-          ? buildGeneralMeetingEmail({ firstName, inviteUrl })
-          : buildTerminalInvitationEmail({ firstName, inviteUrl, slots: slotsWithDisplay.map((s) => ({ display: s.display })) })
+          ? buildGeneralMeetingEmail({ firstName, inviteUrl, personalMessage: personalMessage || undefined })
+          : buildTerminalInvitationEmail({ firstName, inviteUrl, slots: slotsWithDisplay.map((s) => ({ display: s.display })), personalMessage: personalMessage || undefined })
         await sendEmail({
           to: email,
           from: FROM_EMAIL,
@@ -235,7 +243,7 @@ export async function POST(request: Request) {
         if (!chatId) {
           errors.push({ channel: 'whatsapp_305', message: 'no_existing_chat_with_this_phone_on_panel' })
         } else {
-          const text = buildWhatsAppCopy(firstName, inviteUrl, meetingType)
+          const text = buildWhatsAppCopy(firstName, inviteUrl, meetingType, personalMessage)
           await sendMessage({ phone, text, whatsappAccountPhone: PANEL_ACCOUNT_MAP['305'] })
           sentChannels.push('whatsapp_305')
         }
@@ -255,7 +263,7 @@ export async function POST(request: Request) {
         if (!chatId) {
           errors.push({ channel: 'whatsapp_718', message: 'no_existing_chat_with_this_phone_on_panel' })
         } else {
-          const text = buildWhatsAppCopy(firstName, inviteUrl, meetingType)
+          const text = buildWhatsAppCopy(firstName, inviteUrl, meetingType, personalMessage)
           await sendMessage({ phone, text, whatsappAccountPhone: PANEL_ACCOUNT_MAP['718'] })
           sentChannels.push('whatsapp_718')
         }

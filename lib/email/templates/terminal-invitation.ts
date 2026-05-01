@@ -32,6 +32,7 @@ const TEMPLATE = `<!DOCTYPE html>
           <span style="font-size:2rem; color:#BC9C45; font-weight:700; font-family:Georgia,serif; vertical-align:middle;">ת</span>
           <span style="color:#D4B86A; letter-spacing:0.1em; font-size:0.8rem; text-transform:uppercase; margin-left:0.75rem;">RePrime Group · Terminal Introduction</span>
         </td></tr>
+        {{PERSONAL_MESSAGE_SECTION}}
         <tr><td style="padding:2.5rem 2rem;">
           <p style="color:#1F1D1A; font-size:1.05rem; margin:0 0 1.25rem; line-height:1.6;">{{FIRST_NAME}},</p>
           <p style="color:#1F1D1A; font-size:1rem; margin:0 0 1.25rem; line-height:1.7;">A time to connect properly — 30 minutes, direct.</p>
@@ -54,6 +55,8 @@ interface TerminalInvitationParams {
   firstName: string
   inviteUrl: string
   slots: Array<{ display: string }>
+  /** Gideon's personal note — appears above the professional template in the email */
+  personalMessage?: string
 }
 
 export function buildTerminalInvitationEmail(p: TerminalInvitationParams): { subject: string; html: string; text: string } {
@@ -67,12 +70,21 @@ export function buildTerminalInvitationEmail(p: TerminalInvitationParams): { sub
       }</ul>`
     : ''
 
+  // Personal note section — shown between header and body when present
+  const personalMessageSection = p.personalMessage
+    ? `<tr><td style="padding:1.75rem 2rem 0; border-bottom:1px solid #E5E2DB;">
+        <p style="color:#1F1D1A; font-size:1rem; line-height:1.75; margin:0; white-space:pre-wrap;">${p.personalMessage.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+      </td></tr>`
+    : ''
+
   const html = TEMPLATE
     .replace(/\{\{FIRST_NAME\}\}/g, p.firstName)
     .replace(/\{\{INVITE_URL\}\}/g, p.inviteUrl)
     .replace(/\{\{SLOTS_HTML\}\}/g, slotsHtml)
+    .replace(/\{\{PERSONAL_MESSAGE_SECTION\}\}/g, personalMessageSection)
 
-  const text = `${p.firstName},
+  const personalPart = p.personalMessage ? `${p.personalMessage}\n\n` : ''
+  const text = `${personalPart}${p.firstName},
 
 A time to connect properly — 30 minutes, direct.
 ${p.slots.length > 0 ? '\nAvailable times:\n' + p.slots.map(s => `  · ${s.display}`).join('\n') + '\n' : ''}
