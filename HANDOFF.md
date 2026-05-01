@@ -303,6 +303,18 @@ The webhook fix was deployed. User should send a test WhatsApp message and confi
 
 ---
 
+## 7b. UI Design Principles (Gideon's Preferences)
+
+- **Everything in a single row where possible** — no stacked/vertical card layouts; keep height lean
+- **TodayPanel** = one compact horizontal strip. Meeting cards are inline-flex pills: `time · rel | title | Zoom↗ | 🔔 | 🕐 Late | ❌ Can't make it` — all on one line, minimal padding
+- **Top control bar** = single row: Import Names | Terminal | divider | 5 concierge buttons | active thread indicator
+- **Tabs and buttons should be visually prominent** — small text (10–11px) only for secondary info; primary tabs/actions should be 0.9–1rem+, clear contrast, not washed out
+- **BookingsPanel tabs** (Compose / Status) = large tabs 0.92rem, bold when active, good padding
+- **BookingsPanel panel** = min-width 600px, generous padding — it's a premium modal, should feel substantial
+- **Gideon likes things "a little bit more visual"** — gold accents, visible borders, clear active states
+
+---
+
 ## 8. Key Decisions Made (Do Not Re-debate)
 
 - **Panel order is 305 left, 718 center, Investors right** — user confirmed this
