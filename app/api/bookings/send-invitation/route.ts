@@ -33,13 +33,17 @@ const ALLOWED_EMAIL = 'g@reprime.com'
 const FROM_EMAIL = 'g@reprime-terminal.com'
 const REPLY_TO = 'g@reprime.com'
 
-type Channel = 'whatsapp_718' | 'whatsapp_305' | 'email' | 'all'
+type ChannelOption = 'whatsapp_718' | 'whatsapp_305' | 'email'
+type Channel = ChannelOption | 'all'   // legacy single-value shape
 
 type MeetingType = 'terminal' | 'meeting'
 
 interface SendInvitationBody {
   contact: number
-  channel: Channel
+  /** New multi-select format — any subset of channels */
+  channels?: ChannelOption[]
+  /** Legacy single-value format — kept for backwards compat */
+  channel?: Channel
   meeting_type?: MeetingType
   slots?: string[]
 }
@@ -63,13 +67,6 @@ function formatSlotDisplay(iso: string): string {
     timeZone: 'America/Chicago',
   })
   return `${fmt.format(d)} Central`
-}
-
-function panelFromChannel(channel: Channel): Panel | null {
-  if (channel === 'whatsapp_718') return '718'
-  if (channel === 'whatsapp_305') return '305'
-  if (channel === 'all') return '305'
-  return null
 }
 
 function buildWhatsAppCopy(
@@ -119,9 +116,30 @@ export async function POST(request: Request) {
   if (!Number.isInteger(body.contact) || body.contact <= 0) {
     return NextResponse.json({ error: 'contact_required' }, { status: 400 })
   }
-  if (!['whatsapp_718', 'whatsapp_305', 'email', 'all'].includes(body.channel)) {
-    return NextResponse.json({ error: 'invalid_channel' }, { status: 400 })
+
+  // Resolve effective channel set — accept either new `channels[]` or legacy `channel`
+  const VALID_OPTIONS: ChannelOption[] = ['whatsapp_718', 'whatsapp_305', 'email']
+  let channelSet: Set<ChannelOption>
+  if (Array.isArray(body.channels) && body.channels.length > 0) {
+    const valid = body.channels.filter((c) => VALID_OPTIONS.includes(c))
+    if (valid.length === 0) {
+      return NextResponse.json({ error: 'invalid_channels' }, { status: 400 })
+    }
+    channelSet = new Set(valid)
+  } else if (body.channel) {
+    // Legacy single-value → expand 'all' to everything
+    if (!['whatsapp_718', 'whatsapp_305', 'email', 'all'].includes(body.channel)) {
+      return NextResponse.json({ error: 'invalid_channel' }, { status: 400 })
+    }
+    if (body.channel === 'all') {
+      channelSet = new Set(['whatsapp_305', 'whatsapp_718', 'email'])
+    } else {
+      channelSet = new Set([body.channel as ChannelOption])
+    }
+  } else {
+    return NextResponse.json({ error: 'channel_or_channels_required' }, { status: 400 })
   }
+
   // slots is optional; if provided must be an array of ISO strings
   if (body.slots !== undefined && body.slots !== null) {
     if (!Array.isArray(body.slots) || !body.slots.every((s) => typeof s === 'string')) {
@@ -183,11 +201,8 @@ export async function POST(request: Request) {
   const sentChannels: string[] = []
   const errors: Array<{ channel: string; message: string }> = []
 
-  const wantsEmail = body.channel === 'email' || body.channel === 'all'
-  const wantsWhatsApp =
-    body.channel === 'whatsapp_718' || body.channel === 'whatsapp_305' || body.channel === 'all'
-
-  if (wantsEmail) {
+  // ── Email ────────────────────────────────────────────────────────────────────
+  if (channelSet.has('email')) {
     if (!email) {
       errors.push({ channel: 'email', message: 'no_email_on_contact' })
     } else {
@@ -210,29 +225,42 @@ export async function POST(request: Request) {
     }
   }
 
-  if (wantsWhatsApp) {
-    const panel = panelFromChannel(body.channel) ?? '305'
+  // ── WhatsApp 305 ─────────────────────────────────────────────────────────────
+  if (channelSet.has('whatsapp_305')) {
     if (!phone) {
-      errors.push({ channel: `whatsapp_${panel}`, message: 'no_phone_on_contact' })
+      errors.push({ channel: 'whatsapp_305', message: 'no_phone_on_contact' })
     } else {
       try {
-        const chatId = await findChatIdForPhone(panel, phone)
+        const chatId = await findChatIdForPhone('305', phone)
         if (!chatId) {
-          errors.push({
-            channel: `whatsapp_${panel}`,
-            message: 'no_existing_chat_with_this_phone_on_panel',
-          })
+          errors.push({ channel: 'whatsapp_305', message: 'no_existing_chat_with_this_phone_on_panel' })
         } else {
           const text = buildWhatsAppCopy(firstName, inviteUrl, meetingType)
-          await sendMessage({
-            phone,
-            text,
-            whatsappAccountPhone: PANEL_ACCOUNT_MAP[panel],
-          })
-          sentChannels.push(`whatsapp_${panel}`)
+          await sendMessage({ phone, text, whatsappAccountPhone: PANEL_ACCOUNT_MAP['305'] })
+          sentChannels.push('whatsapp_305')
         }
       } catch (err) {
-        errors.push({ channel: `whatsapp_${panel}`, message: (err as Error).message })
+        errors.push({ channel: 'whatsapp_305', message: (err as Error).message })
+      }
+    }
+  }
+
+  // ── WhatsApp 718 ─────────────────────────────────────────────────────────────
+  if (channelSet.has('whatsapp_718')) {
+    if (!phone) {
+      errors.push({ channel: 'whatsapp_718', message: 'no_phone_on_contact' })
+    } else {
+      try {
+        const chatId = await findChatIdForPhone('718', phone)
+        if (!chatId) {
+          errors.push({ channel: 'whatsapp_718', message: 'no_existing_chat_with_this_phone_on_panel' })
+        } else {
+          const text = buildWhatsAppCopy(firstName, inviteUrl, meetingType)
+          await sendMessage({ phone, text, whatsappAccountPhone: PANEL_ACCOUNT_MAP['718'] })
+          sentChannels.push('whatsapp_718')
+        }
+      } catch (err) {
+        errors.push({ channel: 'whatsapp_718', message: (err as Error).message })
       }
     }
   }
