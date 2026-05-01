@@ -14,13 +14,15 @@ interface Invitation {
   status: 'sent' | 'confirmed' | 'expired' | 'cancelled'
   expires_at: string | null
   meeting_type: 'terminal' | 'meeting' | null
+  view_count: number | null
+  first_opened_at: string | null
 }
 
 async function loadInvitation(token: string): Promise<{ invitation: Invitation | null; reason: 'not_found' | 'used' | 'expired' | null }> {
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('invitations')
-    .select('contact_first_name, contact_name, proposed_slots, status, expires_at, meeting_type')
+    .select('contact_first_name, contact_name, proposed_slots, status, expires_at, meeting_type, view_count, first_opened_at')
     .eq('id', token)
     .maybeSingle()
   if (error || !data) return { invitation: null, reason: 'not_found' }
@@ -29,6 +31,12 @@ async function loadInvitation(token: string): Promise<{ invitation: Invitation |
   if (inv.expires_at && new Date(inv.expires_at).getTime() < Date.now()) {
     return { invitation: inv, reason: 'expired' }
   }
+  // Track this open — fire and move on (non-blocking via void)
+  void supabase.from('invitations').update({
+    view_count: (inv.view_count ?? 0) + 1,
+    first_opened_at: inv.first_opened_at ?? new Date().toISOString(),
+    last_opened_at: new Date().toISOString(),
+  }).eq('id', token)
   return { invitation: inv, reason: null }
 }
 

@@ -16,6 +16,47 @@ interface ResolvePayload {
   fieldKeys?: { dashboard: string; tag: string }
 }
 
+interface InvitationRecord {
+  id: string
+  status: 'sent' | 'confirmed' | 'expired' | 'cancelled'
+  meeting_type: 'terminal' | 'meeting' | null
+  created_at: string
+  expires_at: string | null
+  confirmed_slot_iso: string | null
+  view_count: number | null
+  first_opened_at: string | null
+  last_opened_at: string | null
+}
+
+function relativeTimeShort(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const diffMs = Date.now() - d.getTime()
+  const min = Math.floor(diffMs / 60_000)
+  if (min < 1) return 'just now'
+  if (min < 60) return `${min}m ago`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr}h ago`
+  const day = Math.floor(hr / 24)
+  if (day < 7) return `${day}d ago`
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function fmtShortDate(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function fmtSlot(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago',
+  }).format(d) + ' CT'
+}
+
 interface Theme {
   bg: string
   surface: string
@@ -96,6 +137,20 @@ export default function PipedriveCard({
 
   const person = data?.person ?? null
   const activities = data?.activities ?? []
+
+  // ── Terminal Invite tracking ───────────────────────────────────────────────
+  const { data: inviteData } = useQuery({
+    queryKey: ['invite-status', person?.id],
+    enabled: !!person?.id,
+    queryFn: async (): Promise<{ invitation: InvitationRecord | null }> => {
+      const res = await fetch(`/api/invitations/by-contact?pipedrive_id=${person!.id}`, { cache: 'no-store' })
+      if (!res.ok) return { invitation: null }
+      return res.json() as Promise<{ invitation: InvitationRecord | null }>
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  })
+  const invite = inviteData?.invitation ?? null
 
   const initialNote = useMemo(() => {
     if (!person) return ''
@@ -288,6 +343,119 @@ export default function PipedriveCard({
           </ul>
         )}
       </section>
+
+      {/* ── Terminal Invite status ─────────────────────────────────────── */}
+      {invite && (
+        <section style={{ marginTop: '0.85rem' }}>
+          <h3
+            style={{
+              color: theme.muted,
+              fontSize: 11,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: 0.4,
+              margin: '0 0 0.5rem',
+            }}
+          >
+            Terminal Invite
+          </h3>
+          <div
+            style={{
+              background: 'rgba(188,156,69,0.06)',
+              border: `1px solid rgba(188,156,69,0.2)`,
+              borderRadius: 4,
+              padding: '0.5rem 0.6rem',
+              fontSize: 12,
+              lineHeight: 1.55,
+            }}
+          >
+            {/* Sent row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+              <span style={{ color: theme.muted }}>Sent</span>
+              <span style={{ color: theme.text }}>{fmtShortDate(invite.created_at)}</span>
+            </div>
+
+            {/* Open tracking */}
+            {invite.status === 'sent' && (
+              (invite.view_count ?? 0) > 0 ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                  <span style={{ color: theme.muted }}>
+                    Opened {invite.view_count}×
+                  </span>
+                  <span style={{ color: theme.text }}>{relativeTimeShort(invite.last_opened_at)}</span>
+                </div>
+              ) : (
+                <div style={{ color: theme.muted, marginBottom: 3 }}>Not opened yet</div>
+              )
+            )}
+
+            {/* Status badge */}
+            <div style={{ marginTop: 4 }}>
+              {invite.status === 'confirmed' && (
+                <span
+                  style={{
+                    display: 'inline-block',
+                    background: 'rgba(80,200,120,0.15)',
+                    color: '#50C878',
+                    border: '1px solid rgba(80,200,120,0.3)',
+                    borderRadius: 3,
+                    padding: '2px 6px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  ✓ Confirmed
+                </span>
+              )}
+              {invite.status === 'sent' && (
+                <span
+                  style={{
+                    display: 'inline-block',
+                    background: 'rgba(188,156,69,0.1)',
+                    color: theme.accent,
+                    border: `1px solid rgba(188,156,69,0.25)`,
+                    borderRadius: 3,
+                    padding: '2px 6px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {(invite.view_count ?? 0) > 0 ? '⏳ Opened · Not scheduled' : '⏳ Pending'}
+                </span>
+              )}
+              {invite.status === 'expired' && (
+                <span
+                  style={{
+                    display: 'inline-block',
+                    background: 'rgba(255,100,100,0.1)',
+                    color: '#FF6464',
+                    border: '1px solid rgba(255,100,100,0.2)',
+                    borderRadius: 3,
+                    padding: '2px 6px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  Expired
+                </span>
+              )}
+              {invite.status === 'cancelled' && (
+                <span style={{ color: theme.muted, fontSize: 11 }}>Cancelled</span>
+              )}
+            </div>
+
+            {/* Confirmed slot */}
+            {invite.status === 'confirmed' && invite.confirmed_slot_iso && (
+              <div style={{ marginTop: 5, color: '#50C878', fontSize: 11 }}>
+                {fmtSlot(invite.confirmed_slot_iso)}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <section style={{ marginTop: '0.85rem' }}>
         <h3
