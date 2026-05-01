@@ -70,8 +70,8 @@ export async function generateMetadata({
     .eq('id', token)
     .maybeSingle()
 
-  const firstName = inv?.contact_first_name || inv?.contact_name?.split(' ')[0] || 'Guest'
-  const title = `Terminal Introduction — ${firstName}`
+  const displayName = inv?.contact_name || inv?.contact_first_name || 'Guest'
+  const title = `Terminal Introduction — ${displayName}`
   const description = 'Select a time. One click confirms.'
   const imageUrl = `${appUrl}/invite/${token}/opengraph-image`
 
@@ -107,7 +107,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     )
   }
 
-  const firstName = invitation.contact_first_name || invitation.contact_name?.split(' ')[0] || 'there'
+  const displayName = invitation.contact_name || invitation.contact_first_name || 'Guest'
   const isTerminal = invitation.meeting_type !== 'meeting'
   const slotGroups = await loadAvailableSlots()
 
@@ -135,7 +135,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           lineHeight: 1,
           letterSpacing: '0.01em',
         }}>
-          {firstName}
+          {displayName}
         </h1>
 
         {/* Private Introduction */}
