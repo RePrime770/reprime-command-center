@@ -13,11 +13,15 @@ type Props = {
 // ── Browser Speech Recognition type shim ─────────────────────────────────────
 // The Web Speech API is implemented in Chrome/Edge. TypeScript's lib.dom doesn't
 // always include the webkit-prefixed variant; cast through unknown to be safe.
+interface SpeechRecognitionEventLike {
+  resultIndex: number
+  results: { length: number; isFinal: boolean; [i: number]: { transcript: string }[] }[]
+}
 interface SpeechRecognitionLike {
   lang: string
   continuous: boolean
   interimResults: boolean
-  onresult: ((e: SpeechRecognitionEvent) => void) | null
+  onresult: ((e: SpeechRecognitionEventLike) => void) | null
   onerror: ((e: { error: string }) => void) | null
   onend: (() => void) | null
   start(): void
@@ -63,7 +67,7 @@ export default function MicButton({ language, onTranscript }: Props) {
     rec.continuous = true        // keep listening until we call stop()
     rec.interimResults = false   // only deliver finalized words
 
-    rec.onresult = (e: SpeechRecognitionEvent) => {
+    rec.onresult = (e: SpeechRecognitionEventLike) => {
       // SpeechRecognitionResultList is cumulative; grab only new finals
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) {
