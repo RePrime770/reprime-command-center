@@ -204,8 +204,8 @@ The bar between TodayPanel and the main panels now contains:
 | ⏩ Move earlier | `move_earlier` | AI says you're free sooner + proposes slots |
 | ⏪ Postpone | `postpone` | AI pushes back meeting + proposes slots |
 
-- Buttons always visible (full color). 55% opacity when no thread selected.
-- Clicking with no thread open shows: "Open a conversation first — click any contact on the left"
+- Buttons always visible at full color — no opacity dimming.
+- Clicking with no thread open shows modal with error: "Open a conversation first — click any contact on the left"
 - Dialog shows EN + HE editable text areas, language selector, Send button.
 - Send goes directly to `POST /api/whatsapp/messages` with `panel` + `thread_id` from `activeThread`.
 
@@ -319,7 +319,7 @@ The webhook fix was deployed. User should send a test WhatsApp message and confi
 
 - **Panel order is 305 left, 718 center, Investors right** — user confirmed this
 - **"Finished Early" / "Early" button removed** — user called it "Office Office", doesn't want it
-- **Top bar concierge buttons always visible at 55% opacity** — they light up at 100% when a chat is open
+- **Top bar concierge buttons always visible at full color** — no dimming; clicking without a thread shows inline error nudge
 - **`activeThread` = last conversation clicked** — whichever panel, most recent click wins
 - **Meeting reminder messages are plain text** (not AI-generated): "Reminder: we have a call in 10 minutes — {title}"
 - **vercel.json API exception must stay** — `/api/` paths must not redirect or webhooks break
@@ -387,8 +387,16 @@ Timelines sends `POST /api/whatsapp/webhook` for every WhatsApp event.
 
 ---
 
-## 11. Active Git Log (last 10 commits)
+## 11. Active Git Log (last 12 commits)
 ```
+699cf33  fix(mic): replace OpenAI Whisper with browser Web Speech API
+(latest) fix: correct model IDs and invite page meeting_type branding
+           - concierge/route.ts: claude-haiku-4-5 → claude-haiku-4-5-20251001
+           - webhook/route.ts: same wrong model in priority classifier
+           - invite/[token]/page.tsx: fetch meeting_type; show correct branding
+(latest) fix: top bar buttons always visible; remove finished_early dead code
+           - TopBarConcierge: removed opacity:0.55 dim when no thread active
+           - ConciergeButtons: removed finished_early from type + modal title
 4bcaf9e  refactor(template): extract Terminal HTML into swappable TEMPLATE constant
 1517184  fix: correct model IDs and invite page meeting_type branding
 699cf33  fix(mic): replace OpenAI Whisper with browser Web Speech API
