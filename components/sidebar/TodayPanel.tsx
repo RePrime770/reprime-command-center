@@ -300,12 +300,12 @@ export default function TodayPanel() {
     background: 'var(--rp-navy)',
     color: 'var(--rp-white)',
     borderBottom: '1px solid var(--rp-border)',
-    padding: '0.6rem 0.85rem',
+    padding: '0.3rem 0.85rem',
     display: 'flex',
     alignItems: 'center',
-    gap: '0.85rem',
+    gap: '0.6rem',
     overflowX: 'auto',
-    minHeight: 56,
+    flexShrink: 0,
   }
 
   const labelStyle: React.CSSProperties = {
@@ -356,99 +356,93 @@ export default function TodayPanel() {
         const isToggling = togglingId === ev.id
         const hasThread = !!(reminder?.threadId)
 
-        const rowStyle: React.CSSProperties = {
+        const cardStyle: React.CSSProperties = {
           flexShrink: 0,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
           background: 'var(--rp-surface)',
           borderLeft: isNextUp ? '3px solid var(--rp-gold)' : '3px solid transparent',
-          padding: isNextUp ? '0.5rem 0.7rem' : '0.4rem 0.6rem',
-          borderRadius: 4,
-          minWidth: 200,
-          fontSize: isNextUp ? 13 : 12,
+          borderRadius: 5,
+          padding: '0.22rem 0.6rem',
+          fontSize: 12,
+          whiteSpace: 'nowrap',
         }
 
         const timeAbs = formatAbsolute(ev.startTime)
         const timeRel = formatRelative(ev.startTime, now)
-        const attendeeCount = ev.attendees.length
 
         return (
-          <div key={ev.id} style={rowStyle}>
-            {/* Time + title row */}
-            <div style={{ color: 'var(--rp-gold-lite)', fontSize: 11, marginBottom: 2 }}>
+          <div key={ev.id} style={cardStyle} title={ev.title}>
+            {/* Time */}
+            <span style={{ color: 'var(--rp-gold-lite)', fontSize: 11 }}>
               {timeAbs}
-              {timeRel && <span style={{ marginLeft: 6, opacity: 0.8 }}>· {timeRel}</span>}
-            </div>
-            <div
+              {timeRel && <span style={{ opacity: 0.75 }}> · {timeRel}</span>}
+            </span>
+
+            {/* Title */}
+            <span
               style={{
                 color: 'var(--rp-white)',
                 fontWeight: isNextUp ? 600 : 500,
-                whiteSpace: 'nowrap',
+                maxWidth: 160,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                maxWidth: 280,
               }}
-              title={ev.title}
             >
               {ev.title}
-            </div>
+            </span>
 
-            {/* Attendees + Zoom + Reminder */}
-            <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginTop: 3, fontSize: 11, flexWrap: 'wrap' }}>
-              {attendeeCount > 0 && (
-                <span style={{ color: 'var(--rp-gold-lite)' }}>
-                  {attendeeCount} attendee{attendeeCount === 1 ? '' : 's'}
-                </span>
-              )}
-              {ev.zoomLink && (
-                <a
-                  href={ev.zoomLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: 'var(--rp-gold)', textDecoration: 'none', fontWeight: 600 }}
-                >
-                  Zoom →
-                </a>
-              )}
-
-              {/* 🔔 Reminder toggle */}
-              <button
-                type="button"
-                onClick={() => void toggleReminder(ev)}
-                disabled={isToggling}
-                title={
-                  isToggling
-                    ? 'Resolving contact…'
-                    : reminderOn
-                    ? `Reminder ON${hasThread ? ' (WhatsApp ready)' : ' (phone unresolved — will skip)'}\nClick to turn off`
-                    : 'Turn on WhatsApp reminder at 10 min + 1 min before'
-                }
-                style={{
-                  background: reminderOn ? (hasThread ? 'rgba(34,197,94,0.15)' : 'rgba(188,156,69,0.15)') : 'transparent',
-                  border: `1px solid ${reminderOn ? (hasThread ? '#22c55e' : '#BC9C45') : 'rgba(255,255,255,0.2)'}`,
-                  borderRadius: 4,
-                  color: reminderOn ? (hasThread ? '#22c55e' : '#BC9C45') : 'rgba(255,255,255,0.4)',
-                  cursor: isToggling ? 'wait' : 'pointer',
-                  fontSize: 11,
-                  padding: '1px 5px',
-                  fontFamily: 'inherit',
-                  transition: 'all 0.15s',
-                }}
+            {/* Zoom link */}
+            {ev.zoomLink && (
+              <a
+                href={ev.zoomLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--rp-gold)', textDecoration: 'none', fontWeight: 700, fontSize: 11 }}
               >
-                {isToggling ? '⏳' : reminderOn ? '🔔' : '🔕'}
-              </button>
-            </div>
+                Zoom↗
+              </a>
+            )}
 
-            {/* Concierge buttons */}
-            <div style={{ marginTop: 4 }}>
-              <ConciergeButtons
-                meeting={{
-                  id: ev.id,
-                  title: ev.title,
-                  startTime: ev.startTime,
-                  attendees: ev.attendees,
-                  zoomLink: ev.zoomLink,
-                }}
-              />
-            </div>
+            {/* 🔔 Reminder toggle */}
+            <button
+              type="button"
+              onClick={() => void toggleReminder(ev)}
+              disabled={isToggling}
+              title={
+                isToggling
+                  ? 'Resolving contact…'
+                  : reminderOn
+                  ? `Reminder ON${hasThread ? ' (WhatsApp ready)' : ' (phone unresolved — will skip)'}\nClick to turn off`
+                  : 'Turn on WhatsApp reminder (10 min + 1 min)'
+              }
+              style={{
+                background: reminderOn ? (hasThread ? 'rgba(34,197,94,0.15)' : 'rgba(188,156,69,0.15)') : 'transparent',
+                border: `1px solid ${reminderOn ? (hasThread ? '#22c55e' : '#BC9C45') : 'rgba(255,255,255,0.2)'}`,
+                borderRadius: 4,
+                color: reminderOn ? (hasThread ? '#22c55e' : '#BC9C45') : 'rgba(255,255,255,0.35)',
+                cursor: isToggling ? 'wait' : 'pointer',
+                fontSize: 11,
+                padding: '1px 4px',
+                fontFamily: 'inherit',
+                lineHeight: 1,
+                flexShrink: 0,
+              }}
+            >
+              {isToggling ? '⏳' : reminderOn ? '🔔' : '🔕'}
+            </button>
+
+            {/* Late / Can't make it — inline */}
+            <ConciergeButtons
+              meeting={{
+                id: ev.id,
+                title: ev.title,
+                startTime: ev.startTime,
+                attendees: ev.attendees,
+                zoomLink: ev.zoomLink,
+              }}
+            />
           </div>
         )
       })}

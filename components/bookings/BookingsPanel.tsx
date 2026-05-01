@@ -301,23 +301,23 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
         color: TEXT,
         fontFamily: 'Poppins, Arial, sans-serif',
         border: `1px solid ${BORDER}`,
-        borderRadius: '6px',
-        padding: '1.25rem',
+        borderRadius: '8px',
+        padding: '1.5rem 1.75rem',
         display: 'flex',
         flexDirection: 'column',
-        gap: '1rem',
-        minWidth: '520px',
-        maxWidth: '700px',
+        gap: '1.2rem',
+        minWidth: '600px',
+        maxWidth: '820px',
         width: '100%',
       }}
     >
       {/* ── Header ── */}
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span style={{ color: GOLD, fontSize: '1.5rem', fontFamily: 'Georgia,serif', fontWeight: 700 }}>
+          <span style={{ color: GOLD, fontSize: '2rem', fontFamily: 'Georgia,serif', fontWeight: 700 }}>
             {meetingType === 'terminal' ? 'ת' : '·'}
           </span>
-          <span style={{ color: GOLD_LIGHT, letterSpacing: '0.08em', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+          <span style={{ color: GOLD_LIGHT, letterSpacing: '0.08em', fontSize: '0.88rem', textTransform: 'uppercase', fontWeight: 600 }}>
             {cfg.tagline}
           </span>
         </div>
@@ -594,14 +594,17 @@ const dropdownItem: React.CSSProperties = {
 
 function tabBtn(active: boolean): React.CSSProperties {
   return {
-    padding: '0.35rem 0.75rem',
+    padding: '0.55rem 1.4rem',
     background: active ? GOLD : 'transparent',
     color: active ? NAVY : GOLD_LIGHT,
-    border: `1px solid ${GOLD}`,
-    borderRadius: '4px',
-    fontSize: '0.8rem',
+    border: `1px solid ${active ? GOLD : 'rgba(188,156,69,0.45)'}`,
+    borderRadius: '5px',
+    fontSize: '0.92rem',
+    fontWeight: active ? 700 : 500,
     fontFamily: 'inherit',
     cursor: 'pointer',
+    letterSpacing: '0.03em',
+    transition: 'background 0.15s, color 0.15s',
   }
 }
 
