@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import CallButton from '@/components/chat/CallButton'
 import ChatList from '@/components/chat/ChatList'
+import InviteComposer from '@/components/chat/InviteComposer'
 import MessageView from '@/components/chat/MessageView'
 import ReplyBox from '@/components/chat/ReplyBox'
 import TopBarConcierge from '@/components/chat/TopBarConcierge'
@@ -99,6 +100,7 @@ type PanelViewProps = {
 function PanelView({ panel, selected, onSelect }: PanelViewProps) {
   const queryClient = useQueryClient()
   const [showPipedrive, setShowPipedrive] = useState(false)
+  const [showInvite, setShowInvite] = useState(false)
 
   const { data: messages } = useQuery({
     queryKey: ['messages', selected?.id],
@@ -176,6 +178,31 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
               isGroup={selected.is_group}
               contactName={selected.contact_name}
             />
+            {!selected.is_group && (
+              <button
+                type="button"
+                onClick={() => setShowInvite(true)}
+                title="Send Terminal invitation"
+                style={{
+                  background: 'transparent',
+                  color: headerText,
+                  border: `1px solid ${headerText}`,
+                  borderRadius: 999,
+                  padding: '0.3rem 0.75rem',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  letterSpacing: '0.04em',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span aria-hidden>✦</span>
+                <span>Invite</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowPipedrive((v) => !v)}
@@ -237,6 +264,17 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
           </div>
         )}
       </div>
+      {showInvite && selected && !selected.is_group && (
+        <InviteComposer
+          panel={panel}
+          thread={selected}
+          onClose={() => setShowInvite(false)}
+          onSent={() => {
+            queryClient.invalidateQueries({ queryKey: ['messages', selected.id] })
+            queryClient.invalidateQueries({ queryKey: ['threads', panel] })
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -333,7 +371,11 @@ export default function Dashboard() {
           }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowTerminal(false) }}
         >
-          <BookingsPanel onClose={() => setShowTerminal(false)} />
+          <BookingsPanel
+            onClose={() => setShowTerminal(false)}
+            autofillPhone={activeThread?.phone ?? null}
+            autofillName={activeThread?.contact_name ?? null}
+          />
         </div>
       )}
 

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { createServiceClient } from '@/lib/supabase/server'
 
 interface SlotGroup {
@@ -43,6 +44,50 @@ async function loadAvailableSlots(): Promise<SlotGroup[]> {
     return json.slots ?? []
   } catch {
     return []
+  }
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>
+}): Promise<Metadata> {
+  const { token } = await params
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://project-7e87w.vercel.app').replace(/\/$/, '')
+
+  const supabase = createServiceClient()
+  const { data: inv } = await supabase
+    .from('invitations')
+    .select('contact_first_name, contact_name')
+    .eq('id', token)
+    .maybeSingle()
+
+  const firstName = inv?.contact_first_name || inv?.contact_name?.split(' ')[0] || 'Guest'
+  const title = `Terminal Introduction — ${firstName}`
+  const description = 'Select a time. One click confirms.'
+  const imageUrl = `${appUrl}/invite/${token}/opengraph-image`
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: 'Terminal Introduction — RePrime Group',
+        },
+      ],
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      images: [imageUrl],
+    },
   }
 }
 

@@ -1,0 +1,289 @@
+'use client'
+import { useEffect, useState } from 'react'
+import type { DashboardThread, Panel } from '@/lib/timelines/types'
+
+type Props = {
+  panel: Panel
+  thread: DashboardThread
+  onClose: () => void
+  onSent?: () => void
+}
+
+function deriveFirstName(contactName: string | null, phone: string): string {
+  if (contactName && contactName.trim()) {
+    const parts = contactName.trim().split(/\s+/)
+    return parts[0] || contactName.trim()
+  }
+  return phone
+}
+
+export default function InviteComposer({ panel, thread, onClose, onSent }: Props) {
+  const initialFirstName = deriveFirstName(thread.contact_name, thread.phone)
+  const initialFullName = thread.contact_name || initialFirstName
+
+  const [firstName, setFirstName] = useState(initialFirstName)
+  const [fullName, setFullName] = useState(initialFullName)
+  const [personalMessage, setPersonalMessage] = useState(
+    `${initialFirstName} — this is Gideon. I've been building something privately and you're one of the first people I want to show it to. Please select a time below — 20 minutes, just us.`
+  )
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const send = async () => {
+    if (submitting) return
+    const msg = personalMessage.trim()
+    if (!msg) {
+      setError('Personal message is required')
+      return
+    }
+    setSubmitting(true)
+    setError(null)
+    try {
+      // Step 1: create the invitation row in Supabase
+      const inviteRes = await fetch('/api/invitations', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contact_first_name: firstName.trim() || null,
+          contact_name: fullName.trim() || null,
+          contact_phone: thread.phone,
+          contact_pipedrive_id: thread.pipedrive_contact_id,
+          meeting_type: 'terminal',
+          // proposed_slots intentionally empty here — slots come from
+          // /api/bookings/available-slots on the invite page itself.
+          proposed_slots: [],
+        }),
+      })
+      if (!inviteRes.ok) {
+        const txt = await inviteRes.text().catch(() => '')
+        throw new Error(`invitation create failed: ${inviteRes.status} ${txt.slice(0, 200)}`)
+      }
+      const { invite_url } = (await inviteRes.json()) as { invite_url: string }
+
+      // Step 2: send WhatsApp message: personal message + URL on its own line.
+      // WhatsApp will auto-unfurl the URL into the OG card on the recipient side.
+      const wireText = `${msg}\n\n${invite_url}`
+      const sendRes = await fetch('/api/whatsapp/messages', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          panel,
+          thread_id: thread.id,
+          body: wireText,
+        }),
+      })
+      if (!sendRes.ok) {
+        const txt = await sendRes.text().catch(() => '')
+        throw new Error(`whatsapp send failed: ${sendRes.status} ${txt.slice(0, 200)}`)
+      }
+
+      onSent?.()
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send invitation')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const charCount = personalMessage.length
+
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 60,
+        background: 'rgba(7,16,30,0.78)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+        fontFamily: 'Poppins, Arial, sans-serif',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 540,
+          background: '#0A1F44',
+          color: '#fff',
+          border: '1px solid #1A3560',
+          borderRadius: 10,
+          padding: '1.25rem 1.5rem 1.5rem',
+          boxShadow: '0 12px 48px rgba(0,0,0,0.5)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+          <div>
+            <div style={{ color: 'rgba(188,156,69,0.7)', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', fontWeight: 600 }}>
+              Terminal Invitation
+            </div>
+            <h2 style={{ margin: '0.2rem 0 0', fontSize: '1.05rem', color: '#BC9C45', fontWeight: 600 }}>
+              Send to {thread.contact_name || thread.phone}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            title="Close"
+            aria-label="Close"
+            style={{
+              background: 'transparent',
+              color: 'rgba(255,255,255,0.6)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: 6,
+              padding: '0.25rem 0.5rem',
+              fontSize: 12,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginTop: '0.75rem' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 11, color: 'rgba(212,184,106,0.7)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              First name (in OG card)
+            </span>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              style={{
+                background: '#0E3470',
+                color: '#fff',
+                border: '1px solid #1A3560',
+                borderRadius: 5,
+                padding: '0.45rem 0.6rem',
+                fontFamily: 'inherit',
+                fontSize: 13,
+                outline: 'none',
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 11, color: 'rgba(212,184,106,0.7)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              Full name (hero on card)
+            </span>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              style={{
+                background: '#0E3470',
+                color: '#fff',
+                border: '1px solid #1A3560',
+                borderRadius: 5,
+                padding: '0.45rem 0.6rem',
+                fontFamily: 'inherit',
+                fontSize: 13,
+                outline: 'none',
+              }}
+            />
+          </label>
+        </div>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: '0.75rem' }}>
+          <span style={{ fontSize: 11, color: 'rgba(212,184,106,0.7)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Personal message (green WhatsApp bubble above the card)
+          </span>
+          <textarea
+            value={personalMessage}
+            onChange={(e) => setPersonalMessage(e.target.value)}
+            rows={5}
+            placeholder="Hand-written line or two for this person…"
+            style={{
+              background: '#0E3470',
+              color: '#fff',
+              border: '1px solid #1A3560',
+              borderRadius: 5,
+              padding: '0.55rem 0.7rem',
+              fontFamily: 'inherit',
+              fontSize: 13,
+              lineHeight: 1.45,
+              resize: 'vertical',
+              outline: 'none',
+              minHeight: 110,
+            }}
+          />
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', alignSelf: 'flex-end' }}>
+            {charCount} chars
+          </span>
+        </label>
+
+        <div
+          style={{
+            marginTop: '0.75rem',
+            padding: '0.65rem 0.85rem',
+            background: 'rgba(0,0,0,0.25)',
+            border: '1px dashed rgba(188,156,69,0.25)',
+            borderRadius: 6,
+            fontSize: 12,
+            color: 'rgba(255,255,255,0.6)',
+            lineHeight: 1.5,
+          }}
+        >
+          Sends to <strong style={{ color: '#D4B86A' }}>{thread.phone}</strong> via the {panel === '305' ? '305 RePrime' : '718 Personal'} WhatsApp line. The recipient sees your personal message, then a gold Terminal card with their name, then taps to choose a time.
+        </div>
+
+        {error && (
+          <div style={{ marginTop: '0.6rem', color: '#FF7474', fontSize: 12 }}>
+            ✗ {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            style={{
+              background: 'transparent',
+              color: 'rgba(255,255,255,0.7)',
+              border: '1px solid rgba(255,255,255,0.18)',
+              borderRadius: 6,
+              padding: '0.5rem 0.9rem',
+              fontSize: 13,
+              fontFamily: 'inherit',
+              cursor: submitting ? 'not-allowed' : 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={send}
+            disabled={submitting || !personalMessage.trim()}
+            style={{
+              background: submitting || !personalMessage.trim() ? '#1A3560' : '#BC9C45',
+              color: submitting || !personalMessage.trim() ? 'rgba(255,255,255,0.5)' : '#0E3470',
+              border: 'none',
+              borderRadius: 6,
+              padding: '0.5rem 1.1rem',
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: 'inherit',
+              cursor: submitting || !personalMessage.trim() ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {submitting ? 'Sending…' : 'Send invitation'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
