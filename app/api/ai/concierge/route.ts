@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
   let parsed: { en: string; he: string }
   try {
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       system: `You write brief WhatsApp messages in Gideon Gratsiani's voice (CRE principal, direct, no excessive apology). Task: ${taskPrompt} Output JSON only: {"en": "...", "he": "..."}.`,
       messages: [{ role: 'user', content: userMsg }],

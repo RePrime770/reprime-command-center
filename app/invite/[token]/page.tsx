@@ -12,13 +12,14 @@ interface Invitation {
   proposed_slots: Array<{ iso: string; display: string }>
   status: 'sent' | 'confirmed' | 'expired' | 'cancelled'
   expires_at: string | null
+  meeting_type: 'terminal' | 'meeting' | null
 }
 
 async function loadInvitation(token: string): Promise<{ invitation: Invitation | null; reason: 'not_found' | 'used' | 'expired' | null }> {
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('invitations')
-    .select('contact_first_name, contact_name, proposed_slots, status, expires_at')
+    .select('contact_first_name, contact_name, proposed_slots, status, expires_at, meeting_type')
     .eq('id', token)
     .maybeSingle()
   if (error || !data) return { invitation: null, reason: 'not_found' }
@@ -66,19 +67,24 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   }
 
   const firstName = invitation.contact_first_name || 'there'
+  const isTerminal = invitation.meeting_type !== 'meeting'
   const slotGroups = await loadAvailableSlots()
 
   return (
     <main style={{ minHeight: '100vh', background: '#0E3470', color: '#fff', fontFamily: 'Poppins, Arial, sans-serif' }}>
       <header style={{ borderBottom: '1px solid #1A3560', padding: '1.5rem 2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <span style={{ fontSize: '2rem', color: '#BC9C45', fontWeight: 700, fontFamily: 'serif' }}>ת</span>
-        <span style={{ color: '#D4B86A', letterSpacing: '0.1em', fontSize: '0.85rem', textTransform: 'uppercase' }}>RePrime Group · Terminal Introduction</span>
+        <span style={{ fontSize: '2rem', color: '#BC9C45', fontWeight: 700, fontFamily: 'serif' }}>{isTerminal ? 'ת' : '·'}</span>
+        <span style={{ color: '#D4B86A', letterSpacing: '0.1em', fontSize: '0.85rem', textTransform: 'uppercase' }}>
+          RePrime Group · {isTerminal ? 'Terminal Introduction' : 'Meeting Request'}
+        </span>
       </header>
 
       <section style={{ maxWidth: 720, margin: '0 auto', padding: '4rem 2rem' }}>
         <h1 style={{ color: '#BC9C45', fontSize: '2rem', fontWeight: 600, margin: 0 }}>{firstName},</h1>
         <p style={{ color: '#D4B86A', fontSize: '1.1rem', lineHeight: 1.7, marginTop: '1.5rem' }}>
-          A time to connect. Pick the slot that works best — confirm with one click. I&apos;ll be there.
+          {isTerminal
+            ? "A time to connect. Pick the slot that works best — confirm with one click. I'll be there."
+            : "Pick the time that works — confirm with one click and it's locked."}
         </p>
 
         {slotGroups.length === 0 ? (
