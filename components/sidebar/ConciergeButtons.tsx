@@ -211,14 +211,6 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
         </button>
         <button
           type="button"
-          aria-label="Finished early"
-          onClick={() => start('finished_early')}
-          style={{ ...baseBtn, borderColor: '#00A980', color: '#00A980' }}
-        >
-          ✅ Early
-        </button>
-        <button
-          type="button"
           aria-label="Couldn't make it"
           onClick={() => start('couldnt_make_it')}
           style={{ ...baseBtn, borderColor: '#FF7474', color: '#FF7474' }}

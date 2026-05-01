@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-type Channel = 'whatsapp_718' | 'whatsapp_305' | 'email' | 'all'
+type ChannelOption = 'whatsapp_305' | 'whatsapp_718' | 'email'
 type MeetingType = 'terminal' | 'meeting'
 
 const PREFERRED_LABEL: Record<number, string> = {
@@ -21,7 +21,7 @@ interface PipedriveSearchHit {
 
 interface ContactPrefs {
   preferred_method: number | null
-  default_channel: Channel
+  default_channel: string
 }
 
 interface Invitation {
@@ -64,9 +64,9 @@ const MEETING_CONFIG = {
     label: 'Terminal Introduction',
     tagline: 'RePrime Group · Terminal Introduction',
     previewEmail: (firstName: string) =>
-      `${firstName},\n\nI'm hosting a Terminal Introduction — a deal sourcing system unlike anything that exists. Built to surface and close opportunities at a different level.\n\n30 minutes to show you what it is.\n\nPick a time: <invite-link>\n\n—\nGideon Gratsiani\nFounder, RePrime Group`,
+      `${firstName},\n\nI'm hosting a Terminal Introduction — a deal sourcing system unlike anything that exists. Built to surface and close opportunities at a different level.\n\n30 minutes to show you what it is.\n\nPick a time: [booking link — inserted on send]\n\n—\nGideon Gratsiani\nFounder, RePrime Group`,
     previewWhatsApp: (firstName: string) =>
-      `${firstName} — I'm hosting a Terminal Introduction.\n\nThe Terminal is a deal sourcing machine unlike anything that exists — built to source, qualify, and close at a different level. One of a kind.\n\n30 minutes to walk you through it. Pick a time:\n<invite-link>\n— Gideon`,
+      `${firstName} — I'm hosting a Terminal Introduction.\n\nThe Terminal is a deal sourcing machine unlike anything that exists — built to source, qualify, and close at a different level. One of a kind.\n\n30 minutes to walk you through it. Pick a time:\n[booking link — inserted on send]\n— Gideon`,
     emailSubject: (firstName: string) => `Terminal Introduction — ${firstName}`,
   },
   meeting: {
@@ -74,12 +74,15 @@ const MEETING_CONFIG = {
     label: 'General Meeting',
     tagline: 'RePrime Group · Meeting Request',
     previewEmail: (firstName: string) =>
-      `${firstName},\n\nI'd value some time with you — thirty minutes, your schedule.\n\nPick what works and I'll be there:\n<invite-link>\n\n—\nGideon Gratsiani\nFounder, RePrime Group`,
+      `${firstName},\n\nI'd value some time with you — thirty minutes, your schedule.\n\nPick what works and I'll be there:\n[booking link — inserted on send]\n\n—\nGideon Gratsiani\nFounder, RePrime Group`,
     previewWhatsApp: (firstName: string) =>
-      `${firstName} — I'd value some time with you.\n\n30 minutes, your schedule. Pick what works:\n<invite-link>\n— Gideon`,
+      `${firstName} — I'd value some time with you.\n\n30 minutes, your schedule. Pick what works:\n[booking link — inserted on send]\n— Gideon`,
     emailSubject: (firstName: string) => `Let's Connect — ${firstName}`,
   },
 } as const
+
+// Default channels: WhatsApp 305 + Email (most common combo)
+const DEFAULT_CHANNELS: Set<ChannelOption> = new Set(['whatsapp_305', 'email'])
 
 export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
   const [view, setView] = useState<'compose' | 'status'>('compose')
@@ -90,10 +93,11 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
   const [searching, setSearching] = useState(false)
   const [contact, setContact] = useState<PipedriveSearchHit | null>(null)
 
-  const [channel, setChannel] = useState<Channel>('all')
-  const [channelDefaultedFrom, setChannelDefaultedFrom] = useState<number | null>(null)
+  const [channels, setChannels] = useState<Set<ChannelOption>>(new Set(DEFAULT_CHANNELS))
+  const [channelHint, setChannelHint] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [toastIsError, setToastIsError] = useState(false)
 
   const [recent, setRecent] = useState<Invitation[]>([])
   const [loadingRecent, setLoadingRecent] = useState(false)
@@ -101,15 +105,10 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
   const searchAbort = useRef<AbortController | null>(null)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // ── Contact search ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (contact) {
-      setResults([])
-      return
-    }
-    if (query.trim().length < 2) {
-      setResults([])
-      return
-    }
+    if (contact) { setResults([]); return }
+    if (query.trim().length < 2) { setResults([]); return }
     if (searchTimer.current) clearTimeout(searchTimer.current)
     searchTimer.current = setTimeout(async () => {
       if (searchAbort.current) searchAbort.current.abort()
@@ -125,23 +124,17 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
         const json = (await res.json()) as { results?: PipedriveSearchHit[] }
         setResults(json.results ?? [])
       } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          console.error('[BookingsPanel] search failed', err)
-        }
+        if ((err as Error).name !== 'AbortError') console.error('[BookingsPanel] search failed', err)
       } finally {
         setSearching(false)
       }
     }, 250)
-    return () => {
-      if (searchTimer.current) clearTimeout(searchTimer.current)
-    }
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current) }
   }, [query, contact])
 
+  // ── Auto-select channel from Pipedrive preferences ────────────────────────────
   useEffect(() => {
-    if (!contact) {
-      setChannelDefaultedFrom(null)
-      return
-    }
+    if (!contact) { setChannelHint(null); return }
     let cancelled = false
     ;(async () => {
       try {
@@ -149,17 +142,28 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
         if (!res.ok) return
         const json = (await res.json()) as ContactPrefs
         if (cancelled) return
-        setChannel(json.default_channel ?? 'all')
-        setChannelDefaultedFrom(json.preferred_method ?? null)
+        const pref = json.preferred_method ?? null
+        if (pref !== null) {
+          const label = PREFERRED_LABEL[pref] ?? `option ${pref}`
+          setChannelHint(`Pipedrive preferred: ${label}`)
+        }
+        // Map Pipedrive preference to channel selection
+        if (json.default_channel === 'whatsapp_718') {
+          setChannels(new Set(['whatsapp_718', 'email']))
+        } else if (json.default_channel === 'whatsapp_305') {
+          setChannels(new Set(['whatsapp_305', 'email']))
+        } else if (json.default_channel === 'email') {
+          setChannels(new Set(['email']))
+        }
+        // 'all' → keep all three
       } catch (err) {
         console.error('[BookingsPanel] prefs fetch failed', err)
       }
     })()
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [contact])
 
+  // ── Status tab ────────────────────────────────────────────────────────────────
   const loadRecent = useCallback(async () => {
     setLoadingRecent(true)
     try {
@@ -178,15 +182,28 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
     if (view === 'status') void loadRecent()
   }, [view, loadRecent])
 
+  // ── Channel toggle ────────────────────────────────────────────────────────────
+  function toggleChannel(c: ChannelOption) {
+    setChannels((prev) => {
+      const next = new Set(prev)
+      if (next.has(c)) {
+        // Don't allow deselecting the last channel
+        if (next.size <= 1) return prev
+        next.delete(c)
+      } else {
+        next.add(c)
+      }
+      return next
+    })
+  }
+
+  // ── Send ──────────────────────────────────────────────────────────────────────
   const cfg = MEETING_CONFIG[meetingType]
   const firstName = contact ? (contact.name.split(' ')[0] || contact.name) : null
 
   const previewEmail = useMemo(() => {
     if (!firstName) return null
-    return {
-      subject: cfg.emailSubject(firstName),
-      text: cfg.previewEmail(firstName),
-    }
+    return { subject: cfg.emailSubject(firstName), text: cfg.previewEmail(firstName) }
   }, [firstName, cfg])
 
   const previewWhatsapp = useMemo(() => {
@@ -195,17 +212,19 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
   }, [firstName, cfg])
 
   async function send() {
-    if (!contact) {
-      setToast('Pick a contact first.')
-      return
-    }
+    if (!contact) { setToast('Pick a contact first.'); setToastIsError(true); return }
+    if (channels.size === 0) { setToast('Select at least one channel.'); setToastIsError(true); return }
     setSending(true)
     setToast(null)
     try {
       const res = await fetch('/api/bookings/send-invitation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contact: contact.id, channel, meeting_type: meetingType }),
+        body: JSON.stringify({
+          contact: contact.id,
+          channels: Array.from(channels),
+          meeting_type: meetingType,
+        }),
       })
       const json = (await res.json()) as {
         invitation_id?: string
@@ -213,26 +232,66 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
         errors?: Array<{ channel: string; message: string }>
         error?: string
         message?: string
+        sql?: string
       }
       if (!res.ok) {
-        setToast(`Failed: ${json.error ?? 'unknown'}${json.message ? ` — ${json.message}` : ''}`)
+        // Special handling for missing DB table
+        if (json.error === 'invitation_insert_failed' && json.sql) {
+          setToast(`DB table missing. Run the SQL shown below in Supabase SQL Editor.`)
+          setToastIsError(true)
+          setDbSetupSql(json.sql)
+        } else {
+          setToast(`Failed: ${json.error ?? 'unknown'}${json.message ? ` — ${json.message}` : ''}`)
+          setToastIsError(true)
+        }
         return
       }
       const sent = json.sent_channels ?? []
       const errs = json.errors ?? []
       if (sent.length > 0 && errs.length === 0) {
-        setToast(`Sent via ${sent.join(', ')}. Closing in a moment.`)
-        setTimeout(() => onClose?.(), 1600)
+        setToast(`✓ Sent via ${sent.join(', ')}`)
+        setToastIsError(false)
+        setTimeout(() => onClose?.(), 1800)
       } else if (sent.length > 0) {
         setToast(`Sent via ${sent.join(', ')}. ${errs.length} channel(s) failed.`)
+        setToastIsError(false)
       } else {
         setToast(`No channels sent. ${errs.map((e) => `${e.channel}: ${e.message}`).join(' · ')}`)
+        setToastIsError(true)
       }
     } catch (err) {
       setToast(`Failed: ${(err as Error).message}`)
+      setToastIsError(true)
     } finally {
       setSending(false)
     }
+  }
+
+  const [dbSetupSql, setDbSetupSql] = useState<string | null>(null)
+  const [sqlCopied, setSqlCopied] = useState(false)
+
+  const SETUP_SQL = `CREATE TABLE IF NOT EXISTS public.invitations (
+  id uuid PRIMARY KEY,
+  contact_pipedrive_id integer,
+  contact_first_name text,
+  contact_name text,
+  contact_email text,
+  contact_phone text,
+  proposed_slots jsonb DEFAULT '[]'::jsonb,
+  meeting_type text DEFAULT 'terminal',
+  status text DEFAULT 'sent',
+  confirmed_slot_iso text,
+  zoom_meeting_id text,
+  zoom_join_url text,
+  calendar_event_id text,
+  created_at timestamptz DEFAULT now(),
+  expires_at timestamptz DEFAULT (now() + interval '14 days')
+);`
+
+  function copySetupSql() {
+    void navigator.clipboard.writeText(dbSetupSql ?? SETUP_SQL)
+    setSqlCopied(true)
+    setTimeout(() => setSqlCopied(false), 2000)
   }
 
   return (
@@ -248,10 +307,11 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
         flexDirection: 'column',
         gap: '1rem',
         minWidth: '520px',
-        maxWidth: '680px',
+        maxWidth: '700px',
         width: '100%',
       }}
     >
+      {/* ── Header ── */}
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <span style={{ color: GOLD, fontSize: '1.5rem', fontFamily: 'Georgia,serif', fontWeight: 700 }}>
@@ -262,66 +322,41 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
           </span>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button type="button" onClick={() => setView('compose')} style={tabBtn(view === 'compose')}>
-            Compose
-          </button>
-          <button type="button" onClick={() => setView('status')} style={tabBtn(view === 'status')}>
-            Status
-          </button>
+          <button type="button" onClick={() => setView('compose')} style={tabBtn(view === 'compose')}>Compose</button>
+          <button type="button" onClick={() => setView('status')} style={tabBtn(view === 'status')}>Status</button>
           {onClose && (
-            <button type="button" onClick={onClose} style={{ ...tabBtn(false), border: 'none', background: 'transparent' }}>
-              ✕
-            </button>
+            <button type="button" onClick={onClose} style={{ ...tabBtn(false), border: 'none', background: 'transparent' }}>✕</button>
           )}
         </div>
       </header>
 
       {view === 'compose' && (
         <>
-          {/* ── Meeting type toggle ── */}
+          {/* ── Meeting type ── */}
           <section>
             <label style={labelStyle}>Invitation Type</label>
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
-              <button
-                type="button"
-                onClick={() => setMeetingType('terminal')}
-                style={typeBtn(meetingType === 'terminal')}
-              >
-                <span style={{ fontFamily: 'Georgia,serif', marginRight: '0.35rem' }}>ת</span>
-                Terminal Introduction
+              <button type="button" onClick={() => setMeetingType('terminal')} style={typeBtn(meetingType === 'terminal')}>
+                <span style={{ fontFamily: 'Georgia,serif', marginRight: '0.35rem' }}>ת</span>Terminal Introduction
               </button>
-              <button
-                type="button"
-                onClick={() => setMeetingType('meeting')}
-                style={typeBtn(meetingType === 'meeting')}
-              >
+              <button type="button" onClick={() => setMeetingType('meeting')} style={typeBtn(meetingType === 'meeting')}>
                 · General Meeting
               </button>
             </div>
           </section>
 
-          {/* ── Contact search ── */}
+          {/* ── Contact ── */}
           <section>
             <label style={labelStyle}>Contact</label>
             {contact ? (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '0.6rem 0.75rem',
-                  border: `1px solid ${GOLD}`,
-                  borderRadius: '4px',
-                  marginTop: '0.4rem',
-                }}
-              >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.75rem', border: `1px solid ${GOLD}`, borderRadius: '4px', marginTop: '0.4rem' }}>
                 <div>
                   <div style={{ color: TEXT, fontSize: '0.95rem' }}>{contact.name}</div>
                   <div style={{ color: MUTED, fontSize: '0.8rem' }}>
                     {[contact.emails?.[0], contact.phones?.[0]].filter(Boolean).join(' · ') || '—'}
                   </div>
                 </div>
-                <button type="button" onClick={() => { setContact(null); setQuery('') }} style={ghostBtn}>
+                <button type="button" onClick={() => { setContact(null); setQuery(''); setChannelHint(null); setChannels(new Set(DEFAULT_CHANNELS)) }} style={ghostBtn}>
                   Change
                 </button>
               </div>
@@ -357,65 +392,110 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
             )}
           </section>
 
-          {/* ── Channel ── */}
+          {/* ── Channel multi-select ── */}
           <section>
-            <label style={labelStyle}>Channel</label>
-            {channelDefaultedFrom !== null && (
+            <label style={labelStyle}>Send via</label>
+            {channelHint && (
               <div style={{ color: GOLD_LIGHT, fontSize: '0.72rem', marginTop: '0.3rem', fontStyle: 'italic' }}>
-                Default from Pipedrive · Preferred: {PREFERRED_LABEL[channelDefaultedFrom] ?? `option ${channelDefaultedFrom}`}
+                {channelHint}
               </div>
             )}
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
               {(
                 [
-                  ['all', 'All three'],
                   ['whatsapp_305', 'WhatsApp 305'],
                   ['whatsapp_718', 'WhatsApp 718'],
-                  ['email', 'Email only'],
-                ] as Array<[Channel, string]>
-              ).map(([val, label]) => (
-                <button
-                  key={val}
-                  type="button"
-                  onClick={() => { setChannel(val); setChannelDefaultedFrom(null) }}
-                  style={channelBtn(channel === val)}
-                >
-                  {label}
-                </button>
-              ))}
+                  ['email', 'Email'],
+                ] as Array<[ChannelOption, string]>
+              ).map(([val, label]) => {
+                const active = channels.has(val)
+                return (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => toggleChannel(val)}
+                    title={active && channels.size === 1 ? 'At least one channel required' : undefined}
+                    style={{
+                      padding: '0.45rem 0.85rem',
+                      background: active ? GOLD : 'transparent',
+                      color: active ? NAVY : TEXT,
+                      border: `1px solid ${active ? GOLD : BORDER}`,
+                      borderRadius: '4px',
+                      fontSize: '0.85rem',
+                      fontFamily: 'inherit',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      transition: 'background 0.15s, color 0.15s',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>{active ? '✓' : '+'}</span>
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ marginTop: '0.35rem', fontSize: '0.7rem', color: MUTED }}>
+              {channels.size === 0
+                ? 'Select at least one channel'
+                : `Sending to: ${Array.from(channels).map(c => c === 'whatsapp_305' ? 'WhatsApp 305' : c === 'whatsapp_718' ? 'WhatsApp 718' : 'Email').join(' + ')}`
+              }
             </div>
           </section>
 
           {/* ── Preview ── */}
           {contact && (
-            <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              {(channel === 'email' || channel === 'all') && previewEmail && (
+            <section style={{ display: 'grid', gridTemplateColumns: channels.has('email') && (channels.has('whatsapp_305') || channels.has('whatsapp_718')) ? '1fr 1fr' : '1fr', gap: '0.75rem' }}>
+              {channels.has('email') && previewEmail && (
                 <div style={previewBox}>
-                  <div style={previewTitle}>Email preview</div>
-                  <div style={{ color: GOLD_LIGHT, fontSize: '0.8rem', marginBottom: '0.5rem' }}>
+                  <div style={previewTitle}>📧 Email preview</div>
+                  <div style={{ color: GOLD_LIGHT, fontSize: '0.78rem', marginBottom: '0.5rem' }}>
                     Subject: {previewEmail.subject}
                   </div>
                   <pre style={previewBody}>{previewEmail.text}</pre>
                 </div>
               )}
-              {channel !== 'email' && previewWhatsapp && (
+              {(channels.has('whatsapp_305') || channels.has('whatsapp_718')) && previewWhatsapp && (
                 <div style={previewBox}>
-                  <div style={previewTitle}>WhatsApp preview</div>
+                  <div style={previewTitle}>
+                    💬 WhatsApp preview {channels.has('whatsapp_305') && channels.has('whatsapp_718') ? '(305 + 718)' : channels.has('whatsapp_305') ? '(305)' : '(718)'}
+                  </div>
                   <pre style={previewBody}>{previewWhatsapp}</pre>
                 </div>
               )}
             </section>
           )}
 
-          <footer style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: toast?.startsWith('Failed') || toast?.startsWith('No channels') ? '#FF6F61' : GOLD_LIGHT, fontSize: '0.8rem' }}>
+          {/* ── DB setup SQL if table missing ── */}
+          {dbSetupSql && (
+            <div style={{ background: '#1a0a0a', border: '1px solid #7f1d1d', borderRadius: 6, padding: '0.75rem', fontSize: '0.78rem' }}>
+              <div style={{ color: '#ff7474', fontWeight: 600, marginBottom: '0.5rem' }}>
+                ⚠ Run this once in Supabase SQL Editor (Dashboard → SQL Editor → New query):
+              </div>
+              <pre style={{ color: '#fca5a5', fontSize: '0.72rem', whiteSpace: 'pre-wrap', margin: '0 0 0.5rem' }}>
+                {SETUP_SQL}
+              </pre>
+              <button
+                type="button"
+                onClick={copySetupSql}
+                style={{ background: '#7f1d1d', border: '1px solid #ff7474', color: '#fff', borderRadius: 4, padding: '3px 10px', fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                {sqlCopied ? '✓ Copied!' : 'Copy SQL'}
+              </button>
+            </div>
+          )}
+
+          {/* ── Footer ── */}
+          <footer style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+            <span style={{ color: toastIsError ? '#FF6F61' : GOLD_LIGHT, fontSize: '0.8rem', flex: 1 }}>
               {toast ?? ' '}
             </span>
             <button
               type="button"
-              onClick={send}
-              disabled={sending || !contact}
-              style={primaryBtn(sending || !contact)}
+              onClick={() => void send()}
+              disabled={sending || !contact || channels.size === 0}
+              style={primaryBtn(sending || !contact || channels.size === 0)}
             >
               {sending ? 'Sending…' : 'Send Invitation'}
             </button>
@@ -447,7 +527,7 @@ export default function BookingsPanel({ onClose }: { onClose?: () => void }) {
                     <td style={{ ...td, color: r.meeting_type === 'terminal' ? GOLD : GOLD_LIGHT, fontSize: '0.75rem' }}>
                       {r.meeting_type === 'terminal' ? 'ת Terminal' : r.meeting_type === 'meeting' ? '· Meeting' : '—'}
                     </td>
-                    <td style={{ ...td, color: r.status === 'confirmed' ? GOLD : r.status === 'expired' ? '#FF6F61' : GOLD_LIGHT }}>
+                    <td style={{ ...td, color: r.status === 'confirmed' ? '#22c55e' : r.status === 'expired' ? '#FF6F61' : GOLD_LIGHT }}>
                       {r.status}
                     </td>
                     <td style={td}>{r.confirmed_slot_iso ? formatSlotDisplay(r.confirmed_slot_iso) : '—'}</td>
@@ -540,19 +620,6 @@ function typeBtn(active: boolean): React.CSSProperties {
   }
 }
 
-function channelBtn(active: boolean): React.CSSProperties {
-  return {
-    padding: '0.45rem 0.85rem',
-    background: active ? GOLD : 'transparent',
-    color: active ? NAVY : TEXT,
-    border: `1px solid ${active ? GOLD : BORDER}`,
-    borderRadius: '4px',
-    fontSize: '0.85rem',
-    fontFamily: 'inherit',
-    cursor: 'pointer',
-  }
-}
-
 function primaryBtn(disabled: boolean): React.CSSProperties {
   return {
     padding: '0.65rem 1.5rem',
@@ -564,6 +631,7 @@ function primaryBtn(disabled: boolean): React.CSSProperties {
     fontWeight: 600,
     fontFamily: 'inherit',
     cursor: disabled ? 'not-allowed' : 'pointer',
+    flexShrink: 0,
   }
 }
 

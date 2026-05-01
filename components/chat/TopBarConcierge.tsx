@@ -11,8 +11,8 @@ type ActionType =
   | 'postpone'
 
 const ACTIONS: Array<{ type: ActionType; label: string; emoji: string; color: string }> = [
-  { type: 'running_late_zoom', label: 'Late·Zoom', emoji: '🕐', color: '#BC9C45' },
-  { type: 'running_late_office', label: 'Late·Office', emoji: '🕐', color: '#BC9C45' },
+  { type: 'running_late_zoom', label: 'Late Zoom', emoji: '🕐', color: '#BC9C45' },
+  { type: 'running_late_office', label: 'Late Office', emoji: '🕐', color: '#BC9C45' },
   { type: 'couldnt_make_it', label: "Can't make it", emoji: '❌', color: '#FF7474' },
   { type: 'move_earlier', label: 'Move earlier', emoji: '⏩', color: '#00A980' },
   { type: 'postpone', label: 'Postpone', emoji: '⏪', color: '#6B9BE8' },
@@ -42,7 +42,11 @@ export default function TopBarConcierge({ activeThread }: Props) {
   }
 
   async function start(type: ActionType) {
-    if (!activeThread) return
+    if (!activeThread) {
+      setError('Open a conversation first — click any contact on the left')
+      setOpen(type)
+      return
+    }
     setOpen(type)
     setLoading(true)
     setError(null)
@@ -125,16 +129,15 @@ export default function TopBarConcierge({ activeThread }: Props) {
             title={
               activeThread
                 ? `${a.label} — sends to ${activeThread.contact_name || activeThread.phone}`
-                : 'Open a conversation first'
+                : 'Click a conversation first, then use this button'
             }
-            disabled={!activeThread}
-            onClick={() => start(a.type)}
+            onClick={() => void start(a.type)}
             style={{
               ...btnBase,
-              border: `1px solid ${activeThread ? a.color : 'rgba(255,255,255,0.15)'}`,
-              color: activeThread ? a.color : 'rgba(255,255,255,0.3)',
-              cursor: activeThread ? 'pointer' : 'not-allowed',
-              opacity: activeThread ? 1 : 0.5,
+              border: `1px solid ${a.color}`,
+              color: a.color,
+              cursor: 'pointer',
+              opacity: activeThread ? 1 : 0.55,
             }}
           >
             {a.emoji} {a.label}
