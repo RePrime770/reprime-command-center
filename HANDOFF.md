@@ -387,14 +387,24 @@ Timelines sends `POST /api/whatsapp/webhook` for every WhatsApp event.
 
 ---
 
-## 11. Active Git Log (last 5 commits)
+## 11. Active Git Log (last 10 commits)
 ```
+4bcaf9e  refactor(template): extract Terminal HTML into swappable TEMPLATE constant
+1517184  fix: correct model IDs and invite page meeting_type branding
+699cf33  fix(mic): replace OpenAI Whisper with browser Web Speech API
+5571477  docs: add UI design principles to HANDOFF
+ca1552f  style: compact TodayPanel cards to single row; enlarge BookingsPanel tabs
+052fd8d  fix(bookings): accept channels[] array from BookingsPanel multi-select
+0e577ef  fix: top bar buttons always visible; remove finished_early dead code
 2638b07  fix: remove Early button from meeting cards, fix top bar button visibility
 50f3b14  fix: unblock webhook — exclude /api/ from reprime-terminal.com redirect
 1c2dc4d  feat: top-bar concierge, panel swap, meeting reminders
-88ba043  fix(webhook): resolve panel from message phones when whatsapp_account_id is absent
-2ab0f58  (previous work)
 ```
+
+### Key model ID — all Anthropic calls use:
+`claude-haiku-4-5-20251001` — this is the correct versioned ID.
+`claude-haiku-4-5` (without date) returns 400 errors. Do not use it.
+Files that call Anthropic: `api/ai/concierge/route.ts`, `api/ai/draft/route.ts`, `api/whatsapp/webhook/route.ts`.
 
 ---
 
