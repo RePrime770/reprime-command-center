@@ -224,7 +224,18 @@ function ThreadSpeaker({ messages, muted, speed }: { messages: DashboardMessage[
 
 function SpeedControl({ speed, onChange, muted }: { speed: TtsSpeed; onChange: (s: TtsSpeed) => void; muted: string }) {
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 3,
+        flexShrink: 0,
+        background: 'rgba(255,255,255,0.05)',
+        borderRadius: 6,
+        padding: '1px 3px',
+        border: '1px solid rgba(255,255,255,0.1)',
+      }}
+    >
       {SPEEDS.map((s) => {
         const active = s === speed
         return (
@@ -234,18 +245,26 @@ function SpeedControl({ speed, onChange, muted }: { speed: TtsSpeed; onChange: (
             onClick={() => onChange(s)}
             title={`Playback speed ${s}×`}
             style={{
-              background: active ? 'rgba(255,255,255,0.14)' : 'none',
+              background: active ? 'rgba(255,255,255,0.18)' : 'transparent',
               border: `1px solid ${active ? muted : 'transparent'}`,
               borderRadius: 4,
               cursor: 'pointer',
-              padding: '1px 5px',
-              fontSize: 10,
-              color: active ? muted : muted,
-              opacity: active ? 1 : 0.45,
+              padding: '2px 6px',
+              fontSize: 11,
+              color: muted,
+              opacity: active ? 1 : 0.6,
               fontFamily: 'inherit',
-              fontWeight: active ? 700 : 400,
-              lineHeight: 1.6,
-              transition: 'opacity 0.15s',
+              fontWeight: active ? 700 : 500,
+              lineHeight: 1.5,
+              transition: 'opacity 0.15s, background 0.15s',
+              minWidth: 28,
+              textAlign: 'center',
+            }}
+            onMouseEnter={(e) => {
+              if (!active) (e.currentTarget as HTMLButtonElement).style.opacity = '1'
+            }}
+            onMouseLeave={(e) => {
+              if (!active) (e.currentTarget as HTMLButtonElement).style.opacity = '0.6'
             }}
           >
             {s}×
