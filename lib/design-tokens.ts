@@ -51,9 +51,9 @@ export const gold = {
   15:  `rgba(${GOLD_RGB}, 0.15)`,
   12:  `rgba(${GOLD_RGB}, 0.12)`,
   10:  `rgba(${GOLD_RGB}, 0.10)`,
-  08:  `rgba(${GOLD_RGB}, 0.08)`,
-  06:  `rgba(${GOLD_RGB}, 0.06)`,
-  04:  `rgba(${GOLD_RGB}, 0.04)`,
+  8:   `rgba(${GOLD_RGB}, 0.08)`,
+  6:   `rgba(${GOLD_RGB}, 0.06)`,
+  4:   `rgba(${GOLD_RGB}, 0.04)`,
 } as const
 
 /**
