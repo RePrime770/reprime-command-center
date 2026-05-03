@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useEffect, useState } from 'react'
 import type { DashboardThread, Panel } from '@/lib/timelines/types'
 
@@ -24,7 +24,7 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
   const [firstName, setFirstName] = useState(initialFirstName)
   const [fullName, setFullName] = useState(initialFullName)
   const [personalMessage, setPersonalMessage] = useState(
-    `${initialFirstName} â€” this is Gideon. I've been building something privately and you're one of the first people I want to show it to. Please select a time below â€” 20 minutes, just us.`
+    `${initialFirstName} — this is Gideon. I've been building something privately and you're one of the first people I want to show it to. Please select a time below — 20 minutes, just us.`
   )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,7 +57,7 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
           contact_phone: thread.phone,
           contact_pipedrive_id: thread.pipedrive_contact_id,
           meeting_type: 'terminal',
-          // proposed_slots intentionally empty here â€” slots come from
+          // proposed_slots intentionally empty here — slots come from
           // /api/bookings/available-slots on the invite page itself.
           proposed_slots: [],
         }),
@@ -205,7 +205,7 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
             value={personalMessage}
             onChange={(e) => setPersonalMessage(e.target.value)}
             rows={5}
-            placeholder="Hand-written line or two for this personâ€¦"
+            placeholder="Hand-written line or two for this person…"
             style={{
               background: '#0E3470',
               color: '#fff',
@@ -280,7 +280,7 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
               cursor: submitting || !personalMessage.trim() ? 'not-allowed' : 'pointer',
             }}
           >
-            {submitting ? 'Sendingâ€¦' : 'Send invitation'}
+            {submitting ? 'Sending…' : 'Send invitation'}
           </button>
         </div>
       </div>

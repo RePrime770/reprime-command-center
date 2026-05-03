@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -138,7 +138,7 @@ export default function PipedriveCard({
   const person = data?.person ?? null
   const activities = data?.activities ?? []
 
-  // â”€â”€ Terminal Invite tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Terminal Invite tracking ───────────────────────────────────────────────
   const { data: inviteData } = useQuery({
     queryKey: ['invite-status', person?.id],
     enabled: !!person?.id,
@@ -344,7 +344,7 @@ export default function PipedriveCard({
         )}
       </section>
 
-      {/* â”€â”€ Terminal Invite status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Terminal Invite status ─────────────────────────────────────── */}
       {invite && (
         <section style={{ marginTop: '0.85rem' }}>
           <h3
@@ -405,7 +405,7 @@ export default function PipedriveCard({
                     letterSpacing: 0.3,
                   }}
                 >
-                  âœ“ Confirmed
+                  ✓ Confirmed
                 </span>
               )}
               {invite.status === 'sent' && (
@@ -422,7 +422,7 @@ export default function PipedriveCard({
                     letterSpacing: 0.3,
                   }}
                 >
-                  {(invite.view_count ?? 0) > 0 ? 'â³ Opened Â· Not scheduled' : 'â³ Pending'}
+                  {(invite.view_count ?? 0) > 0 ? '⏳ Opened Â· Not scheduled' : '⏳ Pending'}
                 </span>
               )}
               {invite.status === 'expired' && (
@@ -470,7 +470,7 @@ export default function PipedriveCard({
         >
           Notes from Dashboard
           {saveNote.isPending && (
-            <span style={{ color: theme.muted, marginLeft: 6, fontWeight: 400 }}>Â· savingâ€¦</span>
+            <span style={{ color: theme.muted, marginLeft: 6, fontWeight: 400 }}>Â· saving…</span>
           )}
           {saveNote.isError && (
             <span style={{ color: 'var(--rp-red)', marginLeft: 6, fontWeight: 400 }}>Â· save failed</span>

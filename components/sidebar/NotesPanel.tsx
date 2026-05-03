@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -157,7 +157,7 @@ function renderMarkdown(src: string): string {
 
 function preview(body: string, n = 80): string {
   const flat = body.replace(/\s+/g, ' ').trim()
-  return flat.length > n ? flat.slice(0, n) + 'â€¦' : flat
+  return flat.length > n ? flat.slice(0, n) + '…' : flat
 }
 
 interface ToastMsg {
@@ -458,7 +458,7 @@ export default function NotesPanel() {
         >
           {isLoading && (
             <div style={{ padding: '0.5rem 0.75rem', color: 'var(--rp-gold-lite)', fontSize: 12 }}>
-              Loadingâ€¦
+              Loading…
             </div>
           )}
           {isError && (
@@ -558,7 +558,7 @@ export default function NotesPanel() {
                     style={btnPrimary}
                     disabled={updateMut.isPending}
                   >
-                    {editing ? (updateMut.isPending ? 'Savingâ€¦' : 'Save') : 'Edit'}
+                    {editing ? (updateMut.isPending ? 'Saving…' : 'Save') : 'Edit'}
                   </button>
                 )}
                 <button type="button" onClick={handleExport} style={btnGhost}>

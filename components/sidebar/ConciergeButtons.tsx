@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState } from 'react'
 
@@ -101,7 +101,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
         }
       }
     } catch {
-      // Pipedrive failure is non-fatal â€” Gideon can still send manually.
+      // Pipedrive failure is non-fatal — Gideon can still send manually.
     }
 
     setPhone(resolvedPhone)
@@ -157,7 +157,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
           }
         } else {
           const digits = digitsOnly(phone)
-          if (!digits) throw new Error('no_phone â€” open the thread to send')
+          if (!digits) throw new Error('no_phone — open the thread to send')
           window.open(
             `https://wa.me/${digits}?text=${encodeURIComponent(body)}`,
             '_blank',
@@ -259,7 +259,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
             >
               <h2 style={{ margin: 0, fontSize: 16, color: '#FFCC33' }}>
                 {open === 'running_late' ? 'Running late' : "Couldn't make it"}
-                {meeting.title ? ` â€” ${meeting.title}` : ''}
+                {meeting.title ? ` — ${meeting.title}` : ''}
               </h2>
               <button
                 type="button"
@@ -275,7 +275,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
             </div>
 
             {loading ? (
-              <p style={{ color: '#FFCC33' }}>Generatingâ€¦</p>
+              <p style={{ color: '#FFCC33' }}>Generating…</p>
             ) : (
               <>
                 {error ? (
@@ -390,7 +390,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                   </label>
 
                   <span style={{ fontSize: 11, color: '#FFCC33' }}>
-                    {phone ? `â†’ ${phone}` : 'phone unresolved â€” Phone Link / Google Voice will prompt'}
+                    {phone ? `→ ${phone}` : 'phone unresolved — Phone Link / Google Voice will prompt'}
                   </span>
                 </div>
 
@@ -425,7 +425,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                         sending || (lang === 'en' ? !en.trim() : !he.trim()) ? 0.6 : 1,
                     }}
                   >
-                    {sending ? 'Sendingâ€¦' : 'Send'}
+                    {sending ? 'Sending…' : 'Send'}
                   </button>
                 </div>
               </>

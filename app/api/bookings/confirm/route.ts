@@ -1,4 +1,4 @@
-﻿import { Redis } from '@upstash/redis'
+import { Redis } from '@upstash/redis'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createMeeting } from '@/lib/zoom/client'
 import { createCalendarEvent } from '@/lib/google/calendar'
@@ -67,7 +67,7 @@ function pageHtml(opts: {
     state === 'confirmed'
       ? `Locked in, ${firstName}.`
       : state === 'partial'
-        ? `${firstName} â€” saved with a hiccup.`
+        ? `${firstName} — saved with a hiccup.`
         : state === 'used'
           ? 'This invitation has already been used.'
           : state === 'expired'
@@ -82,7 +82,7 @@ function pageHtml(opts: {
          </td></tr></table>`
       : state === 'partial' && slot
         ? `<p style="color:#FFCC33;font-size:1.05rem;line-height:1.7;margin:0 0 1.5rem;">${slot.display}.</p>
-           <p style="color:#fff;font-size:1rem;line-height:1.7;margin:0 0 2rem;">${message || 'I saved your slot â€” Gideon will follow up directly with the Zoom link.'}</p>`
+           <p style="color:#fff;font-size:1rem;line-height:1.7;margin:0 0 2rem;">${message || 'I saved your slot — Gideon will follow up directly with the Zoom link.'}</p>`
         : `<p style="color:#FFCC33;font-size:1rem;line-height:1.7;margin:0 0 2rem;">${message || 'If you think this is in error, reply to the original email and I\'ll sort it out.'}</p>`
 
   return `<!DOCTYPE html>
@@ -259,7 +259,7 @@ export async function POST(request: Request) {
   // Step 2: create Zoom meeting
   try {
     const meeting = await createMeeting('me', {
-      topic: `Terminal Introduction â€” ${firstName}`,
+      topic: `Terminal Introduction — ${firstName}`,
       start_time: slot.iso,
       duration: 30,
       timezone: 'America/Chicago',
@@ -291,7 +291,7 @@ export async function POST(request: Request) {
       const start = new Date(slot.iso)
       const end = new Date(start.getTime() + 30 * 60 * 1000)
       const eventId = await createCalendarEvent({
-        summary: `Terminal Introduction â€” ${firstName}`,
+        summary: `Terminal Introduction — ${firstName}`,
         description: 'Terminal introduction call. 30 minutes.',
         startTime: slot.iso,
         endTime: end.toISOString(),
@@ -329,7 +329,7 @@ export async function POST(request: Request) {
         uid: token,
         startIso: slot.iso,
         endIso: end.toISOString(),
-        summary: `Terminal Introduction â€” ${firstName}`,
+        summary: `Terminal Introduction — ${firstName}`,
         description: `Zoom: ${zoomJoinUrl}`,
         location: zoomJoinUrl,
         organizerEmail: FROM_EMAIL,
@@ -362,7 +362,7 @@ Zoom: ${zoomJoinUrl}
 
 Calendar invite attached.
 
-â€”
+—
 Gideon Gratsiani
 Founder, RePrime Group`
 
@@ -370,7 +370,7 @@ Founder, RePrime Group`
         to: inv.contact_email,
         from: FROM_EMAIL,
         replyTo: REPLY_TO,
-        subject: `Confirmed â€” Terminal Introduction Â· ${slot.display}`,
+        subject: `Confirmed — Terminal Introduction Â· ${slot.display}`,
         html,
         text,
         attachments: [
@@ -393,7 +393,7 @@ Founder, RePrime Group`
     try {
       const chatId = await findChatIdForPhone('305', inv.contact_phone)
       if (chatId) {
-        const text = `${firstName} â€” confirmed: ${slot.display}.\n\nZoom: ${zoomJoinUrl}\n\nSee you then.\nâ€” Gideon`
+        const text = `${firstName} — confirmed: ${slot.display}.\n\nZoom: ${zoomJoinUrl}\n\nSee you then.\n— Gideon`
         await sendMessage({
           phone: inv.contact_phone,
           text,
@@ -417,7 +417,7 @@ Founder, RePrime Group`
     const tMinus1Ms = slotMs - 1 * 60 * 1000
 
     const tMinus10Member = JSON.stringify({
-      summary: `${firstName} Terminal in 10 min â€” Zoom: ${zoomJoinUrl ?? 'n/a'}`,
+      summary: `${firstName} Terminal in 10 min — Zoom: ${zoomJoinUrl ?? 'n/a'}`,
       severity: 'warning',
       customDetails: { contact: inv.contact_name, slot: slot.display, zoom: zoomJoinUrl, token },
       dedupKey: `terminal:${token}:t-10`,
@@ -479,7 +479,7 @@ Founder, RePrime Group`
       state: success ? 'confirmed' : 'partial',
       message: success
         ? undefined
-        : 'Slot saved. There was a hiccup creating the Zoom link â€” Gideon will follow up directly.',
+        : 'Slot saved. There was a hiccup creating the Zoom link — Gideon will follow up directly.',
     })
   )
 }

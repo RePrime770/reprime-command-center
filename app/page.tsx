@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useCallback, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -15,7 +15,7 @@ import InvestorChatPanel from '@/components/panels/InvestorChatPanel'
 import BookingsPanel from '@/components/bookings/BookingsPanel'
 import type { DashboardMessage, DashboardThread, Panel } from '@/lib/timelines/types'
 
-// â”€â”€ Import-names CSV button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Import-names CSV button ───────────────────────────────────────────────────
 function ImportNamesButton() {
   const inputRef = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'err'>('idle')
@@ -36,7 +36,7 @@ function ImportNamesButton() {
         setMsg(json.message || json.error || `Error ${res.status}`)
       } else {
         setStatus('ok')
-        setMsg(`âœ“ ${json.updated} updated, ${json.skipped} skipped`)
+        setMsg(`✓ ${json.updated} updated, ${json.skipped} skipped`)
         setTimeout(() => { setStatus('idle'); setMsg('') }, 5000)
       }
     } catch (ex: unknown) {
@@ -78,7 +78,7 @@ function ImportNamesButton() {
           flexShrink: 0,
         }}
       >
-        {status === 'loading' ? 'â³' : 'ðŸ“‹'} Import Names
+        {status === 'loading' ? '⏳' : '📋'} Import Names
       </button>
       {msg && (
         <span style={{ fontSize: 10, color, maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -89,7 +89,7 @@ function ImportNamesButton() {
   )
 }
 
-// â”€â”€ Panel view â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Panel view ────────────────────────────────────────────────────────────────
 
 type PanelViewProps = {
   panel: Panel
@@ -151,7 +151,7 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
   const headerMuted = is718 ? 'var(--personal-muted)' : 'var(--rp-gold-lite)'
   const borderColor = is718 ? 'var(--personal-border)' : 'var(--rp-border)'
   const phoneLabel = is718 ? '+1 (718) 550-5500' : '+1 (305) 778-4861'
-  const title = is718 ? '718 â€” Personal' : '305 â€” RePrime'
+  const title = is718 ? '718 — Personal' : '305 — RePrime'
 
   return (
     <div
@@ -279,7 +279,7 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
   )
 }
 
-// â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Dashboard ─────────────────────────────────────────────────────────────────
 
 type SelectionMap = Record<Panel, DashboardThread | null>
 
@@ -300,7 +300,7 @@ export default function Dashboard() {
     <>
       <TodayPanel />
 
-      {/* â”€â”€ Top control bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Top control bar ────────────────────────────────────────────────── */}
       <div
         style={{
           display: 'flex',
@@ -332,13 +332,13 @@ export default function Dashboard() {
             flexShrink: 0,
           }}
         >
-          âœ‰ Terminal
+          ✉ Terminal
         </button>
 
         {/* Divider */}
         <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255, 204, 51,0.2)', flexShrink: 0 }} />
 
-        {/* Concierge quick-actions â€” target whoever's chat is open */}
+        {/* Concierge quick-actions — target whoever's chat is open */}
         <TopBarConcierge activeThread={activeThread} />
 
         {/* Active-thread indicator */}
@@ -352,7 +352,7 @@ export default function Dashboard() {
               whiteSpace: 'nowrap',
             }}
           >
-            â†’ {activeThread.contact_name || activeThread.phone}
+            → {activeThread.contact_name || activeThread.phone}
           </span>
         )}
       </div>
@@ -380,19 +380,19 @@ export default function Dashboard() {
       )}
 
       <main style={{ display: 'flex', flex: 1, minHeight: 0, width: '100vw' }}>
-        {/* â”€â”€ 305 â€” RePrime (left) â”€â”€ */}
+        {/* ── 305 — RePrime (left) ── */}
         <PanelView
           panel="305"
           selected={selections['305']}
           onSelect={select('305')}
         />
-        {/* â”€â”€ 718 â€” Personal (center) â”€â”€ */}
+        {/* ── 718 — Personal (center) ── */}
         <PanelView
           panel="718"
           selected={selections['718']}
           onSelect={select('718')}
         />
-        {/* â”€â”€ Investors (right) â”€â”€ */}
+        {/* ── Investors (right) ── */}
         <InvestorChatPanel />
       </main>
       <NotesPanel />

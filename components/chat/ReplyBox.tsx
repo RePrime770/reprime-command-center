@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useEffect, useRef, useState } from 'react'
 import type { Panel, DashboardMessage } from '@/lib/timelines/types'
 import { isHebrew } from '@/lib/timelines/parse'
@@ -148,7 +148,7 @@ export default function ReplyBox({
         color: textColor,
       }}
     >
-      {/* â”€â”€ Toolbar row: above the textarea â”€â”€ */}
+      {/* ── Toolbar row: above the textarea ── */}
       <div
         style={{
           display: 'flex',
@@ -189,14 +189,14 @@ export default function ReplyBox({
         />
       </div>
 
-      {/* â”€â”€ Textarea â”€â”€ */}
+      {/* ── Textarea ── */}
       <textarea
         ref={taRef}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         onKeyDown={onKeyDown}
         dir={rtl ? 'rtl' : 'ltr'}
-        placeholder="Type a messageâ€¦"
+        placeholder="Type a message…"
         rows={1}
         style={{
           width: '100%',
@@ -212,7 +212,7 @@ export default function ReplyBox({
         }}
       />
 
-      {/* â”€â”€ Bottom row: char count + Send â”€â”€ */}
+      {/* ── Bottom row: char count + Send ── */}
       <div
         style={{
           display: 'flex',
@@ -238,7 +238,7 @@ export default function ReplyBox({
             cursor: canSend ? 'pointer' : 'not-allowed',
           }}
         >
-          {sending ? 'Sendingâ€¦' : 'Send'}
+          {sending ? 'Sending…' : 'Send'}
         </button>
       </div>
       {lastFailed && (
@@ -254,7 +254,7 @@ export default function ReplyBox({
         >
           <span>
             {lastFailed.isQuota
-              ? 'âš  WhatsApp (Timelines) quota exceeded â€” resets May 1. Message saved.'
+              ? 'âš  WhatsApp (Timelines) quota exceeded — resets May 1. Message saved.'
               : 'âœ— Send failed.'}
           </span>
           {!lastFailed.isQuota && (

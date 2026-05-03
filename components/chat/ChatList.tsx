@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -64,7 +64,7 @@ function initials(name: string | null, phone: string): string {
 
 function truncate(s: string | null, n: number): string {
   if (!s) return ''
-  return s.length > n ? s.slice(0, n - 1) + 'â€¦' : s
+  return s.length > n ? s.slice(0, n - 1) + '…' : s
 }
 
 export default function ChatList({ panel, selectedThreadId, onSelect, hideInvestors = false }: Props) {
@@ -96,9 +96,9 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
       .on(
         'postgres_changes',
         {
-          // INSERT only â€” '*' causes an infinite loop because the threads
+          // INSERT only — '*' causes an infinite loop because the threads
           // GET endpoint itself upserts (UPDATE) on every call, which fires
-          // realtime â†’ invalidates â†’ refetches â†’ upserts again â†’ âˆž
+          // realtime → invalidates → refetches → upserts again → ∞
           event: 'INSERT',
           schema: 'public',
           table: 'whatsapp_threads',
@@ -128,7 +128,7 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
 
   const threads = useMemo<DashboardThread[]>(() => {
     let list = data || []
-    // Remove investor-tagged contacts from 718/305 panels â€” they live in the Investors panel
+    // Remove investor-tagged contacts from 718/305 panels — they live in the Investors panel
     if (hideInvestors) {
       list = list.filter((t) => !t.is_investor)
     }
@@ -174,7 +174,7 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
       <div style={{ padding: '0.75rem', borderBottom: `1px solid ${theme.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <input
           type="text"
-          placeholder="Search name or phoneâ€¦"
+          placeholder="Search name or phone…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
@@ -231,7 +231,7 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading && (
-          <div style={{ padding: '1rem', color: theme.muted, fontSize: 13 }}>Loading threadsâ€¦</div>
+          <div style={{ padding: '1rem', color: theme.muted, fontSize: 13 }}>Loading threads…</div>
         )}
         {error && (
           <div style={{ padding: '1rem', color: '#FF7474', fontSize: 13 }}>
@@ -246,7 +246,7 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
             No conversations.
             {hideInvestors && (
               <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.5 }}>
-                Investor-tagged contacts appear in the <strong style={{ color: theme.accent }}>â˜… Investors</strong> panel on the right.
+                Investor-tagged contacts appear in the <strong style={{ color: theme.accent }}>★ Investors</strong> panel on the right.
               </div>
             )}
           </div>
@@ -313,7 +313,7 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
                   <span style={{ fontWeight: hasUnread ? 800 : 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: hasUnread ? '#fff' : theme.text }}>
                     {displayName}
                     {t.is_investor && (
-                      <span style={{ marginLeft: 6, color: theme.accent, fontSize: 11 }}>â˜…</span>
+                      <span style={{ marginLeft: 6, color: theme.accent, fontSize: 11 }}>★</span>
                     )}
                     {isPriority && !hasUnread && (
                       <span style={{ marginLeft: 5, fontSize: 11, color: '#FFCC33' }} title="AI-flagged: important">âš¡</span>
@@ -359,7 +359,7 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
       </div>
       {isFetching && !isLoading && (
         <div style={{ padding: '0.3rem 0.75rem', fontSize: 11, color: theme.muted, borderTop: `1px solid ${theme.border}` }}>
-          Refreshingâ€¦
+          Refreshing…
         </div>
       )}
     </div>

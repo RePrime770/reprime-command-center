@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -18,7 +18,7 @@ interface CalendarPayload {
   cached: boolean
 }
 
-// â”€â”€ Meeting reminder types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Meeting reminder types ────────────────────────────────────────────────────
 
 interface ReminderData {
   enabled: boolean
@@ -51,7 +51,7 @@ function saveReminders(map: ReminderMap) {
   } catch {}
 }
 
-// â”€â”€ Reminder resolution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Reminder resolution ───────────────────────────────────────────────────────
 
 async function resolveReminderData(
   meetingId: string,
@@ -121,7 +121,7 @@ async function resolveReminderData(
   return { phone, threadId, panel, attendeeEmail }
 }
 
-// â”€â”€ Send reminder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Send reminder ─────────────────────────────────────────────────────────────
 
 async function sendReminderMessage(
   reminder: ReminderData,
@@ -131,8 +131,8 @@ async function sendReminderMessage(
 
   const body =
     minutesBefore === 10
-      ? `Reminder: we have a call in 10 minutes â€” ${reminder.meetingTitle}`
-      : `Reminder: our meeting starts in 1 minute â€” ${reminder.meetingTitle}`
+      ? `Reminder: we have a call in 10 minutes — ${reminder.meetingTitle}`
+      : `Reminder: our meeting starts in 1 minute — ${reminder.meetingTitle}`
 
   try {
     const res = await fetch('/api/whatsapp/messages', {
@@ -199,7 +199,7 @@ export default function TodayPanel() {
     return () => clearInterval(interval)
   }, [])
 
-  // Reminder check loop â€” every 30 seconds
+  // Reminder check loop — every 30 seconds
   useEffect(() => {
     const check = () => {
       const map = reminderRef.current
@@ -256,7 +256,7 @@ export default function TodayPanel() {
         return
       }
 
-      // Turn on â€” resolve contact
+      // Turn on — resolve contact
       setTogglingId(ev.id)
       try {
         const firstAttendee = ev.attendees?.[0] ?? null
@@ -322,7 +322,7 @@ export default function TodayPanel() {
     return (
       <div style={containerStyle}>
         <div style={labelStyle}>Today</div>
-        <div style={{ color: 'var(--rp-gold-lite)', fontSize: 12 }}>Loadingâ€¦</div>
+        <div style={{ color: 'var(--rp-gold-lite)', fontSize: 12 }}>Loading…</div>
       </div>
     )
   }
@@ -413,9 +413,9 @@ export default function TodayPanel() {
               disabled={isToggling}
               title={
                 isToggling
-                  ? 'Resolving contactâ€¦'
+                  ? 'Resolving contact…'
                   : reminderOn
-                  ? `Reminder ON${hasThread ? ' (WhatsApp ready)' : ' (phone unresolved â€” will skip)'}\nClick to turn off`
+                  ? `Reminder ON${hasThread ? ' (WhatsApp ready)' : ' (phone unresolved — will skip)'}\nClick to turn off`
                   : 'Turn on WhatsApp reminder (10 min + 1 min)'
               }
               style={{
@@ -431,10 +431,10 @@ export default function TodayPanel() {
                 flexShrink: 0,
               }}
             >
-              {isToggling ? 'â³' : reminderOn ? 'ðŸ””' : 'ðŸ”•'}
+              {isToggling ? '⏳' : reminderOn ? 'ðŸ””' : 'ðŸ”•'}
             </button>
 
-            {/* Late / Can't make it â€” inline */}
+            {/* Late / Can't make it — inline */}
             <ConciergeButtons
               meeting={{
                 id: ev.id,

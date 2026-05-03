@@ -1,12 +1,12 @@
-﻿interface GeneralMeetingParams {
+interface GeneralMeetingParams {
   firstName: string
   inviteUrl: string
-  /** Gideon's personal note â€” appears above the professional template in the email */
+  /** Gideon's personal note — appears above the professional template in the email */
   personalMessage?: string
 }
 
 export function buildGeneralMeetingEmail(p: GeneralMeetingParams): { subject: string; html: string; text: string } {
-  const subject = `Let's Connect â€” ${p.firstName}`
+  const subject = `Let's Connect — ${p.firstName}`
 
   const personalSection = p.personalMessage
     ? `<tr><td style="padding:1.75rem 2rem 0; border-bottom:1px solid #E5E2DB;">
@@ -28,7 +28,7 @@ export function buildGeneralMeetingEmail(p: GeneralMeetingParams): { subject: st
         ${personalSection}
         <tr><td style="padding:2.5rem 2rem;">
           <p style="color:#1F1D1A; font-size:1.05rem; margin:0 0 1.25rem; line-height:1.6;">${p.firstName},</p>
-          <p style="color:#1F1D1A; font-size:1rem; margin:0 0 1.25rem; line-height:1.7;">I'd value some time with you â€” thirty minutes, your schedule.</p>
+          <p style="color:#1F1D1A; font-size:1rem; margin:0 0 1.25rem; line-height:1.7;">I'd value some time with you — thirty minutes, your schedule.</p>
           <p style="color:#1F1D1A; font-size:1rem; margin:0 0 2rem; line-height:1.7;">Pick a time that works and I'll be there. One click locks it on both our calendars with a Zoom link ready to go.</p>
           <table cellpadding="0" cellspacing="0"><tr><td style="background:#FFCC33; border-radius:4px;">
             <a href="${p.inviteUrl}" style="display:inline-block; padding:0.85rem 2rem; color:#0E3470; text-decoration:none; font-weight:600; font-size:1rem;">Choose a Time</a>
@@ -46,12 +46,12 @@ export function buildGeneralMeetingEmail(p: GeneralMeetingParams): { subject: st
   const personalPart = p.personalMessage ? `${p.personalMessage}\n\n` : ''
   const text = `${personalPart}${p.firstName},
 
-I'd value some time with you â€” thirty minutes, your schedule.
+I'd value some time with you — thirty minutes, your schedule.
 
 Pick a time that works and I'll be there:
 ${p.inviteUrl}
 
-â€”
+—
 Gideon Gratsiani
 Founder, RePrime Group`
 

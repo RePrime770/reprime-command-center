@@ -1,25 +1,25 @@
-﻿// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Terminal Invitation Email Template
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 //
 // HOW TO SWAP IN STEVE'S DESIGN (one-time, takes 2 minutes):
 //
 //   1. Steve delivers a .html file with these three placeholders in the source:
-//        {{FIRST_NAME}}  â€” recipient's first name
-//        {{INVITE_URL}}  â€” the booking link (put on the CTA button href)
-//        {{SLOTS_HTML}}  â€” pre-formatted slot list (optional; may be omitted)
+//        {{FIRST_NAME}}  — recipient's first name
+//        {{INVITE_URL}}  — the booking link (put on the CTA button href)
+//        {{SLOTS_HTML}}  — pre-formatted slot list (optional; may be omitted)
 //
 //   2. Copy Steve's entire HTML (from <!DOCTYPE html> to </html>)
 //
-//   3. Replace the TEMPLATE string below with Steve's HTML â€” keeping the three
+//   3. Replace the TEMPLATE string below with Steve's HTML — keeping the three
 //      {{...}} placeholders exactly as-is in the source.
 //
 //   4. Push. Vercel deploys in ~30 seconds. Done forever.
 //      Every Terminal invitation automatically uses the new design.
 //
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // CURRENT STATUS: placeholder design (navy/gold). Replace with Steve's build.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 const TEMPLATE = `<!DOCTYPE html>
 <html>
@@ -34,7 +34,7 @@ const TEMPLATE = `<!DOCTYPE html>
         {{PERSONAL_MESSAGE_SECTION}}
         <tr><td style="padding:2.5rem 2rem;">
           <p style="color:#1F1D1A; font-size:1.05rem; margin:0 0 1.25rem; line-height:1.6;">{{FIRST_NAME}},</p>
-          <p style="color:#1F1D1A; font-size:1rem; margin:0 0 1.25rem; line-height:1.7;">A time to connect properly â€” 30 minutes, direct.</p>
+          <p style="color:#1F1D1A; font-size:1rem; margin:0 0 1.25rem; line-height:1.7;">A time to connect properly — 30 minutes, direct.</p>
           <p style="color:#1F1D1A; font-size:1rem; margin:0 0 1.5rem; line-height:1.7;">Pick what works. One click confirms the slot, generates the Zoom link, and locks it on both our calendars.</p>
           {{SLOTS_HTML}}
           <table cellpadding="0" cellspacing="0"><tr><td style="background:#FFCC33; border-radius:4px;">
@@ -54,12 +54,12 @@ interface TerminalInvitationParams {
   firstName: string
   inviteUrl: string
   slots: Array<{ display: string }>
-  /** Gideon's personal note â€” appears above the professional template in the email */
+  /** Gideon's personal note — appears above the professional template in the email */
   personalMessage?: string
 }
 
 export function buildTerminalInvitationEmail(p: TerminalInvitationParams): { subject: string; html: string; text: string } {
-  const subject = `Terminal Introduction â€” ${p.firstName}`
+  const subject = `Terminal Introduction — ${p.firstName}`
 
   const slotsHtml = p.slots.length > 0
     ? `<ul style="list-style:none; padding:0; margin:0 0 2rem;">${
@@ -69,7 +69,7 @@ export function buildTerminalInvitationEmail(p: TerminalInvitationParams): { sub
       }</ul>`
     : ''
 
-  // Personal note section â€” shown between header and body when present
+  // Personal note section — shown between header and body when present
   const personalMessageSection = p.personalMessage
     ? `<tr><td style="padding:1.75rem 2rem 0; border-bottom:1px solid #E5E2DB;">
         <p style="color:#1F1D1A; font-size:1rem; line-height:1.75; margin:0; white-space:pre-wrap;">${p.personalMessage.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
@@ -85,11 +85,11 @@ export function buildTerminalInvitationEmail(p: TerminalInvitationParams): { sub
   const personalPart = p.personalMessage ? `${p.personalMessage}\n\n` : ''
   const text = `${personalPart}${p.firstName},
 
-A time to connect properly â€” 30 minutes, direct.
+A time to connect properly — 30 minutes, direct.
 ${p.slots.length > 0 ? '\nAvailable times:\n' + p.slots.map(s => `  Â· ${s.display}`).join('\n') + '\n' : ''}
 Book here: ${p.inviteUrl}
 
-â€”
+—
 Gideon Gratsiani
 Founder, RePrime Group`
 
