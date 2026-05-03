@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terminal Introduction — David Cohen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #DDD9D2;
+    min-height: 100vh;
+    padding: 40px 20px;
+    display: flex;
+    justify-content: center;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  /* EMAIL CONTAINER */
+  .E {
+    width: 100%;
+    max-width: 560px;
+    background: #0E3470;
+    border: 1px solid rgba(255, 215, 0, 0.22);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  /* HEADER */
+  .Ehdr {
+    background: #0E3470;
+    padding: 22px 48px 20px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.18);
+  }
+  .Ehdr-spindle-wrap { display: flex; justify-content: center; }
+  .Ehdr-spindle { width: 70%; height: 7px; }
+  .Ewm {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 26px;
+    letter-spacing: 0.30em;
+    color: #FFD700;
+    font-weight: 600;
+    margin: 11px 0;
+    text-indent: 0.30em;
+  }
+
+  /* HERO */
+  .Ehero {
+    padding: 34px 48px 22px;
+    text-align: center;
+    background: #0E3470;
+  }
+  .Epi-label {
+    font-family: 'Poppins', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.30em;
+    color: #FFD700;
+    font-weight: 600;
+    text-transform: uppercase;
+    text-indent: 0.30em;
+    margin-bottom: 14px;
+  }
+  .Ename {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 64px;
+    color: #FFD700;
+    font-weight: 600;
+    line-height: 1.0;
+    letter-spacing: -0.01em;
+  }
+
+  /* BUBBLE */
+  .Ebubble-wrap {
+    background: #0E3470;
+    padding: 0 60px 26px;
+  }
+  .Ebubble { position: relative; }
+  .Ebubble svg {
+    display: block;
+    filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.18));
+  }
+  .Ebubble-content {
+    position: absolute;
+    top: 46px;
+    left: 24px;
+    right: 24px;
+    bottom: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+  .Ebubble-label {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 13px;
+    color: #7A5A30;
+    font-style: italic;
+    margin-bottom: 11px;
+    text-align: center;
+  }
+  .Ebubble-label-name {
+    font-weight: 600;
+    color: #5A3F18;
+  }
+  .Ebubble-body {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 14px;
+    color: #0E3470;
+    line-height: 1.7;
+    font-style: italic;
+    text-align: center;
+  }
+
+  /* MEMBERSHIP */
+  .Emem {
+    background: #0E3470;
+    padding: 24px 48px;
+    text-align: center;
+    border-top: 1px solid rgba(255, 215, 0, 0.18);
+    border-bottom: 1px solid rgba(255, 215, 0, 0.18);
+  }
+  .Epm {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 28px;
+    color: #FFD700;
+    font-weight: 400;
+    font-style: italic;
+  }
+  .Edot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #E8B840;
+    margin: 13px auto;
+  }
+  .Ebio {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 36px;
+    color: #FFD700;
+    font-weight: 400;
+    font-style: italic;
+  }
+
+  /* SLOTS */
+  .Eslots {
+    padding: 28px 48px 0;
+    background: #0E3470;
+  }
+  .Eslots-lbl {
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    color: #FFD700;
+    text-transform: uppercase;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 16px;
+    text-indent: 0.24em;
+  }
+  .Eslot, .Eown {
+    display: block;
+    width: 100%;
+    padding: 14px 20px;
+    border: 0.5px solid rgba(255, 215, 0, 0.35);
+    text-align: center;
+    text-decoration: none;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .Eown { margin-bottom: 0; }
+  .Eslot:hover, .Eown:hover {
+    border-color: #FFD700;
+    background: rgba(255, 215, 0, 0.04);
+  }
+  .Eslot-p, .Eown-p {
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    color: #FFD700;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    font-weight: 600;
+    text-indent: 0.20em;
+  }
+  .Eslot-t {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 22px;
+    color: #FFD700;
+    font-weight: 400;
+    margin-top: 4px;
+  }
+  .Eown-t {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 28px;
+    color: #FFD700;
+    font-weight: 400;
+    margin-top: 4px;
+  }
+
+  /* CONFIRM */
+  .Econfirm {
+    padding: 18px 48px 26px;
+    text-align: center;
+    background: #0E3470;
+  }
+  .Econfirm-t {
+    font-family: 'Poppins', sans-serif;
+    font-size: 10px;
+    color: #E8B840;
+    line-height: 1.85;
+    letter-spacing: 0.04em;
+  }
+
+  /* FOOTER */
+  .Efoot {
+    background: #0E3470;
+    padding: 22px 48px;
+    border-top: 1px solid rgba(255, 215, 0, 0.18);
+    text-align: center;
+  }
+  .Efoot-nm {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 16px;
+    color: #FFD700;
+    font-weight: 600;
+    letter-spacing: 0.10em;
+    text-indent: 0.10em;
+  }
+  .Efoot-unsub {
+    font-family: 'Poppins', sans-serif;
+    font-size: 8px;
+    color: #A88B40;
+    margin-top: 11px;
+    letter-spacing: 0.06em;
+  }
+</style>
+</head>
+<body>
+
+<div class="E">
+
+  <!-- HEADER: SPINDLE + TERMINAL -->
+  <div class="Ehdr">
+    <div class="Ehdr-spindle-wrap">
+      <svg class="Ehdr-spindle" viewBox="0 0 460 7" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#0E3470"/>
+            <stop offset="10%" style="stop-color:#FFD700"/>
+            <stop offset="50%" style="stop-color:#FFEC8A"/>
+            <stop offset="90%" style="stop-color:#FFD700"/>
+            <stop offset="100%" style="stop-color:#0E3470"/>
+          </linearGradient>
+        </defs>
+        <path d="M0,3.5 Q230,0 460,3.5 Q230,7 0,3.5 Z" fill="url(#g1)"/>
+      </svg>
+    </div>
+    <div class="Ewm">TERMINAL</div>
+    <div class="Ehdr-spindle-wrap">
+      <svg class="Ehdr-spindle" viewBox="0 0 460 7" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#0E3470"/>
+            <stop offset="10%" style="stop-color:#FFD700"/>
+            <stop offset="50%" style="stop-color:#FFEC8A"/>
+            <stop offset="90%" style="stop-color:#FFD700"/>
+            <stop offset="100%" style="stop-color:#0E3470"/>
+          </linearGradient>
+        </defs>
+        <path d="M0,3.5 Q230,0 460,3.5 Q230,7 0,3.5 Z" fill="url(#g2)"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- HERO: PRIVATE INTRODUCTION ABOVE, NAME BELOW -->
+  <div class="Ehero">
+    <div class="Epi-label">Private Introduction</div>
+    <div class="Ename">David Cohen</div>
+  </div>
+
+  <!-- BUBBLE: SPEECH BUBBLE WITH POINTY TIP -->
+  <div class="Ebubble-wrap">
+    <div class="Ebubble">
+      <svg viewBox="0 0 480 168" width="100%">
+        <defs>
+          <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#F8F0DA"/>
+            <stop offset="100%" style="stop-color:#EFE2C4"/>
+          </linearGradient>
+        </defs>
+        <path d="M 18,28 L 215,28 C 222,28 234,2 240,1 C 246,2 258,28 265,28 L 462,28 Q 480,28 480,46 L 480,150 Q 480,168 462,168 L 18,168 Q 0,168 0,150 L 0,46 Q 0,28 18,28 Z"
+          fill="url(#bg)" stroke="rgba(255,215,0,0.30)" stroke-width="1"/>
+      </svg>
+      <div class="Ebubble-content">
+        <div class="Ebubble-label">
+          A personal note from <span class="Ebubble-label-name">Gideon Gratsiani</span>
+        </div>
+        <div class="Ebubble-body">
+          "David — great seeing you last week. I've been building something privately for two years and you're one of the very first people I want to show it to. Thirty minutes, just us."
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEMBERSHIP -->
+  <div class="Emem">
+    <div class="Epm">Private Membership</div>
+    <div class="Edot"></div>
+    <div class="Ebio">By Invitation Only</div>
+  </div>
+
+  <!-- SLOTS -->
+  <div class="Eslots">
+    <div class="Eslots-lbl">Suggested times — Tuesday, May 5</div>
+    <a class="Eslot" href="#">
+      <div class="Eslot-p">Morning</div>
+      <div class="Eslot-t">Tuesday, May 5 · 9:00 AM Central</div>
+    </a>
+    <a class="Eslot" href="#">
+      <div class="Eslot-p">Afternoon</div>
+      <div class="Eslot-t">Tuesday, May 5 · 1:00 PM Central</div>
+    </a>
+    <a class="Eslot" href="#">
+      <div class="Eslot-p">Late Afternoon</div>
+      <div class="Eslot-t">Tuesday, May 5 · 4:30 PM Central</div>
+    </a>
+    <a class="Eown" href="#">
+      <div class="Eown-p">Different Time?</div>
+      <div class="Eown-t">Choose your own date and time →</div>
+    </a>
+  </div>
+
+  <!-- CONFIRM -->
+  <div class="Econfirm">
+    <div class="Econfirm-t">
+      One click confirms · Zoom link follows immediately · Thirty minutes · No preparation needed
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="Efoot">
+    <div class="Efoot-nm">RePrime</div>
+    <div class="Efoot-unsub">This invitation was sent personally. Reply directly to Gideon.</div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -38,11 +38,11 @@ interface Invitation {
 
 const NAVY = '#0E3470'
 const NAVY_DEEP = '#0A2855'
-const GOLD = '#BC9C45'
-const GOLD_LIGHT = '#D4B86A'
+const GOLD = '#FFCC33'
+const GOLD_LIGHT = '#FFCC33'
 const TEXT = '#fff'
 const MUTED = '#8A8680'
-const BORDER = '#1A3560'
+const BORDER = 'rgba(14, 52, 112, 0.70)'
 
 function formatSlotDisplay(iso: string): string {
   const d = new Date(iso)
@@ -62,22 +62,22 @@ const MEETING_CONFIG = {
   terminal: {
     symbol: 'T',
     label: 'Terminal Introduction',
-    tagline: 'RePrime Group · Terminal Introduction',
+    tagline: 'RePrime Group Â· Terminal Introduction',
     previewEmail: (firstName: string) =>
-      `${firstName},\n\nI'm hosting a Terminal Introduction — a deal sourcing system unlike anything that exists. Built to surface and close opportunities at a different level.\n\n30 minutes to show you what it is.\n\nPick a time: [booking link — inserted on send]\n\n—\nGideon Gratsiani\nFounder, RePrime Group`,
+      `${firstName},\n\nI'm hosting a Terminal Introduction â€” a deal sourcing system unlike anything that exists. Built to surface and close opportunities at a different level.\n\n30 minutes to show you what it is.\n\nPick a time: [booking link â€” inserted on send]\n\nâ€”\nGideon Gratsiani\nFounder, RePrime Group`,
     previewWhatsApp: (firstName: string) =>
-      `${firstName} — I'm hosting a Terminal Introduction.\n\nThe Terminal is a deal sourcing machine unlike anything that exists — built to source, qualify, and close at a different level. One of a kind.\n\n30 minutes to walk you through it. Pick a time:\n[booking link — inserted on send]\n— Gideon`,
-    emailSubject: (firstName: string) => `Terminal Introduction — ${firstName}`,
+      `${firstName} â€” I'm hosting a Terminal Introduction.\n\nThe Terminal is a deal sourcing machine unlike anything that exists â€” built to source, qualify, and close at a different level. One of a kind.\n\n30 minutes to walk you through it. Pick a time:\n[booking link â€” inserted on send]\nâ€” Gideon`,
+    emailSubject: (firstName: string) => `Terminal Introduction â€” ${firstName}`,
   },
   meeting: {
-    symbol: '·',
+    symbol: 'Â·',
     label: 'General Meeting',
-    tagline: 'RePrime Group · Meeting Request',
+    tagline: 'RePrime Group Â· Meeting Request',
     previewEmail: (firstName: string) =>
-      `${firstName},\n\nI'd value some time with you — thirty minutes, your schedule.\n\nPick what works and I'll be there:\n[booking link — inserted on send]\n\n—\nGideon Gratsiani\nFounder, RePrime Group`,
+      `${firstName},\n\nI'd value some time with you â€” thirty minutes, your schedule.\n\nPick what works and I'll be there:\n[booking link â€” inserted on send]\n\nâ€”\nGideon Gratsiani\nFounder, RePrime Group`,
     previewWhatsApp: (firstName: string) =>
-      `${firstName} — I'd value some time with you.\n\n30 minutes, your schedule. Pick what works:\n[booking link — inserted on send]\n— Gideon`,
-    emailSubject: (firstName: string) => `Let's Connect — ${firstName}`,
+      `${firstName} â€” I'd value some time with you.\n\n30 minutes, your schedule. Pick what works:\n[booking link â€” inserted on send]\nâ€” Gideon`,
+    emailSubject: (firstName: string) => `Let's Connect â€” ${firstName}`,
   },
 } as const
 
@@ -112,7 +112,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
   const searchAbort = useRef<AbortController | null>(null)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ── Auto-fill from active thread (phone lookup → Pipedrive) ──────────────────
+  // â”€â”€ Auto-fill from active thread (phone lookup â†’ Pipedrive) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (contact) return  // already have a contact, don't overwrite
     const term = autofillPhone?.replace(/\D+/g, '') || autofillName || ''
@@ -141,7 +141,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autofillPhone, autofillName])
 
-  // ── Contact search ────────────────────────────────────────────────────────────
+  // â”€â”€ Contact search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (contact) { setResults([]); return }
     if (query.trim().length < 2) { setResults([]); return }
@@ -168,7 +168,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current) }
   }, [query, contact])
 
-  // ── Auto-select channel from Pipedrive preferences ────────────────────────────
+  // â”€â”€ Auto-select channel from Pipedrive preferences â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (!contact) { setChannelHint(null); return }
     let cancelled = false
@@ -191,7 +191,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
         } else if (json.default_channel === 'email') {
           setChannels(new Set(['email']))
         }
-        // 'all' → keep all three
+        // 'all' â†’ keep all three
       } catch (err) {
         console.error('[BookingsPanel] prefs fetch failed', err)
       }
@@ -199,7 +199,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
     return () => { cancelled = true }
   }, [contact])
 
-  // ── Status tab ────────────────────────────────────────────────────────────────
+  // â”€â”€ Status tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const loadRecent = useCallback(async () => {
     setLoadingRecent(true)
     try {
@@ -218,7 +218,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
     if (view === 'status') void loadRecent()
   }, [view, loadRecent])
 
-  // ── Channel toggle ────────────────────────────────────────────────────────────
+  // â”€â”€ Channel toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function toggleChannel(c: ChannelOption) {
     setChannels((prev) => {
       const next = new Set(prev)
@@ -233,14 +233,14 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
     })
   }
 
-  // ── Send ──────────────────────────────────────────────────────────────────────
+  // â”€â”€ Send â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const cfg = MEETING_CONFIG[meetingType]
   const firstName = contact ? (contact.name.split(' ')[0] || contact.name) : null
 
   const previewEmail = useMemo(() => {
     if (!firstName) return null
     const body = personalMessage.trim()
-      ? `${personalMessage.trim()}\n\n— — —\n\n${cfg.previewEmail(firstName)}`
+      ? `${personalMessage.trim()}\n\nâ€” â€” â€”\n\n${cfg.previewEmail(firstName)}`
       : cfg.previewEmail(firstName)
     return { subject: cfg.emailSubject(firstName), text: body }
   }, [firstName, cfg, personalMessage])
@@ -248,7 +248,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
   const previewWhatsapp = useMemo(() => {
     if (!firstName) return null
     if (personalMessage.trim()) {
-      return `${personalMessage.trim()}\n\nPick a time: [booking link — inserted on send]\n— Gideon`
+      return `${personalMessage.trim()}\n\nPick a time: [booking link â€” inserted on send]\nâ€” Gideon`
     }
     return cfg.previewWhatsApp(firstName)
   }, [firstName, cfg, personalMessage])
@@ -284,7 +284,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
           setToastIsError(true)
           setDbSetupSql(json.sql)
         } else {
-          setToast(`Failed: ${json.error ?? 'unknown'}${json.message ? ` — ${json.message}` : ''}`)
+          setToast(`Failed: ${json.error ?? 'unknown'}${json.message ? ` â€” ${json.message}` : ''}`)
           setToastIsError(true)
         }
         return
@@ -292,14 +292,14 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
       const sent = json.sent_channels ?? []
       const errs = json.errors ?? []
       if (sent.length > 0 && errs.length === 0) {
-        setToast(`✓ Sent via ${sent.join(', ')}`)
+        setToast(`âœ“ Sent via ${sent.join(', ')}`)
         setToastIsError(false)
         setTimeout(() => onClose?.(), 1800)
       } else if (sent.length > 0) {
         setToast(`Sent via ${sent.join(', ')}. ${errs.length} channel(s) failed.`)
         setToastIsError(false)
       } else {
-        setToast(`No channels sent. ${errs.map((e) => `${e.channel}: ${e.message}`).join(' · ')}`)
+        setToast(`No channels sent. ${errs.map((e) => `${e.channel}: ${e.message}`).join(' Â· ')}`)
         setToastIsError(true)
       }
     } catch (err) {
@@ -354,7 +354,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
         width: '100%',
       }}
     >
-      {/* ── Header ── */}
+      {/* â”€â”€ Header â”€â”€ */}
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <span style={{ color: GOLD_LIGHT, letterSpacing: '0.08em', fontSize: '0.88rem', textTransform: 'uppercase', fontWeight: 600 }}>
@@ -365,14 +365,14 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
           <button type="button" onClick={() => setView('compose')} style={tabBtn(view === 'compose')}>Compose</button>
           <button type="button" onClick={() => setView('status')} style={tabBtn(view === 'status')}>Status</button>
           {onClose && (
-            <button type="button" onClick={onClose} style={{ ...tabBtn(false), border: 'none', background: 'transparent' }}>✕</button>
+            <button type="button" onClick={onClose} style={{ ...tabBtn(false), border: 'none', background: 'transparent' }}>âœ•</button>
           )}
         </div>
       </header>
 
       {view === 'compose' && (
         <>
-          {/* ── Meeting type ── */}
+          {/* â”€â”€ Meeting type â”€â”€ */}
           <section>
             <label style={labelStyle}>Invitation Type</label>
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
@@ -380,12 +380,12 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
                 Terminal Introduction
               </button>
               <button type="button" onClick={() => setMeetingType('meeting')} style={typeBtn(meetingType === 'meeting')}>
-                · General Meeting
+                Â· General Meeting
               </button>
             </div>
           </section>
 
-          {/* ── Contact ── */}
+          {/* â”€â”€ Contact â”€â”€ */}
           <section>
             <label style={labelStyle}>Contact</label>
             {contact ? (
@@ -393,7 +393,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
                 <div>
                   <div style={{ color: TEXT, fontSize: '0.95rem' }}>{contact.name}</div>
                   <div style={{ color: MUTED, fontSize: '0.8rem' }}>
-                    {[contact.emails?.[0], contact.phones?.[0]].filter(Boolean).join(' · ') || '—'}
+                    {[contact.emails?.[0], contact.phones?.[0]].filter(Boolean).join(' Â· ') || 'â€”'}
                   </div>
                 </div>
                 <button type="button" onClick={() => { setContact(null); setQuery(''); setChannelHint(null); setChannels(new Set(DEFAULT_CHANNELS)); setPersonalMessage('') }} style={ghostBtn}>
@@ -404,7 +404,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
               <div style={{ position: 'relative', marginTop: '0.4rem' }}>
                 <input
                   type="text"
-                  placeholder="Search Pipedrive contacts…"
+                  placeholder="Search Pipedrive contactsâ€¦"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   style={inputStyle}
@@ -420,31 +420,31 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
                         >
                           <div style={{ color: TEXT, fontSize: '0.9rem' }}>{r.name}</div>
                           <div style={{ color: MUTED, fontSize: '0.75rem' }}>
-                            {[r.emails?.[0], r.phones?.[0]].filter(Boolean).join(' · ') || '—'}
+                            {[r.emails?.[0], r.phones?.[0]].filter(Boolean).join(' Â· ') || 'â€”'}
                           </div>
                         </button>
                       </li>
                     ))}
                   </ul>
                 )}
-                {searching && <div style={{ color: MUTED, fontSize: '0.75rem', marginTop: '0.25rem' }}>Searching…</div>}
+                {searching && <div style={{ color: MUTED, fontSize: '0.75rem', marginTop: '0.25rem' }}>Searchingâ€¦</div>}
               </div>
             )}
           </section>
 
-          {/* ── Personal note ── */}
+          {/* â”€â”€ Personal note â”€â”€ */}
           <section>
             <label style={labelStyle}>
               Personal note
-              <span style={{ color: MUTED, fontWeight: 400, letterSpacing: 0, textTransform: 'none', marginLeft: '0.4rem', fontSize: '0.72rem' }}>— optional, your own words</span>
+              <span style={{ color: MUTED, fontWeight: 400, letterSpacing: 0, textTransform: 'none', marginLeft: '0.4rem', fontSize: '0.72rem' }}>â€” optional, your own words</span>
             </label>
             <textarea
               value={personalMessage}
               onChange={(e) => setPersonalMessage(e.target.value)}
               placeholder={
                 contact
-                  ? `Hey ${contact.name.split(' ')[0]}, great seeing you last week — looking forward to showing you this…`
-                  : 'Hey Mindy, great seeing you last week — looking forward to showing you this…'
+                  ? `Hey ${contact.name.split(' ')[0]}, great seeing you last week â€” looking forward to showing you thisâ€¦`
+                  : 'Hey Mindy, great seeing you last week â€” looking forward to showing you thisâ€¦'
               }
               rows={3}
               style={{
@@ -458,7 +458,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
             />
             {personalMessage.trim() ? (
               <div style={{ fontSize: '0.7rem', color: GOLD_LIGHT, marginTop: '0.25rem' }}>
-                ✓ Your personal note will appear above the professional template in the email, and as the full WhatsApp message.
+                âœ“ Your personal note will appear above the professional template in the email, and as the full WhatsApp message.
               </div>
             ) : (
               <div style={{ fontSize: '0.7rem', color: MUTED, marginTop: '0.25rem' }}>
@@ -467,7 +467,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
             )}
           </section>
 
-          {/* ── Channel multi-select ── */}
+          {/* â”€â”€ Channel multi-select â”€â”€ */}
           <section>
             <label style={labelStyle}>Send via</label>
             {channelHint && (
@@ -505,7 +505,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
                       transition: 'background 0.15s, color 0.15s',
                     }}
                   >
-                    <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>{active ? '✓' : '+'}</span>
+                    <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>{active ? 'âœ“' : '+'}</span>
                     {label}
                   </button>
                 )
@@ -519,12 +519,12 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
             </div>
           </section>
 
-          {/* ── Preview ── */}
+          {/* â”€â”€ Preview â”€â”€ */}
           {contact && (
             <section style={{ display: 'grid', gridTemplateColumns: channels.has('email') && (channels.has('whatsapp_305') || channels.has('whatsapp_718')) ? '1fr 1fr' : '1fr', gap: '0.75rem' }}>
               {channels.has('email') && previewEmail && (
                 <div style={previewBox}>
-                  <div style={previewTitle}>📧 Email preview</div>
+                  <div style={previewTitle}>ðŸ“§ Email preview</div>
                   <div style={{ color: GOLD_LIGHT, fontSize: '0.78rem', marginBottom: '0.5rem' }}>
                     Subject: {previewEmail.subject}
                   </div>
@@ -534,7 +534,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
               {(channels.has('whatsapp_305') || channels.has('whatsapp_718')) && previewWhatsapp && (
                 <div style={previewBox}>
                   <div style={previewTitle}>
-                    💬 WhatsApp preview {channels.has('whatsapp_305') && channels.has('whatsapp_718') ? '(305 + 718)' : channels.has('whatsapp_305') ? '(305)' : '(718)'}
+                    ðŸ’¬ WhatsApp preview {channels.has('whatsapp_305') && channels.has('whatsapp_718') ? '(305 + 718)' : channels.has('whatsapp_305') ? '(305)' : '(718)'}
                   </div>
                   <pre style={previewBody}>{previewWhatsapp}</pre>
                 </div>
@@ -542,11 +542,11 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
             </section>
           )}
 
-          {/* ── DB setup SQL if table missing ── */}
+          {/* â”€â”€ DB setup SQL if table missing â”€â”€ */}
           {dbSetupSql && (
             <div style={{ background: '#1a0a0a', border: '1px solid #7f1d1d', borderRadius: 6, padding: '0.75rem', fontSize: '0.78rem' }}>
               <div style={{ color: '#ff7474', fontWeight: 600, marginBottom: '0.5rem' }}>
-                ⚠ Run this once in Supabase SQL Editor (Dashboard → SQL Editor → New query):
+                âš  Run this once in Supabase SQL Editor (Dashboard â†’ SQL Editor â†’ New query):
               </div>
               <pre style={{ color: '#fca5a5', fontSize: '0.72rem', whiteSpace: 'pre-wrap', margin: '0 0 0.5rem' }}>
                 {SETUP_SQL}
@@ -556,12 +556,12 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
                 onClick={copySetupSql}
                 style={{ background: '#7f1d1d', border: '1px solid #ff7474', color: '#fff', borderRadius: 4, padding: '3px 10px', fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'inherit' }}
               >
-                {sqlCopied ? '✓ Copied!' : 'Copy SQL'}
+                {sqlCopied ? 'âœ“ Copied!' : 'Copy SQL'}
               </button>
             </div>
           )}
 
-          {/* ── Footer ── */}
+          {/* â”€â”€ Footer â”€â”€ */}
           <footer style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
             <span style={{ color: toastIsError ? '#FF6F61' : GOLD_LIGHT, fontSize: '0.8rem', flex: 1 }}>
               {toast ?? ' '}
@@ -572,7 +572,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
               disabled={sending || !contact || channels.size === 0}
               style={primaryBtn(sending || !contact || channels.size === 0)}
             >
-              {sending ? 'Sending…' : 'Send Invitation'}
+              {sending ? 'Sendingâ€¦' : 'Send Invitation'}
             </button>
           </footer>
         </>
@@ -580,7 +580,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
 
       {view === 'status' && (
         <div>
-          {loadingRecent && <div style={{ color: MUTED, fontSize: '0.85rem' }}>Loading…</div>}
+          {loadingRecent && <div style={{ color: MUTED, fontSize: '0.85rem' }}>Loadingâ€¦</div>}
           {!loadingRecent && recent.length === 0 && (
             <div style={{ color: MUTED, fontSize: '0.85rem' }}>No invitations yet.</div>
           )}
@@ -598,15 +598,15 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
               <tbody>
                 {recent.map((r) => (
                   <tr key={r.id} style={{ borderTop: `1px solid ${BORDER}` }}>
-                    <td style={td}>{r.contact_name || r.contact_first_name || '—'}</td>
+                    <td style={td}>{r.contact_name || r.contact_first_name || 'â€”'}</td>
                     <td style={{ ...td, color: r.meeting_type === 'terminal' ? GOLD : GOLD_LIGHT, fontSize: '0.75rem' }}>
-                      {r.meeting_type === 'terminal' ? 'Terminal' : r.meeting_type === 'meeting' ? 'Meeting' : '—'}
+                      {r.meeting_type === 'terminal' ? 'Terminal' : r.meeting_type === 'meeting' ? 'Meeting' : 'â€”'}
                     </td>
                     <td style={{ ...td, color: r.status === 'confirmed' ? '#22c55e' : r.status === 'expired' ? '#FF6F61' : GOLD_LIGHT }}>
                       {r.status}
                     </td>
-                    <td style={td}>{r.confirmed_slot_iso ? formatSlotDisplay(r.confirmed_slot_iso) : '—'}</td>
-                    <td style={td}>{r.created_at ? new Date(r.created_at).toLocaleString() : '—'}</td>
+                    <td style={td}>{r.confirmed_slot_iso ? formatSlotDisplay(r.confirmed_slot_iso) : 'â€”'}</td>
+                    <td style={td}>{r.created_at ? new Date(r.created_at).toLocaleString() : 'â€”'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -618,7 +618,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
   )
 }
 
-// ── Style helpers ─────────────────────────────────────────────────────────────
+// â”€â”€ Style helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const labelStyle: React.CSSProperties = {
   color: MUTED,
@@ -672,7 +672,7 @@ function tabBtn(active: boolean): React.CSSProperties {
     padding: '0.55rem 1.4rem',
     background: active ? GOLD : 'transparent',
     color: active ? NAVY : GOLD_LIGHT,
-    border: `1px solid ${active ? GOLD : 'rgba(188,156,69,0.45)'}`,
+    border: `1px solid ${active ? GOLD : 'rgba(255, 204, 51,0.45)'}`,
     borderRadius: '5px',
     fontSize: '0.92rem',
     fontWeight: active ? 700 : 500,

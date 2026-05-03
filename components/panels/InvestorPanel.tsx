@@ -35,10 +35,10 @@ type Props = {
   onJump?: (target: InvestorPanelJump) => void
 }
 
-const NAVY = '#0A1430'
-const GOLD = 'var(--rp-gold, #BC9C45)'
-const GOLD_LITE = 'var(--rp-gold-lite, #D8C27A)'
-const BORDER = 'rgba(188, 156, 69, 0.25)'
+const NAVY = '#0E3470'
+const GOLD = 'var(--rp-gold, #FFCC33)'
+const GOLD_LITE = 'var(--rp-gold-lite, #FFCC33)'
+const BORDER = 'rgba(255, 204, 51, 0.25)'
 const TEXT = '#F5EFD8'
 const MUTED = '#8C8771'
 
@@ -244,7 +244,7 @@ export default function InvestorPanel({ onJump }: Props) {
               >
                 <span
                   style={{
-                    background: 'rgba(188, 156, 69, 0.15)',
+                    background: 'rgba(255, 204, 51, 0.15)',
                     color: GOLD_LITE,
                     border: `1px solid ${BORDER}`,
                     borderRadius: 4,

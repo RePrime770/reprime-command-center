@@ -1,4 +1,4 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 
 export default function NotFound() {
   return (
@@ -17,14 +17,14 @@ export default function NotFound() {
         style={{
           maxWidth: 480,
           padding: '2rem',
-          background: '#0A1F44',
-          border: '1px solid #1A3560',
+          background: 'rgba(14, 52, 112, 0.85)',
+          border: '1px solid rgba(14, 52, 112, 0.70)',
           borderRadius: 8,
           textAlign: 'center',
         }}
       >
-        <h2 style={{ color: '#BC9C45', margin: 0 }}>Page not found.</h2>
-        <p style={{ color: '#D4B86A', marginTop: '1rem', fontSize: '0.9rem' }}>
+        <h2 style={{ color: '#FFCC33', margin: 0 }}>Page not found.</h2>
+        <p style={{ color: '#FFCC33', marginTop: '1rem', fontSize: '0.9rem' }}>
           The page you&apos;re looking for doesn&apos;t exist.
         </p>
         <Link
@@ -33,7 +33,7 @@ export default function NotFound() {
             display: 'inline-block',
             marginTop: '1.5rem',
             padding: '0.75rem 1.5rem',
-            background: '#BC9C45',
+            background: '#FFCC33',
             color: '#0E3470',
             textDecoration: 'none',
             borderRadius: 4,

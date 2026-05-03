@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 
@@ -101,7 +101,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
         }
       }
     } catch {
-      // Pipedrive failure is non-fatal — Gideon can still send manually.
+      // Pipedrive failure is non-fatal â€” Gideon can still send manually.
     }
 
     setPhone(resolvedPhone)
@@ -157,7 +157,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
           }
         } else {
           const digits = digitsOnly(phone)
-          if (!digits) throw new Error('no_phone — open the thread to send')
+          if (!digits) throw new Error('no_phone â€” open the thread to send')
           window.open(
             `https://wa.me/${digits}?text=${encodeURIComponent(body)}`,
             '_blank',
@@ -206,9 +206,9 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
           type="button"
           aria-label="Running late"
           onClick={() => start('running_late')}
-          style={{ ...baseBtn, borderColor: '#BC9C45', color: '#BC9C45' }}
+          style={{ ...baseBtn, borderColor: '#FFCC33', color: '#FFCC33' }}
         >
-          🕐 Late
+          ðŸ• Late
         </button>
         <button
           type="button"
@@ -216,7 +216,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
           onClick={() => start('couldnt_make_it')}
           style={{ ...baseBtn, borderColor: '#FF7474', color: '#FF7474' }}
         >
-          ❌ Can't make it
+          âŒ Can't make it
         </button>
       </div>
 
@@ -239,9 +239,9 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
         >
           <div
             style={{
-              background: '#0A1F44',
+              background: 'rgba(14, 52, 112, 0.85)',
               color: '#FFFFFF',
-              border: '1px solid #1A3560',
+              border: '1px solid rgba(14, 52, 112, 0.70)',
               borderRadius: 10,
               padding: 20,
               width: 'min(900px, 95vw)',
@@ -257,16 +257,16 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                 marginBottom: 12,
               }}
             >
-              <h2 style={{ margin: 0, fontSize: 16, color: '#D4B86A' }}>
+              <h2 style={{ margin: 0, fontSize: 16, color: '#FFCC33' }}>
                 {open === 'running_late' ? 'Running late' : "Couldn't make it"}
-                {meeting.title ? ` — ${meeting.title}` : ''}
+                {meeting.title ? ` â€” ${meeting.title}` : ''}
               </h2>
               <button
                 type="button"
                 onClick={reset}
                 style={{
                   ...baseBtn,
-                  borderColor: '#1A3560',
+                  borderColor: 'rgba(14, 52, 112, 0.70)',
                   color: '#FFFFFF',
                 }}
               >
@@ -275,7 +275,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
             </div>
 
             {loading ? (
-              <p style={{ color: '#D4B86A' }}>Generating…</p>
+              <p style={{ color: '#FFCC33' }}>Generatingâ€¦</p>
             ) : (
               <>
                 {error ? (
@@ -283,12 +283,12 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                 ) : null}
 
                 {open === 'couldnt_make_it' && slots.length > 0 ? (
-                  <div style={{ marginBottom: 12, fontSize: 12, color: '#D4B86A' }}>
+                  <div style={{ marginBottom: 12, fontSize: 12, color: '#FFCC33' }}>
                     Embedded slots:{' '}
                     {slots.map((s, i) => (
                       <span key={i} style={{ marginRight: 8 }}>
                         {s}
-                        {i < slots.length - 1 ? ' ·' : ''}
+                        {i < slots.length - 1 ? ' Â·' : ''}
                       </span>
                     ))}
                   </div>
@@ -303,7 +303,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                   }}
                 >
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <span style={{ fontSize: 11, color: '#D4B86A' }}>English</span>
+                    <span style={{ fontSize: 11, color: '#FFCC33' }}>English</span>
                     <textarea
                       value={en}
                       onChange={(e) => setEn(e.target.value)}
@@ -311,7 +311,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                       style={{
                         background: '#0E3470',
                         color: '#FFFFFF',
-                        border: '1px solid #1A3560',
+                        border: '1px solid rgba(14, 52, 112, 0.70)',
                         borderRadius: 6,
                         padding: 8,
                         fontSize: 13,
@@ -320,7 +320,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                     />
                   </label>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <span style={{ fontSize: 11, color: '#D4B86A' }}>Hebrew</span>
+                    <span style={{ fontSize: 11, color: '#FFCC33' }}>Hebrew</span>
                     <textarea
                       value={he}
                       onChange={(e) => setHe(e.target.value)}
@@ -329,7 +329,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                       style={{
                         background: '#0E3470',
                         color: '#FFFFFF',
-                        border: '1px solid #1A3560',
+                        border: '1px solid rgba(14, 52, 112, 0.70)',
                         borderRadius: 6,
                         padding: 8,
                         fontSize: 13,
@@ -356,7 +356,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                       style={{
                         background: '#0E3470',
                         color: '#FFFFFF',
-                        border: '1px solid #1A3560',
+                        border: '1px solid rgba(14, 52, 112, 0.70)',
                         borderRadius: 6,
                         padding: '4px 8px',
                         fontSize: 12,
@@ -378,7 +378,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                       style={{
                         background: '#0E3470',
                         color: '#FFFFFF',
-                        border: '1px solid #1A3560',
+                        border: '1px solid rgba(14, 52, 112, 0.70)',
                         borderRadius: 6,
                         padding: '4px 8px',
                         fontSize: 12,
@@ -389,8 +389,8 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                     </select>
                   </label>
 
-                  <span style={{ fontSize: 11, color: '#D4B86A' }}>
-                    {phone ? `→ ${phone}` : 'phone unresolved — Phone Link / Google Voice will prompt'}
+                  <span style={{ fontSize: 11, color: '#FFCC33' }}>
+                    {phone ? `â†’ ${phone}` : 'phone unresolved â€” Phone Link / Google Voice will prompt'}
                   </span>
                 </div>
 
@@ -400,7 +400,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                     onClick={reset}
                     style={{
                       ...baseBtn,
-                      borderColor: '#1A3560',
+                      borderColor: 'rgba(14, 52, 112, 0.70)',
                       color: '#FFFFFF',
                       padding: '6px 14px',
                       fontSize: 12,
@@ -414,9 +414,9 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                     disabled={sending || (lang === 'en' ? !en.trim() : !he.trim())}
                     style={{
                       ...baseBtn,
-                      background: '#BC9C45',
+                      background: '#FFCC33',
                       color: '#0E3470',
-                      borderColor: '#BC9C45',
+                      borderColor: '#FFCC33',
                       padding: '6px 14px',
                       fontSize: 12,
                       fontWeight: 600,
@@ -425,7 +425,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                         sending || (lang === 'en' ? !en.trim() : !he.trim()) ? 0.6 : 1,
                     }}
                   >
-                    {sending ? 'Sending…' : 'Send'}
+                    {sending ? 'Sendingâ€¦' : 'Send'}
                   </button>
                 </div>
               </>

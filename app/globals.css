@@ -1,17 +1,26 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 :root {
+  /* RePrime brand — Imperial Gold migration (May 3, 2026).
+     One gold #FFCC33, one navy #0E3470. Hierarchy via opacity, never via new hex.
+     JS source of truth: lib/design-tokens.ts                                  */
+
   --rp-navy: #0E3470;
-  --rp-gold: #BC9C45;
-  --rp-gold-lite: #D4B86A;
+  --rp-gold: #FFCC33;                              /* Imperial Gold */
+  --rp-gold-lite: #FFCC33;                         /* alias — opacity at call site */
   --rp-blue: #1D5FB8;
   --rp-teal: #009080;
   --rp-green: #00A980;
   --rp-red: #FF7474;
   --rp-black: #000000;
   --rp-white: #FFFFFF;
-  --rp-surface: #0A1F44;
-  --rp-border: #1A3560;
+
+  /* Navy surface elevation — derived from #0E3470 via opacity, no new navy hex */
+  --rp-surface: rgba(14, 52, 112, 0.85);           /* was #0A1F44 */
+  --rp-navy-deep: rgba(14, 52, 112, 0.85);         /* was #0A1F44 */
+  --rp-border: rgba(14, 52, 112, 0.70);            /* was #1A3560 */
+
+  /* Personal/718 panel — warm earth tones, intentional UX differentiation, untouched */
   --personal-bg: #FAFAF9;
   --personal-surface: #F2F0EC;
   --personal-border: #E5E2DB;
@@ -19,14 +28,15 @@
   --personal-accent: #6B7C5C;
   --personal-muted: #8A8680;
   --personal-warm: #C4B99A;
-  --rp-navy-deep: #0A1F44;
-  --rp-gold-soft: #D4B86A;
-  --rp-cream: #F5F1E8;
+
+  --rp-gold-soft: #FFCC33;                         /* alias */
+  --rp-cream: #F4EEE0;                             /* aligned to TerminalLogo CREAM */
   --surface-elevated: #FFFFFF;
   --surface-divider: #E5E2DB;
   --text-muted: #8A8680;
+
   --status-success: #00A980;
-  --status-warning: #BC9C45;
+  --status-warning: #FFCC33;
   --status-error: #FF7474;
 }
 

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -36,17 +36,17 @@ function escapeHtml(s: string): string {
 
 function renderInline(s: string): string {
   let out = escapeHtml(s)
-  out = out.replace(/`([^`]+)`/g, '<code style="background:#0A1F44;padding:1px 4px;border-radius:3px;color:#D4B86A;">$1</code>')
+  out = out.replace(/`([^`]+)`/g, '<code style="background:rgba(14, 52, 112, 0.85);padding:1px 4px;border-radius:3px;color:#FFCC33;">$1</code>')
   out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>')
   out = out.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#BC9C45;">$1</a>'
+    '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#FFCC33;">$1</a>'
   )
   out = out.replace(
     /(^|\s)(https?:\/\/[^\s<]+)/g,
     (_m, lead, url) =>
-      `${lead}<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#BC9C45;">${url}</a>`
+      `${lead}<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#FFCC33;">${url}</a>`
   )
   return out
 }
@@ -78,7 +78,7 @@ function renderMarkdown(src: string): string {
     if (inCode) {
       if (/^```\s*$/.test(line)) {
         out.push(
-          `<pre style="background:#0A1F44;color:#D4B86A;padding:0.6rem;border-radius:4px;overflow-x:auto;font-size:12px;margin:0 0 0.6rem;"><code>${escapeHtml(
+          `<pre style="background:rgba(14, 52, 112, 0.85);color:#FFCC33;padding:0.6rem;border-radius:4px;overflow-x:auto;font-size:12px;margin:0 0 0.6rem;"><code>${escapeHtml(
             codeBuf.join('\n')
           )}</code></pre>`
         )
@@ -102,7 +102,7 @@ function renderMarkdown(src: string): string {
       closeList()
       const lvl = heading[1].length
       out.push(
-        `<h${lvl} style="color:#BC9C45;font-weight:600;margin:0.85rem 0 0.4rem;font-size:${
+        `<h${lvl} style="color:#FFCC33;font-weight:600;margin:0.85rem 0 0.4rem;font-size:${
           lvl <= 2 ? '1rem' : '0.9rem'
         };">${renderInline(heading[2])}</h${lvl}>`
       )
@@ -147,7 +147,7 @@ function renderMarkdown(src: string): string {
   closeList()
   if (inCode) {
     out.push(
-      `<pre style="background:#0A1F44;color:#D4B86A;padding:0.6rem;border-radius:4px;font-size:12px;margin:0 0 0.6rem;"><code>${escapeHtml(
+      `<pre style="background:rgba(14, 52, 112, 0.85);color:#FFCC33;padding:0.6rem;border-radius:4px;font-size:12px;margin:0 0 0.6rem;"><code>${escapeHtml(
         codeBuf.join('\n')
       )}</code></pre>`
     )
@@ -157,7 +157,7 @@ function renderMarkdown(src: string): string {
 
 function preview(body: string, n = 80): string {
   const flat = body.replace(/\s+/g, ' ').trim()
-  return flat.length > n ? flat.slice(0, n) + '…' : flat
+  return flat.length > n ? flat.slice(0, n) + 'â€¦' : flat
 }
 
 interface ToastMsg {
@@ -320,9 +320,9 @@ export default function NotesPanel() {
         return
       }
       const r = json as BulkResult
-      const errSnippet = r.errors.length > 0 ? ` · ${r.errors.length} errors` : ''
+      const errSnippet = r.errors.length > 0 ? ` Â· ${r.errors.length} errors` : ''
       showToast({
-        text: `Processed ${r.processed} · tagged ${r.tagged} · created ${r.created}${errSnippet}`,
+        text: `Processed ${r.processed} Â· tagged ${r.tagged} Â· created ${r.created}${errSnippet}`,
         kind: r.errors.length > 0 ? 'err' : 'ok',
       })
     } catch (err) {
@@ -419,7 +419,7 @@ export default function NotesPanel() {
           + New
         </button>
         <button type="button" onClick={handleBulkUploadClick} style={btnGhost} title="Bulk tag upload (CSV)">
-          📤 Bulk Tag Upload
+          ðŸ“¤ Bulk Tag Upload
         </button>
         <input
           ref={fileInputRef}
@@ -429,7 +429,7 @@ export default function NotesPanel() {
           onChange={handleBulkFile}
         />
         <button type="button" onClick={() => setOpen(false)} style={btnGhost} aria-label="Close">
-          ×
+          Ã—
         </button>
       </header>
 
@@ -458,7 +458,7 @@ export default function NotesPanel() {
         >
           {isLoading && (
             <div style={{ padding: '0.5rem 0.75rem', color: 'var(--rp-gold-lite)', fontSize: 12 }}>
-              Loading…
+              Loadingâ€¦
             </div>
           )}
           {isError && (
@@ -504,7 +504,7 @@ export default function NotesPanel() {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {n.is_pinned && <span style={{ color: 'var(--rp-gold)' }}>📌</span>}
+                  {n.is_pinned && <span style={{ color: 'var(--rp-gold)' }}>ðŸ“Œ</span>}
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.title}</span>
                 </div>
                 <div
@@ -558,7 +558,7 @@ export default function NotesPanel() {
                     style={btnPrimary}
                     disabled={updateMut.isPending}
                   >
-                    {editing ? (updateMut.isPending ? 'Saving…' : 'Save') : 'Edit'}
+                    {editing ? (updateMut.isPending ? 'Savingâ€¦' : 'Save') : 'Edit'}
                   </button>
                 )}
                 <button type="button" onClick={handleExport} style={btnGhost}>
@@ -594,7 +594,7 @@ export default function NotesPanel() {
                     fontWeight: 600,
                   }}
                 >
-                  Read-only · {selected.title}
+                  Read-only Â· {selected.title}
                 </div>
               )}
 
@@ -608,7 +608,7 @@ export default function NotesPanel() {
                       placeholder="Title"
                       style={{
                         width: '100%',
-                        background: '#0A1F44',
+                        background: 'rgba(14, 52, 112, 0.85)',
                         color: 'var(--rp-white)',
                         border: '1px solid var(--rp-border)',
                         borderRadius: 4,
@@ -627,7 +627,7 @@ export default function NotesPanel() {
                       rows={20}
                       style={{
                         width: '100%',
-                        background: '#0A1F44',
+                        background: 'rgba(14, 52, 112, 0.85)',
                         color: 'var(--rp-white)',
                         border: '1px solid var(--rp-border)',
                         borderRadius: 4,

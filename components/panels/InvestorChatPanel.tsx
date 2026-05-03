@@ -9,14 +9,14 @@ import ReplyBox from '@/components/chat/ReplyBox'
 import type { DashboardMessage, DashboardThread } from '@/lib/timelines/types'
 
 // ── Theme ────────────────────────────────────────────────────────────────────
-const NAVY   = '#0A1430'
-const SURFACE = '#111d38'
-const GOLD   = '#BC9C45'
-const GOLD_LITE = '#D8C27A'
-const BORDER = 'rgba(188,156,69,0.25)'
+const NAVY   = '#0E3470'
+const SURFACE = 'rgba(14, 52, 112, 0.85)'
+const GOLD   = '#FFCC33'
+const GOLD_LITE = '#FFCC33'
+const BORDER = 'rgba(255, 204, 51,0.25)'
 const TEXT   = '#F5EFD8'
 const MUTED  = '#8C8771'
-const SELECTED_BG = 'rgba(188,156,69,0.12)'
+const SELECTED_BG = 'rgba(255, 204, 51,0.12)'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function relativeTime(iso: string | null): string {
@@ -270,7 +270,7 @@ export default function InvestorChatPanel() {
                 : hasUnread
                 ? 'rgba(239,68,68,0.07)'
                 : isPriority
-                ? 'rgba(188,156,69,0.06)'
+                ? 'rgba(255, 204, 51,0.06)'
                 : 'transparent'
               return (
                 <button
@@ -298,7 +298,7 @@ export default function InvestorChatPanel() {
                       width: 36,
                       height: 36,
                       borderRadius: '50%',
-                      background: isSelected ? GOLD : hasUnread ? '#ef4444' : 'rgba(188,156,69,0.2)',
+                      background: isSelected ? GOLD : hasUnread ? '#ef4444' : 'rgba(255, 204, 51,0.2)',
                       color: isSelected ? NAVY : '#fff',
                       display: 'flex',
                       alignItems: 'center',
@@ -336,7 +336,7 @@ export default function InvestorChatPanel() {
                             fontWeight: 700,
                             padding: '1px 5px',
                             borderRadius: 4,
-                            background: t.panel === '718' ? 'rgba(99,102,241,0.25)' : 'rgba(188,156,69,0.2)',
+                            background: t.panel === '718' ? 'rgba(99,102,241,0.25)' : 'rgba(255, 204, 51,0.2)',
                             color: t.panel === '718' ? '#a5b4fc' : GOLD_LITE,
                             border: `1px solid ${t.panel === '718' ? 'rgba(99,102,241,0.35)' : BORDER}`,
                             letterSpacing: '0.03em',

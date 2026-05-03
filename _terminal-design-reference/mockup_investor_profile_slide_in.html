@@ -1,0 +1,863 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup â€” Investor Profile Slide-In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #0E3470;
+    font-family: 'Poppins', sans-serif;
+    color: #E9EDEF;
+    overflow: hidden;
+  }
+
+  /* â”€â”€ DEMO TOGGLE BAR â”€â”€ */
+  .demo-bar {
+    position: fixed; top: 0; left: 0; right: 0; height: 44px;
+    background: rgba(0,0,0,0.85);
+    border-bottom: 1px solid rgba(255, 204, 51,0.4);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+    z-index: 9999;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+  }
+  .demo-bar-label {
+    color: #FFCC33; font-weight: 600; text-transform: uppercase; letter-spacing: 0.20em;
+  }
+  .demo-toggle {
+    background: #FFCC33; color: #0E3470; font-weight: 700;
+    border: 0; padding: 8px 16px; cursor: pointer;
+    font-size: 12px; letter-spacing: 0.10em; text-transform: uppercase;
+    border-radius: 2px;
+  }
+  .demo-toggle:hover { background: #FFCC33; }
+
+  /* â”€â”€ DASHBOARD (BACKGROUND) â”€â”€ */
+  .dash {
+    position: absolute; top: 44px; left: 0; right: 0; bottom: 0;
+    display: grid;
+    grid-template-rows: 60px 50px 1fr;
+  }
+
+  /* Top: TODAY strip */
+  .today {
+    background: #0E3470;
+    border-bottom: 1px solid rgba(255, 204, 51,0.25);
+    padding: 0 20px;
+    display: flex; align-items: center; gap: 14px;
+    color: #FFCC33;
+  }
+  .today-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.30em; opacity: 0.7;
+  }
+  .today-mtg {
+    background: rgba(255, 204, 51,0.08);
+    border: 0.5px solid rgba(255, 204, 51,0.4);
+    padding: 6px 12px; font-size: 12px;
+    display: flex; gap: 10px; align-items: center;
+  }
+  .today-mtg b { font-family: 'Playfair Display', serif; font-size: 14px; }
+
+  /* Top control bar */
+  .topbar {
+    background: #0E3470;
+    border-bottom: 1px solid rgba(255, 204, 51,0.18);
+    padding: 0 20px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .topbar button {
+    background: transparent;
+    border: 0.5px solid rgba(255, 204, 51,0.45);
+    color: #FFCC33;
+    padding: 8px 14px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.10em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .topbar button:hover { background: rgba(255, 204, 51,0.06); border-color: #FFCC33; }
+  .topbar .divider { width: 1px; height: 24px; background: rgba(255, 204, 51,0.2); margin: 0 6px; }
+
+  /* Three panels */
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    overflow: hidden;
+  }
+  .panel {
+    border-right: 1px solid rgba(255, 204, 51,0.18);
+    padding: 14px;
+    overflow: hidden;
+  }
+  .panel:last-child { border-right: 0; }
+  .panel-305 { background: #0E3470; }
+  .panel-718 { background: #fafafa; color: #1a1a1a; }
+  .panel-inv { background: #0E3470; }
+
+  .panel-header {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px; font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .panel-305 .panel-header, .panel-inv .panel-header { color: #FFCC33; }
+  .panel-718 .panel-header { color: #0E3470; }
+  .panel-sub {
+    font-size: 11px; opacity: 0.6; margin-bottom: 14px;
+    letter-spacing: 0.04em;
+  }
+
+  .thread {
+    padding: 10px 12px;
+    border-bottom: 0.5px solid rgba(255, 204, 51,0.1);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .panel-718 .thread { border-bottom-color: rgba(0,0,0,0.08); }
+  .panel-305 .thread:hover, .panel-inv .thread:hover { background: rgba(255, 204, 51,0.04); }
+  .panel-718 .thread:hover { background: rgba(0,0,0,0.03); }
+  .thread-name { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+  .thread-preview { font-size: 11px; opacity: 0.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .thread-time { font-size: 10px; opacity: 0.5; float: right; }
+
+  .investor-row { cursor: pointer; }
+  .investor-row .thread-name::before { content: 'â˜… '; color: #FFCC33; }
+  .investor-row.demo-target {
+    background: rgba(255, 204, 51,0.08);
+    border-left: 2px solid #FFCC33;
+    padding-left: 10px;
+  }
+  .demo-hint {
+    font-size: 10px; color: #FFCC33;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    text-align: center; padding: 12px;
+    border: 0.5px dashed rgba(255, 204, 51,0.4);
+    margin-top: 12px;
+    cursor: pointer;
+  }
+  .demo-hint:hover { background: rgba(255, 204, 51,0.05); }
+
+  /* Conversation header inside Investors panel â€” where Open Profile lives */
+  .conv-header {
+    background: rgba(255, 204, 51,0.06);
+    border: 0.5px solid rgba(255, 204, 51,0.4);
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+  .conv-header-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .profile-btn {
+    background: #FFCC33; color: #0E3470;
+    border: 0; padding: 8px 14px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.10em;
+    text-transform: uppercase; cursor: pointer;
+    white-space: nowrap;
+  }
+  .profile-btn:hover { background: #FFCC33; }
+
+  /* Interaction note */
+  .interaction-note {
+    margin-top: 14px; padding: 10px 12px;
+    border: 0.5px dashed rgba(255, 204, 51,0.35);
+    font-size: 10px; line-height: 1.7;
+    color: #d8d8d8; letter-spacing: 0.04em;
+  }
+
+  /* â”€â”€ PROFILE SLIDE-IN â”€â”€ */
+  .profile {
+    position: fixed; top: 44px; right: 0; bottom: 0;
+    width: 70%;
+    background: #0E3470;
+    border-left: 2px solid #FFCC33;
+    box-shadow: -10px 0 40px rgba(0,0,0,0.5);
+    transform: translateX(100%);
+    transition: transform 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
+    overflow-y: auto;
+    z-index: 100;
+  }
+  .profile.open { transform: translateX(0); }
+
+  .profile-header {
+    background: linear-gradient(180deg, #0E3470 0%, #0E3470 100%);
+    padding: 22px 32px 18px;
+    border-bottom: 1px solid rgba(255, 204, 51,0.25);
+    position: relative;
+  }
+  .profile-close {
+    position: absolute; top: 16px; right: 24px;
+    background: transparent; border: 0;
+    color: #FFCC33; font-size: 22px; cursor: pointer;
+    width: 32px; height: 32px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    border: 0.5px solid rgba(255, 204, 51,0.4);
+  }
+  .profile-close:hover { background: rgba(255, 204, 51,0.1); }
+  .profile-tag {
+    display: inline-block;
+    font-size: 9px; letter-spacing: 0.30em;
+    color: #FFCC33; font-weight: 600; text-transform: uppercase;
+    border: 0.5px solid #FFCC33;
+    padding: 3px 10px; margin-bottom: 12px;
+  }
+  .profile-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 44px; color: #FFCC33; font-weight: 600;
+    line-height: 1; letter-spacing: -0.01em;
+  }
+  .profile-meta {
+    font-size: 12px; opacity: 0.65; margin-top: 8px;
+    display: flex; gap: 18px; flex-wrap: wrap;
+  }
+  .profile-meta b { color: rgba(255, 204, 51, 0.85); }
+
+  /* Tabs */
+  .tabs {
+    display: flex; border-bottom: 1px solid rgba(255, 204, 51,0.2);
+    padding: 0 32px;
+    background: rgba(0,0,0,0.3);
+  }
+  .tab {
+    padding: 14px 18px;
+    font-size: 12px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: rgba(255, 204, 51,0.5);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .tab.active {
+    color: #FFCC33; border-bottom-color: #FFCC33;
+  }
+  .tab:hover { color: #FFCC33; }
+  .tab-count {
+    margin-left: 6px; font-size: 10px;
+    background: rgba(255, 204, 51,0.15); padding: 2px 6px; border-radius: 8px;
+  }
+
+  /* HERO BLOCK â€” summary + recommendation, the headline */
+  .hero-block {
+    padding: 24px 32px 20px;
+    background: linear-gradient(180deg, rgba(14,52,112,0.5) 0%, rgba(7,16,30,0) 100%);
+    border-bottom: 1px solid rgba(255, 204, 51,0.18);
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .last-comm {
+    border-left: 2px solid #FFCC33;
+    padding: 4px 0 4px 14px;
+  }
+  .last-comm-lbl {
+    font-size: 9px; letter-spacing: 0.30em; color: rgba(255, 204, 51, 0.55);
+    text-transform: uppercase; font-weight: 600; margin-bottom: 4px;
+  }
+  .last-comm-row {
+    display: flex; gap: 14px; align-items: baseline;
+  }
+  .last-comm-time {
+    font-size: 11px; color: rgba(255, 204, 51, 0.85); letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .last-comm-msg {
+    font-family: 'Poppins', sans-serif;
+    font-size: 15px; color: #FFCC33; font-style: normal;
+    font-weight: 500;
+  }
+  .last-comm-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+
+  .summary-card.big {
+    padding: 22px 26px;
+  }
+  .summary-card.big .summary-card-body {
+    font-size: 15px; line-height: 1.7;
+  }
+
+  /* Recommended next step card â€” most important UI on the page */
+  .rec-card {
+    background: rgba(255, 204, 51,0.06);
+    border: 1px solid rgba(255, 204, 51,0.45);
+    padding: 20px 24px;
+  }
+  .rec-card-lbl {
+    font-size: 10px; letter-spacing: 0.30em; color: #FFCC33;
+    text-transform: uppercase; font-weight: 700;
+    margin-bottom: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .rec-card-headline {
+    font-family: 'Poppins', sans-serif;
+    font-size: 21px; color: #FFCC33; font-weight: 700;
+    line-height: 1.3; letter-spacing: -0.005em;
+    margin-bottom: 12px;
+  }
+  .rec-card-detail {
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px; color: #e8e8e8; line-height: 1.75;
+    font-weight: 400;
+    margin-bottom: 16px;
+  }
+  .rec-card-detail b { color: #FFCC33; font-weight: 700; }
+  .rec-card-actions {
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .action-btn-primary {
+    background: #FFCC33; color: #0E3470; border: 0;
+    padding: 11px 18px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.10em;
+    text-transform: uppercase; cursor: pointer;
+  }
+  .action-btn-primary:hover { background: #FFCC33; }
+  .action-btn-secondary {
+    background: transparent; color: #FFCC33;
+    border: 0.5px solid #FFCC33;
+    padding: 11px 18px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.10em;
+    text-transform: uppercase; cursor: pointer;
+  }
+  .action-btn-secondary:hover { background: rgba(255, 204, 51,0.08); }
+  .action-btn-tertiary {
+    background: transparent; color: rgba(255, 204, 51, 0.55);
+    border: 0.5px solid rgba(255, 204, 51,0.4);
+    padding: 11px 18px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.10em;
+    text-transform: uppercase; cursor: pointer;
+  }
+  .action-btn-tertiary:hover { color: #FFCC33; border-color: #FFCC33; }
+
+  /* Active zone â€” recommendation + tasks side by side */
+  .active-zone {
+    padding: 8px 32px 20px;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 18px;
+    border-bottom: 1px solid rgba(255, 204, 51,0.15);
+  }
+
+  /* Tasks panel (right side of active zone) */
+  .tasks-panel {
+    background: rgba(0,0,0,0.25);
+    border: 0.5px solid rgba(255, 204, 51,0.25);
+    padding: 18px 20px;
+    display: flex; flex-direction: column;
+  }
+  .tasks-lbl-big {
+    font-size: 11px; letter-spacing: 0.30em; color: #FFCC33;
+    text-transform: uppercase; font-weight: 700;
+    margin-bottom: 14px;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .tasks-counts {
+    font-size: 10px; color: rgba(255, 204, 51, 0.55); letter-spacing: 0.10em;
+    text-transform: none; font-weight: 500;
+  }
+  .task-status-line {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px;
+  }
+  .task-status {
+    font-size: 9px; letter-spacing: 0.20em; font-weight: 700;
+    padding: 2px 8px; text-transform: uppercase;
+  }
+  .task-status.open { background: rgba(255, 204, 51,0.15); color: #FFCC33; }
+  .task-status.done { background: rgba(40,167,69,0.18); color: #6ee7b7; }
+  .task-age { font-size: 11px; color: rgba(255, 204, 51, 0.85); }
+  .task-empty {
+    font-size: 12px; color: rgba(255, 204, 51, 0.55); font-style: italic;
+    padding: 16px 4px; text-align: center;
+    border: 0.5px dashed rgba(255, 204, 51,0.2);
+    margin-top: 8px;
+  }
+  .add-task-btn {
+    margin-top: auto;
+    background: transparent; color: #FFCC33;
+    border: 0.5px dashed rgba(255, 204, 51,0.4);
+    padding: 10px 14px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.10em;
+    text-transform: uppercase; cursor: pointer;
+    margin-top: 12px;
+  }
+  .add-task-btn:hover { border-color: #FFCC33; background: rgba(255, 204, 51,0.04); }
+
+  /* Quick actions row â€” horizontal */
+  .actions-row {
+    padding: 18px 32px 18px;
+    border-bottom: 1px solid rgba(255, 204, 51,0.15);
+  }
+  .actions-lbl-row {
+    font-size: 10px; letter-spacing: 0.30em; color: rgba(255, 204, 51, 0.55);
+    text-transform: uppercase; font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .actions-row-buttons {
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .actions-row-buttons .action-btn {
+    width: auto; flex: 1 1 auto; min-width: 180px;
+    margin-bottom: 0;
+  }
+
+  /* Notes section */
+  .notes-section {
+    padding: 18px 32px 20px;
+    border-bottom: 1px solid rgba(255, 204, 51,0.15);
+  }
+  .notes-lbl {
+    font-size: 11px; letter-spacing: 0.30em; color: #FFCC33;
+    text-transform: uppercase; font-weight: 700;
+    margin-bottom: 10px;
+    display: flex; align-items: baseline;
+  }
+
+  /* Timeline section â€” collapsed bottom */
+  .timeline-section {
+    padding: 18px 32px 32px;
+  }
+  .timeline-section-toggle {
+    cursor: pointer;
+    padding: 12px 16px;
+    border: 0.5px dashed rgba(255, 204, 51,0.3);
+    color: rgba(255, 204, 51, 0.55);
+    font-size: 11px; letter-spacing: 0.10em;
+    margin-bottom: 14px;
+  }
+  .timeline-section-toggle:hover { border-color: #FFCC33; color: #FFCC33; }
+  .timeline-events {
+    /* In real version, hidden by default until toggle clicked. Showing here for demo. */
+  }
+  .timeline-col { padding: 24px 32px; }
+  .side-col {
+    border-left: 1px solid rgba(255, 204, 51,0.15);
+    padding: 24px 22px;
+    background: rgba(0,0,0,0.2);
+  }
+
+  /* Timeline */
+  .timeline-label {
+    font-size: 10px; letter-spacing: 0.30em; color: rgba(255, 204, 51, 0.55);
+    text-transform: uppercase; font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .event {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 0.5px solid rgba(255, 204, 51,0.08);
+  }
+  .event-icon {
+    width: 28px; height: 28px;
+    border: 0.5px solid rgba(255, 204, 51,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .event-time { font-size: 11px; color: rgba(255, 204, 51, 0.55); letter-spacing: 0.04em; }
+  .event-title { font-size: 13px; font-weight: 500; margin: 2px 0 4px; color: #FFCC33; }
+  .event-body { font-size: 12px; opacity: 0.75; line-height: 1.5; }
+
+  /* Summary card */
+  .summary-card {
+    background: linear-gradient(180deg, #F8F0DA 0%, #EFE2C4 100%);
+    color: #0E3470;
+    padding: 18px 20px;
+    border: 0.5px solid rgba(255, 204, 51,0.4);
+    margin-bottom: 22px;
+    position: relative;
+  }
+  .summary-card-lbl {
+    font-size: 9px; letter-spacing: 0.30em; color: rgba(14, 52, 112, 0.55);
+    text-transform: uppercase; font-weight: 600;
+    margin-bottom: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .summary-card-body {
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px; line-height: 1.75;
+    font-style: normal;
+    font-weight: 400;
+    color: #0E3470;
+  }
+  .summary-card-body b { font-weight: 700; }
+
+  /* Listen (TTS) button â€” inline pill */
+  .listen-btn {
+    background: transparent;
+    border: 0.5px solid rgba(14, 52, 112,0.45);
+    color: #0E3470;
+    padding: 4px 10px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.10em; text-transform: uppercase;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .listen-btn:hover { background: rgba(14, 52, 112,0.08); border-color: #0E3470; }
+  .listen-btn-dark {
+    border-color: rgba(255, 204, 51,0.4);
+    color: #FFCC33;
+  }
+  .listen-btn-dark:hover { background: rgba(255, 204, 51,0.06); border-color: #FFCC33; }
+
+  /* Tasks */
+  .tasks-lbl {
+    font-size: 10px; letter-spacing: 0.30em; color: #FFCC33;
+    text-transform: uppercase; font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .task {
+    border: 0.5px solid rgba(255, 204, 51,0.2);
+    padding: 12px 14px; margin-bottom: 8px;
+    font-size: 12px;
+  }
+  .task-overdue { border-color: rgba(255, 204, 51, 0.85); background: rgba(255, 204, 51,0.06); }
+  .task-title { font-weight: 500; margin-bottom: 4px; }
+  .task-meta { font-size: 11px; color: rgba(255, 204, 51, 0.55); margin-bottom: 8px; }
+  .task-actions { display: flex; gap: 6px; }
+  .task-btn {
+    background: transparent; border: 0.5px solid rgba(255, 204, 51,0.4);
+    color: #FFCC33; font-size: 10px; padding: 5px 10px;
+    cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase;
+    font-family: 'Poppins', sans-serif;
+  }
+  .task-btn:hover { background: rgba(255, 204, 51,0.06); border-color: #FFCC33; }
+  .task-btn-primary { background: #FFCC33; color: #0E3470; font-weight: 600; }
+
+  /* Your notes textarea */
+  .my-notes {
+    width: 100%;
+    min-height: 100px;
+    background: rgba(255,255,255,0.04);
+    border: 0.5px solid rgba(255, 204, 51,0.3);
+    color: #FFCC33;
+    padding: 12px 14px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px; line-height: 1.6;
+    resize: vertical;
+    outline: none;
+  }
+  .my-notes:focus { border-color: #FFCC33; }
+  .my-notes::placeholder { color: rgba(255, 204, 51,0.4); font-style: italic; }
+
+  /* Action buttons */
+  .actions-lbl {
+    font-size: 10px; letter-spacing: 0.30em; color: rgba(255, 204, 51, 0.55);
+    text-transform: uppercase; font-weight: 600;
+    margin-top: 22px; margin-bottom: 10px;
+  }
+  .action-btn {
+    display: block; width: 100%;
+    background: transparent; border: 0.5px solid rgba(255, 204, 51,0.4);
+    color: #FFCC33; padding: 12px 14px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.10em;
+    text-transform: uppercase; text-align: left;
+    cursor: pointer; margin-bottom: 6px;
+  }
+  .action-btn:hover { background: rgba(255, 204, 51,0.06); border-color: #FFCC33; }
+  .action-btn.danger { color: #ff6b6b; border-color: rgba(255,107,107,0.4); }
+  .action-btn.danger:hover { background: rgba(255,107,107,0.08); border-color: #ff6b6b; }
+
+  /* Backdrop when profile open */
+  .backdrop {
+    position: fixed; top: 44px; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.32s;
+    z-index: 50;
+  }
+  .backdrop.show { opacity: 1; pointer-events: auto; }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <div class="demo-bar-label">MOCKUP â€” Click â˜… David Cohen to see the slide-in</div>
+  <button class="demo-toggle" id="toggleBtn">Open Profile â†’</button>
+</div>
+
+<!-- DASHBOARD BACKGROUND -->
+<div class="dash">
+  <!-- TODAY -->
+  <div class="today">
+    <div class="today-label">TODAY</div>
+    <div class="today-mtg">â° 11:00 AM &nbsp; <b>Steve Â· Harvard Plaza review</b> &nbsp; ðŸ””</div>
+    <div class="today-mtg">â° 2:30 PM &nbsp; <b>David Cohen Â· Terminal intro</b> &nbsp; ðŸ””</div>
+  </div>
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <button>ðŸ“‹ Import Names</button>
+    <button>âœ‰ Terminal</button>
+    <button>ðŸ¤ Meeting Request</button>
+    <div class="divider"></div>
+    <button>ðŸ• Late Zoom</button>
+    <button>ðŸ• Late Office</button>
+    <button>âŒ Can't make it</button>
+    <button>â© Move earlier</button>
+    <button>âª Postpone</button>
+  </div>
+  <!-- PANELS -->
+  <div class="panels">
+    <div class="panel panel-305">
+      <div class="panel-header">305 â€” RePrime</div>
+      <div class="panel-sub">+1 (305) 778-4861 Â· Quo</div>
+      <div class="thread"><span class="thread-time">2h</span><div class="thread-name">Mendy Tuitou</div><div class="thread-preview">Got the term sheet, will review tonight</div></div>
+      <div class="thread investor-row demo-target" id="threadDavid"><span class="thread-time">2h</span><div class="thread-name">David Cohen</div><div class="thread-preview">Sounds good, see you Tuesday at 9</div></div>
+      <div class="thread"><span class="thread-time">5h</span><div class="thread-name">Shirel</div><div class="thread-preview">Sent you the comps</div></div>
+      <div class="thread"><span class="thread-time">1d</span><div class="thread-name">+1 (561) 555-0142</div><div class="thread-preview">[Spam] Click here to claim...</div></div>
+      <div class="demo-hint" id="demoHint2">Click â˜… David Cohen to open profile</div>
+    </div>
+    <div class="panel panel-718">
+      <div class="panel-header">718 â€” Personal</div>
+      <div class="panel-sub">+1 (718) 550-5500 Â· iPhone mirror</div>
+      <div class="thread"><span class="thread-time">30m</span><div class="thread-name">Yossef</div><div class="thread-preview">Did you see the email I forwarded?</div></div>
+      <div class="thread"><span class="thread-time">3h</span><div class="thread-name">Mom</div><div class="thread-preview">Don't forget Shabbat dinner Friday</div></div>
+      <div class="thread"><span class="thread-time">6h</span><div class="thread-name">Steve</div><div class="thread-preview">Comps incoming end of day</div></div>
+    </div>
+    <div class="panel panel-inv">
+      <div class="panel-header">â˜… Investors <span style="font-size:11px;background:rgba(255, 204, 51,0.15);padding:2px 8px;border-radius:8px;margin-left:6px;">5</span></div>
+      <div class="panel-sub">718 + 305 combined Â· row click = open chat</div>
+
+      <!-- Selected investor's conversation header â€” this is where the profile button lives -->
+      <div class="conv-header">
+        <div class="conv-header-row">
+          <div>
+            <div style="font-weight:600;font-size:13px;color:#FFCC33;">â˜… David Cohen</div>
+            <div style="font-size:10px;color:rgba(255, 204, 51, 0.55);letter-spacing:0.06em;">Sending via +1 (305) 778-4861 Â· Quo</div>
+          </div>
+          <button class="profile-btn" id="profileBtnTop">â˜… Open Profile</button>
+        </div>
+      </div>
+
+      <div class="thread"><span class="thread-time">2h</span><div class="thread-name">â˜… David Cohen</div><div class="thread-preview">Sounds good, see you Tuesday at 9</div></div>
+      <div class="thread"><span class="thread-time">1d</span><div class="thread-name">â˜… Menachem Greitzman</div><div class="thread-preview">×”×©×œ×™×—×•×ª ××¦×œ×™</div></div>
+      <div class="thread"><span class="thread-time">2d</span><div class="thread-name">â˜… Dov Tuitou</div><div class="thread-preview">Reviewing Harvard Plaza pack</div></div>
+      <div class="thread"><span class="thread-time">5d</span><div class="thread-name">â˜… Levi Izhak Biton</div><div class="thread-preview">Let's talk Q3</div></div>
+
+      <div class="interaction-note">
+        <b style="color:#FFCC33;">Row click â†’ opens chat</b><br>
+        <b style="color:#FFCC33;">â˜… Open Profile button â†’ opens profile</b>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BACKDROP -->
+<div class="backdrop" id="backdrop"></div>
+
+<!-- PROFILE SLIDE-IN -->
+<div class="profile" id="profile">
+  <!-- Header -->
+  <div class="profile-header">
+    <button class="profile-close" id="closeBtn" title="Close (Esc)">âœ•</button>
+    <div class="profile-tag">â˜… Investor</div>
+    <div class="profile-name">David Cohen</div>
+    <div class="profile-meta">
+      <span>ðŸ“ž +1 (305) 555-0192</span>
+      <span>âœ‰ david@cohencap.com</span>
+      <span>ðŸ¢ Cohen Capital</span>
+      <span>Last contact <b>2h ago</b></span>
+      <span>Tagged investor <b>14 days ago</b></span>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active">Timeline <span class="tab-count">38</span></div>
+    <div class="tab">Emails <span class="tab-count">12</span></div>
+    <div class="tab">WhatsApp <span class="tab-count">22</span></div>
+    <div class="tab">Calls <span class="tab-count">3</span></div>
+    <div class="tab">Meetings <span class="tab-count">2</span></div>
+    <div class="tab">Tasks <span class="tab-count">1</span></div>
+  </div>
+
+  <!-- 1. LAST COMMUNICATION + SUMMARY -->
+  <div class="hero-block">
+    <div class="hero-grid">
+      <div class="last-comm">
+        <div class="last-comm-lbl">Last communication
+          <button class="listen-btn listen-btn-dark" style="float:right;">â–¶ Listen</button>
+        </div>
+        <div class="last-comm-row">
+          <span class="last-comm-time">2h ago Â· WhatsApp 305 (inbound)</span>
+          <span class="last-comm-msg">"Sounds good, see you Tuesday at 9"</span>
+        </div>
+      </div>
+
+      <div class="summary-card big">
+        <div class="summary-card-lbl">
+          <span>Summary Â· Opus 4.7</span>
+          <button class="listen-btn">â–¶ Listen</button>
+        </div>
+        <div class="summary-card-body">
+          David runs Cohen Capital. He has $40 million to invest in Florida real estate.<br><br>
+          He likes two of your deals right now:<br>
+          â€¢ <b>Harvard Plaza</b> â€” this is the main one. Steve still owes him a price list.<br>
+          â€¢ <b>500 Bailey</b> â€” early interest, no commitment yet.<br><br>
+          He prefers WhatsApp on the 305 line. He always wants to be paid every 3 months â€” that is a hard rule for him.<br><br>
+          Your next call with him is <b>Tuesday at 9 AM Central</b>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. RECOMMENDATION + TASKS â€” side by side, eye-level -->
+  <div class="active-zone">
+    <div class="rec-card">
+      <div class="rec-card-lbl">
+        <span>âš¡ What to do next</span>
+        <button class="listen-btn listen-btn-dark">â–¶ Listen</button>
+      </div>
+      <div class="rec-card-headline">Wait for Steve's price list. Then text David.</div>
+      <div class="rec-card-detail">
+        David asked Steve for prices on Harvard Plaza. Steve has not sent them yet â€” it's been 3 days.<br><br>
+        <b>Step 1:</b> Remind Steve today.<br>
+        <b>Step 2:</b> When Steve sends the prices, text David on WhatsApp 305 with the file.
+      </div>
+      <div class="rec-card-actions">
+        <button class="action-btn-primary">Remind Steve now</button>
+        <button class="action-btn-secondary">Draft WhatsApp to David</button>
+        <button class="action-btn-tertiary">Wait â€” no action</button>
+      </div>
+    </div>
+
+    <div class="tasks-panel">
+      <div class="tasks-lbl-big">
+        <span>âš¡ Tasks</span>
+        <span class="tasks-counts">1 open Â· 0 done</span>
+      </div>
+
+      <div class="task task-overdue">
+        <div class="task-status-line"><span class="task-status open">OPEN</span> <span class="task-age">âš  3 days late</span></div>
+        <div class="task-title">Pull comps for Harvard Plaza</div>
+        <div class="task-meta">â†’ Steve Â· WhatsApp Â· sent Mon 9:14 AM</div>
+        <div class="task-actions">
+          <button class="task-btn task-btn-primary">Remind Steve</button>
+          <button class="task-btn">Mark done</button>
+        </div>
+      </div>
+
+      <div class="task-empty">
+        No completed tasks yet for David.
+      </div>
+
+      <button class="add-task-btn">+ New task to team</button>
+    </div>
+  </div>
+
+  <!-- 3. ACTIONS â€” quick send buttons in a horizontal row -->
+  <div class="actions-row">
+    <div class="actions-lbl-row">Quick actions</div>
+    <div class="actions-row-buttons">
+      <button class="action-btn">ðŸ’¬ Send WhatsApp 305</button>
+      <button class="action-btn">âœ‰ Send Email</button>
+      <button class="action-btn">ðŸ“… Schedule Meeting</button>
+      <button class="action-btn">ðŸ“ Add Note to Pipedrive</button>
+      <button class="action-btn danger">ðŸš« Block / Mark Spam</button>
+    </div>
+  </div>
+
+  <!-- 4. YOUR NOTES -->
+  <div class="notes-section">
+    <div class="notes-lbl">ðŸ“ Your notes <span style="font-size:10px;color:rgba(255, 204, 51, 0.55);font-weight:400;letter-spacing:0.04em;text-transform:none;margin-left:10px;">Saved 14 sec ago Â· only you see these</span></div>
+    <textarea class="my-notes" placeholder="Type your own notes about David here. Auto-saves as you type.">Met at Mendy's Hanukkah party 2025. Comes from textile money, second generation. Wife runs a non-profit. Loves Florida deals â€” does not touch anything north of Atlanta. Prefers I send him short voice notes, not long emails.</textarea>
+  </div>
+
+  <!-- 5. FULL TIMELINE â€” collapsed at the bottom, less active -->
+  <div class="timeline-section">
+    <div class="timeline-section-toggle">â–¾ Full timeline Â· 38 events across all channels Â· click to expand</div>
+
+    <div class="timeline-events">
+      <div class="event">
+        <div class="event-icon">ðŸ’¬</div>
+        <div>
+          <div class="event-time">Today Â· 2h ago Â· WhatsApp 305 <button class="listen-btn listen-btn-dark" style="margin-left:8px;">â–¶</button></div>
+          <div class="event-title">"Sounds good, see you Tuesday at 9"</div>
+          <div class="event-body">Reply to your slot confirmation. No action needed â€” the meeting is locked in.</div>
+        </div>
+      </div>
+
+      <div class="event">
+        <div class="event-icon">âœ‰</div>
+        <div>
+          <div class="event-time">Yesterday Â· 4:12 PM Â· Email <button class="listen-btn listen-btn-dark" style="margin-left:8px;">â–¶</button></div>
+          <div class="event-title">Re: Harvard Plaza â€” first look</div>
+          <div class="event-body">David's reply: he likes the building but wants Steve to pull a price list of similar buildings sold in 2024â€“2026 before he commits.</div>
+        </div>
+      </div>
+
+      <div class="event">
+        <div class="event-icon">ðŸ“ž</div>
+        <div>
+          <div class="event-time">2 days ago Â· Zoom Â· 43 min <button class="listen-btn listen-btn-dark" style="margin-left:8px;">â–¶</button></div>
+          <div class="event-title">First call â€” Terminal introduction</div>
+          <div class="event-body">Two deals discussed: Harvard Plaza and 500 Bailey. David asked Steve for a price list. Recording + full transcript saved.</div>
+        </div>
+      </div>
+
+      <div class="event">
+        <div class="event-icon">âœ‰</div>
+        <div>
+          <div class="event-time">1 week ago Â· Terminal invitation sent</div>
+          <div class="event-title">Terminal Introduction â€” David Cohen</div>
+          <div class="event-body">Slot confirmed: Tuesday May 5, 9:00 AM Central Â· 30 min Â· Zoom</div>
+        </div>
+      </div>
+
+      <div class="event">
+        <div class="event-icon">ðŸ’¬</div>
+        <div>
+          <div class="event-time">2 weeks ago Â· WhatsApp 305</div>
+          <div class="event-title">First contact</div>
+          <div class="event-body">Introduced via Mendy Tuitou. Brief intro about Cohen Capital â€” $40 million to invest in Florida real estate.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const profile = document.getElementById('profile');
+  const backdrop = document.getElementById('backdrop');
+  const toggleBtn = document.getElementById('toggleBtn');
+  const closeBtn = document.getElementById('closeBtn');
+  const threadDavid = document.getElementById('threadDavid');
+  const demoHint = document.getElementById('demoHint2');
+
+  function openProfile() {
+    profile.classList.add('open');
+    backdrop.classList.add('show');
+    toggleBtn.textContent = 'â† Close Profile';
+  }
+  function closeProfile() {
+    profile.classList.remove('open');
+    backdrop.classList.remove('show');
+    toggleBtn.textContent = 'Open Profile â†’';
+  }
+  function toggleProfile() {
+    if (profile.classList.contains('open')) closeProfile(); else openProfile();
+  }
+
+  toggleBtn.addEventListener('click', toggleProfile);
+  closeBtn.addEventListener('click', closeProfile);
+  backdrop.addEventListener('click', closeProfile);
+  // Investor row clicks DO NOT open profile â€” they would open the chat in the real app.
+  // Only the dedicated "â˜… Open Profile" button opens the profile.
+  document.getElementById('profileBtnTop').addEventListener('click', openProfile);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeProfile(); });
+</script>
+
+</body>
+</html>

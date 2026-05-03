@@ -100,8 +100,8 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     return (
       <main style={{ minHeight: '100vh', background: '#080d18', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', fontFamily: 'Georgia, serif' }}>
         <div style={{ textAlign: 'center' }}>
-          <p style={{ color: 'rgba(188,156,69,0.6)', fontSize: '0.65rem', letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: '1.5rem', fontFamily: 'Poppins, Arial, sans-serif' }}>RePrime Group</p>
-          <p style={{ color: '#BC9C45', fontSize: '1.1rem', letterSpacing: '0.04em', fontStyle: 'italic' }}>{message}</p>
+          <p style={{ color: 'rgba(255, 204, 51,0.6)', fontSize: '0.65rem', letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: '1.5rem', fontFamily: 'Poppins, Arial, sans-serif' }}>RePrime Group</p>
+          <p style={{ color: '#FFCC33', fontSize: '1.1rem', letterSpacing: '0.04em', fontStyle: 'italic' }}>{message}</p>
         </div>
       </main>
     )

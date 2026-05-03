@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -15,7 +15,7 @@ import InvestorChatPanel from '@/components/panels/InvestorChatPanel'
 import BookingsPanel from '@/components/bookings/BookingsPanel'
 import type { DashboardMessage, DashboardThread, Panel } from '@/lib/timelines/types'
 
-// ── Import-names CSV button ───────────────────────────────────────────────────
+// â”€â”€ Import-names CSV button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ImportNamesButton() {
   const inputRef = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'err'>('idle')
@@ -36,7 +36,7 @@ function ImportNamesButton() {
         setMsg(json.message || json.error || `Error ${res.status}`)
       } else {
         setStatus('ok')
-        setMsg(`✓ ${json.updated} updated, ${json.skipped} skipped`)
+        setMsg(`âœ“ ${json.updated} updated, ${json.skipped} skipped`)
         setTimeout(() => { setStatus('idle'); setMsg('') }, 5000)
       }
     } catch (ex: unknown) {
@@ -47,7 +47,7 @@ function ImportNamesButton() {
   }
 
   const color =
-    status === 'ok' ? '#22c55e' : status === 'err' ? '#ef4444' : 'rgba(188,156,69,0.85)'
+    status === 'ok' ? '#22c55e' : status === 'err' ? '#ef4444' : 'rgba(255, 204, 51,0.85)'
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -78,7 +78,7 @@ function ImportNamesButton() {
           flexShrink: 0,
         }}
       >
-        {status === 'loading' ? '⏳' : '📋'} Import Names
+        {status === 'loading' ? 'â³' : 'ðŸ“‹'} Import Names
       </button>
       {msg && (
         <span style={{ fontSize: 10, color, maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -89,7 +89,7 @@ function ImportNamesButton() {
   )
 }
 
-// ── Panel view ────────────────────────────────────────────────────────────────
+// â”€â”€ Panel view â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type PanelViewProps = {
   panel: Panel
@@ -151,7 +151,7 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
   const headerMuted = is718 ? 'var(--personal-muted)' : 'var(--rp-gold-lite)'
   const borderColor = is718 ? 'var(--personal-border)' : 'var(--rp-border)'
   const phoneLabel = is718 ? '+1 (718) 550-5500' : '+1 (305) 778-4861'
-  const title = is718 ? '718 — Personal' : '305 — RePrime'
+  const title = is718 ? '718 â€” Personal' : '305 â€” RePrime'
 
   return (
     <div
@@ -199,7 +199,7 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
                   gap: 6,
                 }}
               >
-                <span aria-hidden>✦</span>
+                <span aria-hidden>âœ¦</span>
                 <span>Invite</span>
               </button>
             )}
@@ -279,7 +279,7 @@ function PanelView({ panel, selected, onSelect }: PanelViewProps) {
   )
 }
 
-// ── Dashboard ─────────────────────────────────────────────────────────────────
+// â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type SelectionMap = Record<Panel, DashboardThread | null>
 
@@ -300,14 +300,14 @@ export default function Dashboard() {
     <>
       <TodayPanel />
 
-      {/* ── Top control bar ────────────────────────────────────────────────── */}
+      {/* â”€â”€ Top control bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           padding: '0.28rem 0.9rem',
           background: '#080F24',
-          borderBottom: '1px solid rgba(188,156,69,0.18)',
+          borderBottom: '1px solid rgba(255, 204, 51,0.18)',
           gap: 10,
           flexShrink: 0,
           overflowX: 'auto',
@@ -320,8 +320,8 @@ export default function Dashboard() {
           onClick={() => setShowTerminal(true)}
           style={{
             background: 'transparent',
-            color: 'rgba(188,156,69,0.85)',
-            border: '1px solid rgba(188,156,69,0.45)',
+            color: 'rgba(255, 204, 51,0.85)',
+            border: '1px solid rgba(255, 204, 51,0.45)',
             borderRadius: 6,
             padding: '0.45rem 1rem',
             fontSize: 13,
@@ -332,13 +332,13 @@ export default function Dashboard() {
             flexShrink: 0,
           }}
         >
-          ✉ Terminal
+          âœ‰ Terminal
         </button>
 
         {/* Divider */}
-        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(188,156,69,0.2)', flexShrink: 0 }} />
+        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255, 204, 51,0.2)', flexShrink: 0 }} />
 
-        {/* Concierge quick-actions — target whoever's chat is open */}
+        {/* Concierge quick-actions â€” target whoever's chat is open */}
         <TopBarConcierge activeThread={activeThread} />
 
         {/* Active-thread indicator */}
@@ -346,13 +346,13 @@ export default function Dashboard() {
           <span
             style={{
               fontSize: 10,
-              color: 'rgba(188,156,69,0.55)',
+              color: 'rgba(255, 204, 51,0.55)',
               flexShrink: 0,
               marginLeft: 'auto',
               whiteSpace: 'nowrap',
             }}
           >
-            → {activeThread.contact_name || activeThread.phone}
+            â†’ {activeThread.contact_name || activeThread.phone}
           </span>
         )}
       </div>
@@ -380,19 +380,19 @@ export default function Dashboard() {
       )}
 
       <main style={{ display: 'flex', flex: 1, minHeight: 0, width: '100vw' }}>
-        {/* ── 305 — RePrime (left) ── */}
+        {/* â”€â”€ 305 â€” RePrime (left) â”€â”€ */}
         <PanelView
           panel="305"
           selected={selections['305']}
           onSelect={select('305')}
         />
-        {/* ── 718 — Personal (center) ── */}
+        {/* â”€â”€ 718 â€” Personal (center) â”€â”€ */}
         <PanelView
           panel="718"
           selected={selections['718']}
           onSelect={select('718')}
         />
-        {/* ── Investors (right) ── */}
+        {/* â”€â”€ Investors (right) â”€â”€ */}
         <InvestorChatPanel />
       </main>
       <NotesPanel />

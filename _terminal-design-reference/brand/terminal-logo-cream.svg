@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" role="img" aria-label="Terminal by RePrime — Cream Variant">
+  <title>RePrime Terminal — Cream Paper Variant</title>
+  <desc>Navy wordmark on cream field with gold tapered rules. For letterhead, LOIs, and printed documents.</desc>
+  <defs>
+    <linearGradient id="ruleFadeCream" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FFCC33" stop-opacity="0"/>
+      <stop offset="6%" stop-color="#FFCC33" stop-opacity="1"/>
+      <stop offset="94%" stop-color="#FFCC33" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#FFCC33" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="320" fill="#F4EEE0"/>
+  <rect x="90" y="86" width="620" height="2" fill="url(#ruleFadeCream)"/>
+  <text x="400" y="196" text-anchor="middle" font-family="Cinzel, 'Trajan Pro', Georgia, serif" font-weight="600" font-size="100" letter-spacing="12" fill="#0E3470">TERMINAL</text>
+  <rect x="90" y="220" width="620" height="2" fill="url(#ruleFadeCream)"/>
+  <text x="400" y="262" text-anchor="middle" font-family="'EB Garamond', Garamond, Georgia, serif" font-style="italic" font-size="27" letter-spacing="1.4" fill="#0E3470" opacity="0.85">by RePrime</text>
+</svg>

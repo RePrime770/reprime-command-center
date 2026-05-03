@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
 
 export const dynamic = 'force-dynamic'
 
 const ALLOWED_EMAIL = 'g@reprime.com'
-const DEFAULT_TAG_COLOR = '#BC9C45'
+const DEFAULT_TAG_COLOR = '#FFCC33'
 const DEFAULT_PANEL = '305'
 
 interface BulkResult {
@@ -54,7 +54,7 @@ const PHONE_HEADER_KEYS = new Set([
 const TAG_HEADER_KEYS = new Set(['tag', 'tags', 'label'])
 
 function normalizeHeader(h: string): string {
-  return h.replace(/^﻿/, '').trim().toLowerCase()
+  return h.replace(/^ï»¿/, '').trim().toLowerCase()
 }
 
 function parseCsv(text: string): {
@@ -62,10 +62,10 @@ function parseCsv(text: string): {
   headers: string[]
   firstRowSample: string[] | null
 } {
-  const stripped = text.replace(/^﻿/, '')
+  const stripped = text.replace(/^ï»¿/, '')
   const lines = stripped.split(/\r?\n/).filter((l) => l.length > 0)
   if (lines.length === 0) return { rows: [], headers: [], firstRowSample: null }
-  const headers = parseCsvRow(lines[0]).map((h) => h.replace(/^﻿/, '').trim())
+  const headers = parseCsvRow(lines[0]).map((h) => h.replace(/^ï»¿/, '').trim())
   const phoneIdx = headers.findIndex((h) => PHONE_HEADER_KEYS.has(normalizeHeader(h)))
   const tagIdx = headers.findIndex((h) => TAG_HEADER_KEYS.has(normalizeHeader(h)))
   if (phoneIdx === -1 || tagIdx === -1) {

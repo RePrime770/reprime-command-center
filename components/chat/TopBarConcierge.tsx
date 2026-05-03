@@ -11,8 +11,8 @@ type ActionType =
   | 'postpone'
 
 const ACTIONS: Array<{ type: ActionType; label: string; emoji: string; color: string }> = [
-  { type: 'running_late_zoom', label: 'Late Zoom', emoji: '🕐', color: '#BC9C45' },
-  { type: 'running_late_office', label: 'Late Office', emoji: '🕐', color: '#BC9C45' },
+  { type: 'running_late_zoom', label: 'Late Zoom', emoji: '🕐', color: '#FFCC33' },
+  { type: 'running_late_office', label: 'Late Office', emoji: '🕐', color: '#FFCC33' },
   { type: 'couldnt_make_it', label: "Can't make it", emoji: '❌', color: '#FF7474' },
   { type: 'move_earlier', label: 'Move earlier', emoji: '⏩', color: '#00A980' },
   { type: 'postpone', label: 'Postpone', emoji: '⏪', color: '#6B9BE8' },
@@ -163,9 +163,9 @@ export default function TopBarConcierge({ activeThread }: Props) {
         >
           <div
             style={{
-              background: '#0A1F44',
+              background: 'rgba(14, 52, 112, 0.85)',
               color: '#FFFFFF',
-              border: '1px solid #1A3560',
+              border: '1px solid rgba(14, 52, 112, 0.70)',
               borderRadius: 10,
               padding: 20,
               width: 'min(700px, 95vw)',
@@ -175,7 +175,7 @@ export default function TopBarConcierge({ activeThread }: Props) {
           >
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h2 style={{ margin: 0, fontSize: 15, color: '#D4B86A' }}>
+              <h2 style={{ margin: 0, fontSize: 15, color: '#FFCC33' }}>
                 {ACTIONS.find((a) => a.type === open)?.emoji}{' '}
                 {ACTIONS.find((a) => a.type === open)?.label}
                 {activeThread?.contact_name ? ` → ${activeThread.contact_name}` : ''}
@@ -183,14 +183,14 @@ export default function TopBarConcierge({ activeThread }: Props) {
               <button
                 type="button"
                 onClick={reset}
-                style={{ background: 'transparent', border: '1px solid #1A3560', borderRadius: 5, color: '#fff', cursor: 'pointer', padding: '3px 9px', fontSize: 12 }}
+                style={{ background: 'transparent', border: '1px solid rgba(14, 52, 112, 0.70)', borderRadius: 5, color: '#fff', cursor: 'pointer', padding: '3px 9px', fontSize: 12 }}
               >
                 ✕
               </button>
             </div>
 
             {loading ? (
-              <p style={{ color: '#D4B86A', fontSize: 14 }}>Generating message…</p>
+              <p style={{ color: '#FFCC33', fontSize: 14 }}>Generating message…</p>
             ) : (
               <>
                 {error && (
@@ -202,7 +202,7 @@ export default function TopBarConcierge({ activeThread }: Props) {
                 {/* Message editors */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <span style={{ fontSize: 11, color: '#D4B86A', letterSpacing: 0.4 }}>English</span>
+                    <span style={{ fontSize: 11, color: '#FFCC33', letterSpacing: 0.4 }}>English</span>
                     <textarea
                       value={en}
                       onChange={(e) => setEn(e.target.value)}
@@ -210,7 +210,7 @@ export default function TopBarConcierge({ activeThread }: Props) {
                       style={{
                         background: '#0E3470',
                         color: '#fff',
-                        border: '1px solid #1A3560',
+                        border: '1px solid rgba(14, 52, 112, 0.70)',
                         borderRadius: 6,
                         padding: 8,
                         fontSize: 13,
@@ -221,7 +221,7 @@ export default function TopBarConcierge({ activeThread }: Props) {
                     />
                   </label>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <span style={{ fontSize: 11, color: '#D4B86A', letterSpacing: 0.4 }}>Hebrew</span>
+                    <span style={{ fontSize: 11, color: '#FFCC33', letterSpacing: 0.4 }}>Hebrew</span>
                     <textarea
                       value={he}
                       onChange={(e) => setHe(e.target.value)}
@@ -230,7 +230,7 @@ export default function TopBarConcierge({ activeThread }: Props) {
                       style={{
                         background: '#0E3470',
                         color: '#fff',
-                        border: '1px solid #1A3560',
+                        border: '1px solid rgba(14, 52, 112, 0.70)',
                         borderRadius: 6,
                         padding: 8,
                         fontSize: 13,
@@ -252,7 +252,7 @@ export default function TopBarConcierge({ activeThread }: Props) {
                       style={{
                         background: '#0E3470',
                         color: '#fff',
-                        border: '1px solid #1A3560',
+                        border: '1px solid rgba(14, 52, 112, 0.70)',
                         borderRadius: 5,
                         padding: '3px 7px',
                         fontSize: 12,
@@ -268,7 +268,7 @@ export default function TopBarConcierge({ activeThread }: Props) {
                     <button
                       type="button"
                       onClick={reset}
-                      style={{ background: 'transparent', border: '1px solid #1A3560', color: '#fff', borderRadius: 5, padding: '5px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}
+                      style={{ background: 'transparent', border: '1px solid rgba(14, 52, 112, 0.70)', color: '#fff', borderRadius: 5, padding: '5px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}
                     >
                       Cancel
                     </button>
@@ -277,7 +277,7 @@ export default function TopBarConcierge({ activeThread }: Props) {
                       onClick={() => void handleSend()}
                       disabled={sending || !hasText}
                       style={{
-                        background: '#BC9C45',
+                        background: '#FFCC33',
                         color: '#0E3470',
                         border: 'none',
                         borderRadius: 5,

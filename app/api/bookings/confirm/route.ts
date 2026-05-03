@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis'
+﻿import { Redis } from '@upstash/redis'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createMeeting } from '@/lib/zoom/client'
 import { createCalendarEvent } from '@/lib/google/calendar'
@@ -67,7 +67,7 @@ function pageHtml(opts: {
     state === 'confirmed'
       ? `Locked in, ${firstName}.`
       : state === 'partial'
-        ? `${firstName} — saved with a hiccup.`
+        ? `${firstName} â€” saved with a hiccup.`
         : state === 'used'
           ? 'This invitation has already been used.'
           : state === 'expired'
@@ -75,28 +75,28 @@ function pageHtml(opts: {
             : 'This invitation link is not valid.'
   const body =
     state === 'confirmed' && slot && zoomUrl
-      ? `<p style="color:#D4B86A;font-size:1.05rem;line-height:1.7;margin:0 0 1.5rem;">${slot.display}.</p>
+      ? `<p style="color:#FFCC33;font-size:1.05rem;line-height:1.7;margin:0 0 1.5rem;">${slot.display}.</p>
          <p style="color:#fff;font-size:1rem;line-height:1.7;margin:0 0 2rem;">Zoom + calendar invite are on their way to your inbox. See you then.</p>
-         <table cellpadding="0" cellspacing="0" style="margin:0 0 2rem"><tr><td style="background:#BC9C45;border-radius:4px;">
+         <table cellpadding="0" cellspacing="0" style="margin:0 0 2rem"><tr><td style="background:#FFCC33;border-radius:4px;">
            <a href="${zoomUrl}" style="display:inline-block;padding:0.85rem 2rem;color:#0E3470;text-decoration:none;font-weight:600;font-size:1rem;">Open Zoom</a>
          </td></tr></table>`
       : state === 'partial' && slot
-        ? `<p style="color:#D4B86A;font-size:1.05rem;line-height:1.7;margin:0 0 1.5rem;">${slot.display}.</p>
-           <p style="color:#fff;font-size:1rem;line-height:1.7;margin:0 0 2rem;">${message || 'I saved your slot — Gideon will follow up directly with the Zoom link.'}</p>`
-        : `<p style="color:#D4B86A;font-size:1rem;line-height:1.7;margin:0 0 2rem;">${message || 'If you think this is in error, reply to the original email and I\'ll sort it out.'}</p>`
+        ? `<p style="color:#FFCC33;font-size:1.05rem;line-height:1.7;margin:0 0 1.5rem;">${slot.display}.</p>
+           <p style="color:#fff;font-size:1rem;line-height:1.7;margin:0 0 2rem;">${message || 'I saved your slot â€” Gideon will follow up directly with the Zoom link.'}</p>`
+        : `<p style="color:#FFCC33;font-size:1rem;line-height:1.7;margin:0 0 2rem;">${message || 'If you think this is in error, reply to the original email and I\'ll sort it out.'}</p>`
 
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RePrime Group · Terminal</title></head>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RePrime Group Â· Terminal</title></head>
 <body style="margin:0;padding:0;background:#0E3470;color:#fff;font-family:'Poppins',Arial,sans-serif;">
   <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;">
     <div style="max-width:560px;width:100%;">
-      <header style="border-bottom:1px solid #1A3560;padding-bottom:1.5rem;display:flex;align-items:center;gap:1rem;margin-bottom:3rem;">
-        <span style="color:#D4B86A;letter-spacing:0.1em;font-size:0.85rem;text-transform:uppercase;">RePrime Group · Terminal Introduction</span>
+      <header style="border-bottom:1px solid rgba(14, 52, 112, 0.70);padding-bottom:1.5rem;display:flex;align-items:center;gap:1rem;margin-bottom:3rem;">
+        <span style="color:#FFCC33;letter-spacing:0.1em;font-size:0.85rem;text-transform:uppercase;">RePrime Group Â· Terminal Introduction</span>
       </header>
-      <h1 style="color:#BC9C45;font-size:1.85rem;font-weight:600;margin:0 0 1.5rem;">${heading}</h1>
+      <h1 style="color:#FFCC33;font-size:1.85rem;font-weight:600;margin:0 0 1.5rem;">${heading}</h1>
       ${body}
-      <p style="margin-top:3rem;color:#8A8680;font-size:0.85rem;border-top:1px solid #1A3560;padding-top:1.5rem;">
-        Gideon Gratsiani · Founder, RePrime Group
+      <p style="margin-top:3rem;color:#8A8680;font-size:0.85rem;border-top:1px solid rgba(14, 52, 112, 0.70);padding-top:1.5rem;">
+        Gideon Gratsiani Â· Founder, RePrime Group
       </p>
     </div>
   </main>
@@ -259,7 +259,7 @@ export async function POST(request: Request) {
   // Step 2: create Zoom meeting
   try {
     const meeting = await createMeeting('me', {
-      topic: `Terminal Introduction — ${firstName}`,
+      topic: `Terminal Introduction â€” ${firstName}`,
       start_time: slot.iso,
       duration: 30,
       timezone: 'America/Chicago',
@@ -291,7 +291,7 @@ export async function POST(request: Request) {
       const start = new Date(slot.iso)
       const end = new Date(start.getTime() + 30 * 60 * 1000)
       const eventId = await createCalendarEvent({
-        summary: `Terminal Introduction — ${firstName}`,
+        summary: `Terminal Introduction â€” ${firstName}`,
         description: 'Terminal introduction call. 30 minutes.',
         startTime: slot.iso,
         endTime: end.toISOString(),
@@ -329,7 +329,7 @@ export async function POST(request: Request) {
         uid: token,
         startIso: slot.iso,
         endIso: end.toISOString(),
-        summary: `Terminal Introduction — ${firstName}`,
+        summary: `Terminal Introduction â€” ${firstName}`,
         description: `Zoom: ${zoomJoinUrl}`,
         location: zoomJoinUrl,
         organizerEmail: FROM_EMAIL,
@@ -342,14 +342,14 @@ export async function POST(request: Request) {
       const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#FAFAF9;font-family:'Poppins',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:2rem 1rem;">
 <table width="100%" style="max-width:600px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-<tr><td style="background:#0E3470;padding:1.75rem 2rem;border-bottom:3px solid #BC9C45;">
-<span style="color:#D4B86A;letter-spacing:0.1em;font-size:0.8rem;text-transform:uppercase;">RePrime Group · Terminal Confirmed</span>
+<tr><td style="background:#0E3470;padding:1.75rem 2rem;border-bottom:3px solid #FFCC33;">
+<span style="color:#FFCC33;letter-spacing:0.1em;font-size:0.8rem;text-transform:uppercase;">RePrime Group Â· Terminal Confirmed</span>
 </td></tr>
 <tr><td style="padding:2.5rem 2rem;">
 <p style="color:#1F1D1A;font-size:1.05rem;margin:0 0 1.25rem;">${firstName},</p>
 <p style="color:#1F1D1A;font-size:1rem;margin:0 0 1.25rem;line-height:1.7;">Locked in: <strong>${slot.display}</strong>.</p>
 <p style="color:#1F1D1A;font-size:1rem;margin:0 0 1.5rem;line-height:1.7;">The calendar invite is attached. Zoom link below.</p>
-<table cellpadding="0" cellspacing="0"><tr><td style="background:#BC9C45;border-radius:4px;">
+<table cellpadding="0" cellspacing="0"><tr><td style="background:#FFCC33;border-radius:4px;">
 <a href="${zoomJoinUrl}" style="display:inline-block;padding:0.85rem 2rem;color:#0E3470;text-decoration:none;font-weight:600;font-size:1rem;">Join Zoom</a>
 </td></tr></table>
 <p style="color:#8A8680;font-size:0.85rem;margin:2.5rem 0 0;padding-top:1.5rem;border-top:1px solid #E5E2DB;">
@@ -362,7 +362,7 @@ Zoom: ${zoomJoinUrl}
 
 Calendar invite attached.
 
-—
+â€”
 Gideon Gratsiani
 Founder, RePrime Group`
 
@@ -370,7 +370,7 @@ Founder, RePrime Group`
         to: inv.contact_email,
         from: FROM_EMAIL,
         replyTo: REPLY_TO,
-        subject: `Confirmed — Terminal Introduction · ${slot.display}`,
+        subject: `Confirmed â€” Terminal Introduction Â· ${slot.display}`,
         html,
         text,
         attachments: [
@@ -393,7 +393,7 @@ Founder, RePrime Group`
     try {
       const chatId = await findChatIdForPhone('305', inv.contact_phone)
       if (chatId) {
-        const text = `${firstName} — confirmed: ${slot.display}.\n\nZoom: ${zoomJoinUrl}\n\nSee you then.\n— Gideon`
+        const text = `${firstName} â€” confirmed: ${slot.display}.\n\nZoom: ${zoomJoinUrl}\n\nSee you then.\nâ€” Gideon`
         await sendMessage({
           phone: inv.contact_phone,
           text,
@@ -417,7 +417,7 @@ Founder, RePrime Group`
     const tMinus1Ms = slotMs - 1 * 60 * 1000
 
     const tMinus10Member = JSON.stringify({
-      summary: `${firstName} Terminal in 10 min — Zoom: ${zoomJoinUrl ?? 'n/a'}`,
+      summary: `${firstName} Terminal in 10 min â€” Zoom: ${zoomJoinUrl ?? 'n/a'}`,
       severity: 'warning',
       customDetails: { contact: inv.contact_name, slot: slot.display, zoom: zoomJoinUrl, token },
       dedupKey: `terminal:${token}:t-10`,
@@ -479,7 +479,7 @@ Founder, RePrime Group`
       state: success ? 'confirmed' : 'partial',
       message: success
         ? undefined
-        : 'Slot saved. There was a hiccup creating the Zoom link — Gideon will follow up directly.',
+        : 'Slot saved. There was a hiccup creating the Zoom link â€” Gideon will follow up directly.',
     })
   )
 }

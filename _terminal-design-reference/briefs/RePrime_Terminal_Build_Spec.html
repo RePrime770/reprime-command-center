@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RePrime Terminal — Build Specification</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;margin:0;padding:0}
+:root{--n:#0E3470;--n2:#08214a;--g:#BC9C45;--gs:rgba(188,156,69,.15);--c:#FAF6E8;--w:#FFFFFF;--gr:#00A980;--am:#FFBC7D;--rd:#B91C1C;--g1:#F4F4F0;--g2:#E8E8E2;--g3:#C8C8C8;--g6:#5A6A7A;--g8:#1F2937}
+body{background:var(--c);color:var(--g8);font-family:'Poppins',sans-serif;font-weight:300;line-height:1.6;font-size:14.5px}
+.page{max-width:1180px;margin:0 auto;padding:42px 24px 70px}
+.cover{background:linear-gradient(135deg,#0a2854,#0E3470,#122d62);color:var(--w);padding:64px 48px;border-radius:16px;margin-bottom:48px;border:1px solid rgba(188,156,69,.35);position:relative;overflow:hidden}
+.cover::after{content:'';position:absolute;right:-80px;bottom:-80px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(188,156,69,.08) 0%,transparent 70%)}
+.eyebrow{font-size:11px;letter-spacing:4px;color:var(--g);text-transform:uppercase;font-weight:600;margin-bottom:14px}
+h1{font-family:'Playfair Display',serif;font-size:54px;font-weight:500;letter-spacing:1.5px;line-height:1.05;margin-bottom:6px}
+.gr{width:90px;height:2px;background:var(--g);margin:18px 0}
+.sub{font-size:17px;font-weight:300;color:rgba(255,255,255,.78);max-width:680px;line-height:1.5}
+.meta{display:flex;gap:48px;margin-top:40px;flex-wrap:wrap}
+.meta .l{font-size:9px;letter-spacing:2.4px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:4px}
+.meta .v{font-size:13px;color:var(--g);font-weight:500}
+.intro{background:var(--w);border:.5px solid var(--g2);border-radius:14px;padding:28px 32px;margin-bottom:40px}
+.intro h3{font-family:'Playfair Display',serif;font-size:21px;color:var(--n);margin-bottom:12px;font-weight:500}
+.intro p{font-size:13.5px;color:var(--g8);margin-bottom:10px;line-height:1.7}
+.intro p strong{color:var(--n);font-weight:600}
+.b{display:inline-flex;align-items:center;padding:4px 11px;border-radius:3px;font-size:9.5px;letter-spacing:1.5px;font-weight:700;text-transform:uppercase;white-space:nowrap}
+.bL{background:var(--n);color:var(--w)}
+.bP{background:var(--g);color:var(--w)}
+.bO{background:var(--c);color:var(--n);border:.5px solid var(--g)}
+.lg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:48px}
+.lc{background:var(--w);border:.5px solid var(--g2);border-radius:10px;padding:16px 20px;display:flex;gap:12px;align-items:flex-start}
+.lc .d{font-size:12px;color:var(--g8);line-height:1.5}
+.phase{margin:64px 0 40px;padding:22px 28px;background:var(--n);color:var(--w);border-radius:12px;border-left:6px solid var(--g)}
+.phase .pn{font-family:'Playfair Display',serif;font-size:13px;color:var(--g);letter-spacing:2px;font-weight:600;text-transform:uppercase}
+.phase .pt{font-family:'Playfair Display',serif;font-size:25px;font-weight:500;margin-top:4px}
+.phase .pd{font-size:12.5px;color:rgba(255,255,255,.65);margin-top:6px;max-width:720px;line-height:1.6}
+.f{background:var(--w);border:.5px solid var(--g2);border-radius:14px;margin-bottom:28px;overflow:hidden;box-shadow:0 2px 12px rgba(14,52,112,.04)}
+.fh{display:flex;align-items:center;gap:16px;padding:16px 22px;background:linear-gradient(to right,var(--n) 0%,var(--n2) 100%);color:var(--w);border-bottom:1.5px solid var(--g)}
+.fh .nu{font-family:'Playfair Display',serif;font-size:25px;font-weight:500;color:var(--g);min-width:42px}
+.fh .tt{font-size:15.5px;font-weight:500;flex:1}
+.fh .mt{font-size:9px;color:rgba(188,156,69,.85);letter-spacing:1.4px;text-transform:uppercase;font-weight:600;padding-right:10px;border-right:.5px solid rgba(255,255,255,.18);margin-right:2px}
+.fb{padding:20px 24px}
+.fb .desc{font-size:13px;color:var(--g8);line-height:1.65;margin-bottom:16px;max-width:880px}
+.vis{background:var(--c);border-radius:10px;padding:20px;border:.5px solid var(--g2)}
+.fn{font-size:11px;color:var(--g6);padding:11px 24px 16px;border-top:.5px solid var(--g2);background:var(--g1);font-style:italic;line-height:1.55}
+.tk{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.t{padding:12px;border:.5px solid var(--g2);border-radius:7px;background:var(--w)}
+.sw{height:42px;border-radius:4px;margin-bottom:8px;border:.5px solid rgba(14,52,112,.08)}
+.tn{font-family:'Fira Code',monospace;font-size:11px;color:var(--n);font-weight:500}
+.th{font-family:'Fira Code',monospace;font-size:10px;color:var(--g6);margin-top:2px}
+.typ{padding:10px 14px;background:var(--w);border:.5px solid var(--g2);border-radius:7px;margin-top:14px}
+.typ .r{display:flex;align-items:baseline;gap:14px;padding:6px 0;border-bottom:.5px solid var(--g2)}
+.typ .r:last-child{border:none}
+.typ .l{font-size:9.5px;letter-spacing:1.4px;color:var(--g6);font-weight:600;text-transform:uppercase;width:90px;flex-shrink:0}
+.typ .e1{font-family:'Poppins',sans-serif;font-size:17px;color:var(--n)}
+.typ .e2{font-family:'Playfair Display',serif;font-size:21px;color:var(--n);font-weight:500}
+.typ .e3{font-family:'Fira Code',monospace;font-size:15px;color:var(--n)}
+.hp{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px}
+.hp span{padding:4px 10px;background:var(--w);border:.5px solid var(--g);border-radius:14px;color:var(--n);font-size:10.5px;font-weight:500}
+.he{margin-top:12px;background:var(--w);border:.5px solid var(--g2);border-radius:6px;padding:13px}
+.he .g{font-family:'Playfair Display',serif;font-size:17px;color:var(--n)}
+.he .pre{color:var(--g);font-weight:600}
+/* DEAL CARD */
+.dcw{background:var(--c);padding:24px;border-radius:12px;border:.5px solid var(--g2)}
+.dc{background:var(--w);border-radius:14px;overflow:hidden;box-shadow:0 5px 26px rgba(14,52,112,.10);border:.5px solid rgba(14,52,112,.10);max-width:680px;margin:0 auto}
+.psa{background:var(--n);color:var(--w);padding:16px 20px}
+.p1{background:var(--gs);color:var(--g);font-size:9px;letter-spacing:2px;font-weight:700;padding:3px 9px;border:.5px solid var(--g);border-radius:2px;display:inline-block;margin-bottom:7px}
+.p2{font-family:'Playfair Display',serif;font-size:15px;font-weight:500}
+.p3{font-size:10.5px;color:rgba(255,255,255,.7);margin-top:3px}
+.prw{padding:18px 20px 4px;background:var(--n);position:relative}
+.pr{position:relative;height:24px;padding:0 6%}
+.rb{position:absolute;top:11px;left:12%;right:12%;height:1.5px;background:rgba(255,255,255,.18)}
+.rf{position:absolute;top:11px;left:12%;width:28%;height:1.5px;background:var(--g)}
+.rs{display:flex;justify-content:space-between;position:relative}
+.sc{flex:1;text-align:center}
+.do{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 0 0 3.5px var(--n);position:relative;z-index:2;vertical-align:middle}
+.do.dn{background:var(--g);color:var(--n);font-weight:700;font-size:9px}
+.do.ac{background:var(--g);animation:pl 3s ease-in-out infinite}
+.do.fu{background:transparent;border:1.5px solid rgba(188,156,69,.55)}
+@keyframes pl{0%,100%{box-shadow:0 0 0 3.5px var(--n),0 0 0 5.5px var(--g);transform:scale(1)}50%{box-shadow:0 0 0 3.5px var(--n),0 0 0 8.5px rgba(188,156,69,.55);transform:scale(1.05)}}
+.tm{position:absolute;top:26px;left:38%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.ta{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:6px solid var(--g)}
+.tl{font-size:7.5px;color:var(--g);letter-spacing:1.6px;font-weight:700;margin-top:2px}
+.sl{display:flex;padding:24px 20px 14px;background:var(--n)}
+.slc{flex:1;text-align:center}
+.sn{font-family:'Playfair Display',serif;font-size:10.5px;color:var(--w)}
+.sn.act{color:var(--g);font-weight:700}
+.sn.ft{opacity:.65}
+.sd{font-size:8.5px;margin-top:3px;color:rgba(255,255,255,.55);font-family:'Fira Code',monospace}
+.sd.act{color:var(--g);font-weight:600}
+.hr{display:grid;grid-template-columns:1fr 1fr;padding:16px 22px;background:var(--w);border-bottom:.5px solid rgba(14,52,112,.08)}
+.hl{font-size:8.5px;color:var(--g6);letter-spacing:1.6px;text-transform:uppercase;font-weight:600;margin-bottom:3px}
+.hv{font-family:'Playfair Display',serif;font-size:21px;color:var(--n);font-weight:600}
+.ta5{display:grid;grid-template-columns:repeat(5,1fr);padding:13px 22px;background:var(--c);border-top:.5px solid var(--g);border-bottom:.5px solid var(--g)}
+.tac{text-align:center;padding:3px 0;border-right:.5px solid rgba(188,156,69,.3)}
+.tac:last-child{border:none}
+.tal{font-size:8px;color:var(--g6);letter-spacing:1.4px;text-transform:uppercase;font-weight:600;margin-bottom:2px}
+.tav{font-family:'Playfair Display',serif;font-size:14.5px;color:var(--n);font-weight:500}
+.tav.gd{color:var(--g);font-weight:600}
+.tb7{display:grid;grid-template-columns:repeat(7,1fr);padding:10px 22px;background:var(--w)}
+.tbc{text-align:center;border-right:.5px solid rgba(14,52,112,.08)}
+.tbc:last-child{border:none}
+.tbl{color:var(--g6);font-size:8px;letter-spacing:1px;text-transform:uppercase;font-weight:600}
+.tbv{color:var(--n);font-weight:500;margin-top:2px;font-size:11px}
+.lf{display:flex;align-items:center;gap:16px;padding:10px 22px;background:var(--c);border-top:.5px solid rgba(188,156,69,.4);border-bottom:.5px solid rgba(188,156,69,.4);font-size:10.5px;flex-wrap:wrap}
+.lp{width:7px;height:7px;border-radius:50%;background:var(--g);animation:pd 1.4s ease-in-out infinite;flex-shrink:0}
+@keyframes pd{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.3)}}
+.fd{color:var(--n)}
+.fd strong{color:var(--g);margin-left:3px;font-weight:600}
+.fr{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:13px 22px;background:var(--w);border-bottom:.5px solid rgba(14,52,112,.08)}
+.fc{padding:10px 12px;border:.5px solid rgba(14,52,112,.15);border-radius:5px;background:var(--w);position:relative}
+.fc.bs{border-color:var(--g);border-width:1.5px;background:rgba(250,246,232,.6)}
+.bp{position:absolute;top:-7px;right:8px;background:var(--g);color:var(--w);font-size:7.5px;padding:2px 6px;letter-spacing:1px;font-weight:700;border-radius:1px}
+.fl{font-size:8px;color:var(--g6);letter-spacing:1.2px;text-transform:uppercase;font-weight:600}
+.fv{font-family:'Playfair Display',serif;font-size:18px;color:var(--n);font-weight:600;margin-top:2px}
+.fv.gd{color:var(--g)}
+.fm{font-size:9.5px;color:var(--g6);margin-top:3px;line-height:1.4}
+.cb{background:var(--am);padding:12px 22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.cb.gr{background:var(--gr)}
+.cb.gr .ct{color:var(--w)}
+.ct{font-family:'Fira Code',monospace;font-size:12px;color:var(--n);font-weight:500}
+.ca{color:var(--n);opacity:.5;font-size:11px;margin:0 7px}
+.cb.gr .ca{color:rgba(255,255,255,.55)}
+.cp{background:var(--n);color:var(--g);padding:3px 9px;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;border-radius:2px}
+.cb.gr .cp{background:var(--w);color:var(--gr)}
+.df{display:flex;align-items:center;gap:14px;padding:12px 22px;background:var(--w);border-top:.5px solid rgba(14,52,112,.08);flex-wrap:wrap}
+.dp{display:flex;align-items:center;gap:5px;font-size:9.5px;color:var(--n)}
+.dp .l{font-size:8.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--g6);font-weight:600}
+.dm{width:6px;height:6px;border-radius:50%}
+.dm.g{background:var(--gr)}
+.dm.a{background:var(--am)}
+.fa{margin-left:auto;display:flex;gap:7px}
+.ab{padding:6px 12px;background:var(--w);border:.5px solid rgba(188,156,69,.45);color:var(--n);border-radius:3px;font-size:9.5px;font-weight:500;cursor:pointer;font-family:inherit}
+.ob{padding:8px 16px;background:var(--g);color:var(--w);border:none;border-radius:3px;font-size:10px;letter-spacing:1.2px;font-weight:700;text-transform:uppercase;cursor:pointer;font-family:inherit}
+/* DASHBOARD */
+.dm2{background:var(--c);border-radius:10px;padding:16px}
+.tb{background:var(--n);color:var(--w);padding:11px 16px;border-radius:8px;display:flex;align-items:center;gap:16px;margin-bottom:14px}
+.lo{font-family:'Playfair Display',serif;font-size:15px;color:var(--g);font-weight:500;letter-spacing:1px}
+.tk2{display:flex;gap:20px;font-family:'Fira Code',monospace;font-size:10.5px;flex:1;overflow:hidden}
+.tk2 span{white-space:nowrap}
+.up{color:var(--gr)}
+.dn{color:#FF7474}
+.db{display:flex;gap:6px}
+.db button{background:var(--gs);border:.5px solid var(--g);color:var(--g);padding:5px 10px;border-radius:2px;font-size:9px;letter-spacing:1.1px;font-weight:600;font-family:inherit;cursor:pointer}
+.dg{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+.dd{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.md{background:var(--w);border-radius:7px;overflow:hidden;border:.5px solid var(--g2)}
+.md .mb{background:var(--n);color:var(--g);padding:5px 9px;font-size:7.5px;letter-spacing:1.3px;font-weight:700}
+.md .mh{padding:9px}
+.md .mt{font-family:'Playfair Display',serif;font-size:12px;color:var(--n);font-weight:500}
+.md .mp{font-size:9px;color:var(--g6);margin-top:1px}
+.md .mr2{display:flex;gap:10px;padding:7px 9px;background:var(--c);border-top:.5px solid var(--g)}
+.md .mc{font-size:8.5px;color:var(--g6)}
+.md .mc strong{display:block;color:var(--n);font-family:'Playfair Display',serif;font-size:10.5px}
+.md .mcl{padding:4px 9px;font-size:8.5px;color:var(--n);font-family:'Fira Code',monospace;font-weight:500;background:var(--am)}
+.md .mcl.gr{background:var(--gr);color:var(--w)}
+.dr{background:var(--w);border:.5px solid var(--g2);border-radius:7px;padding:12px}
+.rs2{margin-bottom:12px}
+.rt{font-size:8.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--g6);font-weight:700;margin-bottom:7px}
+.nm{background:var(--c);padding:7px 9px;border-radius:3px;font-size:9.5px;color:var(--g8);border-left:2px solid var(--g)}
+.nm+.nm{margin-top:5px}
+/* TIER CARDS */
+.tcc{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.tc{background:var(--w);border:.5px solid var(--g2);border-radius:9px;padding:20px 18px;text-align:center}
+.tc.fe{border:1.5px solid var(--g);background:linear-gradient(180deg,var(--c) 0%,var(--w) 100%)}
+.tcn{font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--g6);font-weight:600;margin-bottom:7px}
+.tcp{font-family:'Playfair Display',serif;font-size:30px;color:var(--n);font-weight:600}
+.tcr{font-size:10.5px;color:var(--g6);margin-bottom:13px}
+.tcl{font-size:10.5px;color:var(--g8);text-align:left;line-height:1.8;list-style:none}
+.tcl li::before{content:'— ';color:var(--g);font-weight:600}
+.lg2{margin-top:16px;background:var(--w);border:.5px solid var(--g2);border-radius:7px;padding:16px}
+.lt{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--g6);font-weight:600;margin-bottom:10px}
+.so{display:flex;gap:8px;margin-bottom:12px}
+.so>div{flex:1;padding:9px;background:var(--w);border:.5px solid var(--g3);border-radius:4px;text-align:center;font-size:11px;color:var(--g8)}
+.iv{display:flex;gap:8px;align-items:center}
+.iv>div:first-child{flex:1;padding:9px 12px;background:var(--c);border:.5px solid var(--g);border-radius:4px;font-family:'Fira Code',monospace;font-size:11px;color:var(--g);letter-spacing:1.5px}
+.iv>div:last-child{padding:9px 16px;background:var(--g);color:var(--w);border-radius:4px;font-size:10px;letter-spacing:1.2px;font-weight:700;text-transform:uppercase}
+/* VISITS */
+.vr{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.vs{background:var(--w);border:.5px solid var(--g2);border-radius:7px;padding:14px}
+.vn{width:26px;height:26px;border-radius:50%;background:var(--n);color:var(--g);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:600;font-size:13px;margin-bottom:8px}
+.vt{font-family:'Playfair Display',serif;font-size:12.5px;color:var(--n);font-weight:500;margin-bottom:5px}
+.vd{font-size:10.5px;color:var(--g8);line-height:1.55}
+/* TAB NAV */
+.tn2{display:flex;gap:3px;background:var(--w);border-bottom:1px solid var(--g2);margin-bottom:12px}
+.tn2 .t{padding:9px 15px;font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--g6);font-weight:500;border-bottom:2px solid transparent;cursor:pointer;background:none;border-top:none;border-left:none;border-right:none;height:auto}
+.tn2 .t.ac{color:var(--n);border-bottom-color:var(--g);font-weight:700}
+/* WIRE FRAUD */
+.wf{background:var(--n);color:var(--w);padding:13px 16px;border-left:4px solid var(--g);border-radius:0 4px 4px 0;display:flex;gap:12px;align-items:center;font-size:11.5px}
+.wfi{width:28px;height:28px;border-radius:50%;background:var(--gs);border:1px solid var(--g);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--g);font-weight:700}
+/* CAROUSEL */
+.cl{background:var(--w);border-radius:7px;overflow:hidden;border:.5px solid var(--g2);max-width:520px;margin:0 auto}
+.clm{height:160px;background:linear-gradient(135deg,#2a4a7a 0%,#4a6a9a 100%);position:relative;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.4);font-size:11px;letter-spacing:2px}
+.clm::after{content:'PROPERTY PHOTO'}
+.cla{position:absolute;top:50%;transform:translateY(-50%);left:10px;right:10px;display:flex;justify-content:space-between;pointer-events:none}
+.cla>div{background:rgba(0,0,0,.4);color:var(--w);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;pointer-events:auto}
+.clt{display:flex;gap:3px;padding:7px;background:var(--g1)}
+.clt>div{width:48px;height:32px;background:linear-gradient(135deg,#486a96 0%,#5a7ca8 100%);border-radius:3px;opacity:.6}
+.clt>div.ac{opacity:1;border:1.5px solid var(--g)}
+.clc{position:absolute;bottom:9px;right:9px;background:rgba(0,0,0,.55);color:var(--w);padding:2px 8px;border-radius:2px;font-size:9.5px;font-family:'Fira Code',monospace}
+/* PSA LARGE */
+.pl2{background:var(--n);color:var(--w);padding:20px 24px;border-radius:7px}
+.plt{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;flex-wrap:wrap;gap:10px}
+.pll{font-family:'Playfair Display',serif;font-size:17px;color:var(--g);font-weight:500}
+.ple{font-family:'Fira Code',monospace;font-size:9.5px;color:rgba(255,255,255,.55)}
+.ple strong{color:var(--g)}
+/* FIN TABLE */
+.ft{width:100%;border-collapse:collapse;font-size:11px}
+.ft th{background:var(--n);color:var(--w);padding:8px 10px;text-align:left;font-size:9px;letter-spacing:1.2px;font-weight:600;text-transform:uppercase}
+.ft td{padding:8px 10px;border-bottom:.5px solid var(--g2);background:var(--w)}
+.ft tr.bs td{background:var(--c)}
+.ft tr.bs td:first-child{border-left:2px solid var(--g)}
+/* SCENARIO */
+.sn2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ss{background:var(--w);border:.5px solid var(--g2);border-radius:7px;padding:14px}
+.sr{margin-bottom:12px}
+.sr:last-child{margin-bottom:0}
+.sl2{display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--g6);font-weight:600;margin-bottom:4px}
+.sv{font-family:'Fira Code',monospace;color:var(--g);font-weight:600;font-size:10.5px}
+.st{height:4px;background:var(--g2);border-radius:2px;position:relative}
+.sf{position:absolute;left:0;top:0;height:100%;background:var(--g);border-radius:2px}
+.sh{position:absolute;top:50%;transform:translate(-50%,-50%);width:13px;height:13px;border-radius:50%;background:var(--g);box-shadow:0 2px 5px rgba(188,156,69,.4)}
+.so2{background:var(--n);color:var(--w);border-radius:7px;padding:14px}
+.ol{font-size:8.5px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.55);font-weight:600;margin-bottom:3px}
+.ov{font-family:'Playfair Display',serif;font-size:21px;color:var(--g);font-weight:600}
+.og{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px}
+/* TENANTS */
+.tg{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.tnc{background:var(--w);border:.5px solid var(--g2);border-radius:5px;padding:10px 12px;border-left:3px solid}
+.tnc.s{border-left-color:var(--gr)}
+.tnc.w{border-left-color:var(--am)}
+.tnc.d{border-left-color:#FF7474}
+.tnn{font-family:'Playfair Display',serif;font-size:12px;color:var(--n);font-weight:500}
+.tnm{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--g6);margin-top:2px;font-weight:600}
+.tp{font-family:'Fira Code',monospace;font-size:10px;color:var(--g);margin-top:3px}
+.tt2{display:inline-block;padding:2px 6px;border-radius:2px;font-size:7.5px;letter-spacing:1px;font-weight:700;margin-top:3px}
+.ts{background:rgba(0,169,128,.12);color:var(--gr)}
+.tw{background:rgba(255,188,125,.18);color:#c87a35}
+.td2{background:rgba(255,116,116,.15);color:#c0392b}
+/* STACKING */
+.sp{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;padding:10px;background:var(--g1);border-radius:5px}
+.spc{padding:9px 5px;border-radius:3px;font-size:8.5px;color:var(--w);font-weight:500;text-align:center;line-height:1.3}
+.spg{background:var(--gr)}
+.spa{background:var(--am);color:var(--g8)}
+.spr{background:#FF7474}
+.spgr{background:var(--g3);color:var(--g8)}
+.spn{background:var(--n)}
+.spk{display:flex;gap:14px;margin-bottom:10px;font-size:9.5px;color:var(--g6);flex-wrap:wrap;align-items:center}
+.spk span{display:flex;align-items:center;gap:5px}
+.spk i{width:11px;height:11px;border-radius:2px;display:inline-block;font-style:normal}
+/* COMPS */
+.cc{background:var(--w);border:.5px solid var(--g2);border-radius:7px;padding:14px}
+.ch{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;flex-wrap:wrap;gap:6px}
+.cax{position:relative;height:90px;padding:12px 6px 14px;border-bottom:.5px solid var(--g2);border-left:.5px solid var(--g2);margin-left:22px;margin-bottom:6px}
+.cd{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--g3);transform:translate(-50%,-50%)}
+.cd.sb{background:var(--g);width:11px;height:11px;box-shadow:0 0 0 4px rgba(188,156,69,.3)}
+.cm2{position:absolute;left:50%;top:6px;bottom:6px;width:0;border-left:1px dashed var(--n)}
+.cax2{display:flex;justify-content:space-between;font-family:'Fira Code',monospace;font-size:8.5px;color:var(--g6);padding:0 6px 0 28px}
+.ctb{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:10px}
+.ctb th{background:var(--g1);padding:6px 9px;text-align:left;font-size:8.5px;letter-spacing:1px;color:var(--g6);text-transform:uppercase;font-weight:600}
+.ctb td{padding:6px 9px;border-bottom:.5px solid var(--g2)}
+.ctb tr.sb td{background:var(--c);font-weight:500;color:var(--n)}
+/* MAP */
+.mm{background:var(--n);border-radius:7px;height:220px;position:relative;overflow:hidden}
+.mm::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,rgba(188,156,69,.08) 0%,transparent 50%),repeating-linear-gradient(45deg,transparent 0 20px,rgba(255,255,255,.02) 20px 21px),repeating-linear-gradient(-45deg,transparent 0 20px,rgba(255,255,255,.02) 20px 21px)}
+.mp{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+.mpn{width:18px;height:18px;border-radius:50%;background:var(--g);box-shadow:0 0 0 5px rgba(188,156,69,.3),0 0 0 10px rgba(188,156,69,.15);animation:pd 2s ease infinite}
+.mr{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;border:1.5px dashed rgba(188,156,69,.5)}
+.mr.r1{width:74px;height:74px}
+.mr.r3{width:148px;height:148px;border-color:rgba(188,156,69,.35)}
+.mr.r5{width:220px;height:220px;border-color:rgba(188,156,69,.22)}
+.mc{position:absolute;top:11px;right:11px;display:flex;gap:3px}
+.mb2{background:rgba(0,0,0,.5);color:var(--w);padding:4px 9px;border-radius:3px;font-size:9px;letter-spacing:1px;text-transform:uppercase;font-weight:500}
+.mb2.ac{background:var(--g);color:var(--w)}
+.ms{position:absolute;bottom:11px;left:11px;background:rgba(14,52,112,.92);color:var(--w);padding:9px 13px;border-radius:4px;border-left:2px solid var(--g);font-size:9.5px}
+.ms div{margin-bottom:2px}
+.ms strong{color:var(--g);margin-left:5px;font-family:'Fira Code',monospace}
+.mt2{position:absolute}
+.mt2.t1{left:32%;top:38%}
+.mt2.t2{left:64%;top:56%}
+.mt2 .ic{background:var(--w);color:var(--n);padding:2px 6px;border-radius:2px;font-size:8.5px;font-weight:700;box-shadow:0 2px 5px rgba(0,0,0,.3)}
+/* TIMELINE */
+.tlm{position:relative;padding:10px 10px 22px}
+.tlm-l{position:absolute;left:22px;right:22px;top:32px;height:2px;background:var(--g3)}
+.tls{display:flex;justify-content:space-between;position:relative}
+.tlst{text-align:center;flex:1}
+.tld{width:13px;height:13px;border-radius:50%;background:var(--g);display:inline-block;margin-bottom:5px;box-shadow:0 0 0 3px var(--w),0 0 0 4px var(--g)}
+.tld.ev1{background:var(--am);box-shadow:0 0 0 3px var(--w),0 0 0 4px var(--am)}
+.tld.ev2{background:var(--gr);box-shadow:0 0 0 3px var(--w),0 0 0 4px var(--gr)}
+.tly{font-family:'Fira Code',monospace;font-size:9.5px;color:var(--n);font-weight:600}
+.tle{font-size:8.5px;color:var(--g6);margin-top:1px;line-height:1.3}
+/* HEAT MAP */
+.hm{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;padding:9px;background:var(--w);border-radius:5px;border:.5px solid var(--g2)}
+.hc{aspect-ratio:1;border-radius:2px}
+.h0{background:var(--g1)}
+.h1{background:rgba(188,156,69,.18)}
+.h2{background:rgba(188,156,69,.4)}
+.h3{background:rgba(188,156,69,.65)}
+.h4{background:var(--g)}
+/* ACTIVITY */
+.ac2{background:var(--n);color:var(--w);border-radius:7px;padding:14px 16px;font-family:'Fira Code',monospace;font-size:10.5px}
+.ar{display:grid;grid-template-columns:64px 1fr;gap:12px;padding:4px 0;border-bottom:.5px solid rgba(255,255,255,.06)}
+.ar:last-child{border:none}
+.at{color:var(--g)}
+.ae{color:rgba(255,255,255,.85)}
+.ae .lbl{color:var(--g);margin-right:5px}
+/* OWNERSHIP */
+.ow{width:100%;border-collapse:collapse;font-size:11px}
+.ow th{background:var(--n);color:var(--w);padding:7px 10px;text-align:left;font-size:9px;letter-spacing:1.2px;font-weight:600;text-transform:uppercase}
+.ow td{padding:8px 10px;border-bottom:.5px solid var(--g2);background:var(--w)}
+.ow .lc{font-family:'Fira Code',monospace;font-size:9.5px;color:var(--g6)}
+.ow .on{color:var(--n);font-weight:500}
+/* CLIMATE */
+.cg{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.ct2{background:var(--w);border:.5px solid var(--g2);border-radius:5px;padding:12px;text-align:center}
+.ct2.lo{border-left:3px solid var(--gr)}
+.ct2.mo{border-left:3px solid var(--am)}
+.ct2.hi{border-left:3px solid #FF7474}
+.ci{font-size:20px;margin-bottom:5px}
+.cn{font-size:9.5px;letter-spacing:1.2px;color:var(--g6);text-transform:uppercase;font-weight:600}
+.cs2{font-family:'Playfair Display',serif;font-size:20px;color:var(--n);font-weight:600;margin-top:2px}
+.cr{font-size:8.5px;letter-spacing:1px;font-weight:700;margin-top:2px}
+.cr.lo{color:var(--gr)}
+.cr.mo{color:#c87a35}
+.cr.hi{color:#c0392b}
+/* DIRECT BAR */
+.db2{background:var(--n);color:var(--w);padding:12px 20px;border-radius:7px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.dbg{font-family:'Playfair Display',serif;font-size:13px}
+.dbg strong{color:var(--g);font-weight:500}
+.dbs{font-size:9.5px;color:rgba(255,255,255,.55);margin-top:2px}
+.dba{display:flex;gap:7px;margin-left:auto;flex-wrap:wrap}
+.dbb{display:flex;align-items:center;gap:5px;background:var(--gs);border:.5px solid var(--g);color:var(--g);padding:6px 12px;border-radius:3px;font-size:10.5px;font-weight:500;cursor:pointer}
+/* CONCIERGE */
+.cn2{background:var(--w);border:.5px solid var(--g);border-radius:9px;overflow:hidden;max-width:520px;margin:0 auto}
+.cnh{background:var(--n);color:var(--w);padding:11px 14px;display:flex;align-items:center;gap:9px}
+.cnh .ic{width:28px;height:28px;border-radius:50%;background:var(--g);color:var(--n);display:flex;align-items:center;justify-content:center;font-weight:700;font-family:'Playfair Display',serif;font-size:13px}
+.cnh .nm2{font-size:12px;font-weight:500}
+.cnh .nm2 small{display:block;font-size:8.5px;color:var(--g);letter-spacing:1.2px;text-transform:uppercase;font-weight:600}
+.cnb{padding:13px 14px;max-height:180px;overflow-y:auto}
+.ms2{margin-bottom:10px}
+.ms2.us{text-align:right}
+.mb3{display:inline-block;padding:7px 11px;border-radius:9px;font-size:11px;max-width:80%;text-align:left}
+.ms2.us .mb3{background:var(--c);color:var(--n);border-bottom-right-radius:2px}
+.ms2.bo .mb3{background:var(--g1);color:var(--g8);border-bottom-left-radius:2px}
+.mm3{font-size:8.5px;color:var(--g6);margin-top:2px}
+.cni{padding:9px 14px;border-top:.5px solid var(--g2);display:flex;gap:7px;align-items:center}
+.cni input{flex:1;padding:7px 11px;border:.5px solid var(--g2);border-radius:16px;font-size:10.5px;font-family:inherit;outline:none}
+.cni button{background:var(--g);color:var(--w);padding:6px 13px;border-radius:16px;font-size:9.5px;font-weight:600;border:none;cursor:pointer;font-family:inherit}
+/* DEAL TEAM */
+.tp2{background:var(--w);border:.5px solid var(--g2);border-radius:7px;padding:16px;max-width:520px;margin:0 auto}
+.tss{display:flex;gap:3px;margin-bottom:12px;padding:5px 7px;background:var(--g1);border-radius:4px}
+.sg{padding:4px 9px;border-radius:3px;font-size:8.5px;letter-spacing:1.2px;text-transform:uppercase;font-weight:600;color:var(--g6)}
+.sg.a{background:var(--g);color:var(--w)}
+.tcd{display:flex;gap:13px;align-items:center;padding:11px;background:var(--c);border-radius:5px}
+.tav2{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--n) 0%,#2a4a7a 100%);color:var(--g);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:16px;font-weight:600;flex-shrink:0}
+.ti{flex:1}
+.tnm2{font-family:'Playfair Display',serif;font-size:13px;color:var(--n);font-weight:500}
+.tro{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--g);font-weight:600;margin-top:2px}
+.tz{font-family:'Fira Code',monospace;font-size:9px;color:var(--g6);margin-top:3px}
+.tac2{display:flex;gap:5px}
+.tbn{padding:5px 9px;background:var(--w);border:.5px solid var(--g);color:var(--n);border-radius:3px;font-size:8.5px;letter-spacing:.8px;font-weight:500}
+/* NDA */
+.nl{background:var(--w);border:.5px solid var(--g2);border-radius:7px}
+.nr{display:grid;grid-template-columns:1fr 90px 80px;gap:13px;padding:10px 13px;border-bottom:.5px solid var(--g2);align-items:center}
+.nr:last-child{border:none}
+.nn{font-size:11px;color:var(--n);font-weight:500}
+.nn small{display:block;font-size:9px;color:var(--g6);margin-top:2px;font-weight:400}
+.nd{font-family:'Fira Code',monospace;font-size:9.5px;color:var(--g6)}
+.ndl{padding:4px 10px;background:var(--gs);border:.5px solid var(--g);color:var(--g);border-radius:3px;font-size:8.5px;letter-spacing:.8px;font-weight:600;text-align:center}
+/* MODAL */
+.mo{background:rgba(14,52,112,.6);border-radius:7px;padding:40px 24px;display:flex;align-items:center;justify-content:center;min-height:200px}
+.mc2{background:var(--w);padding:34px 40px;border-radius:9px;text-align:center;max-width:420px;border-top:3px solid var(--g)}
+.moi{font-size:28px;margin-bottom:12px}
+.mt3{font-family:'Playfair Display',serif;font-size:18px;color:var(--n);margin-bottom:7px;font-weight:500}
+.mtx{font-size:11.5px;color:var(--g8);line-height:1.6;margin-bottom:16px}
+.mob{background:var(--n);color:var(--g);padding:10px 24px;border-radius:4px;font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;display:inline-block}
+/* IP */
+.ip{background:var(--w);border:.5px solid var(--am);border-left:3px solid var(--am);border-radius:5px;padding:13px 16px;max-width:520px;margin:0 auto}
+.iph{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.ipi{width:24px;height:24px;border-radius:50%;background:rgba(255,188,125,.2);display:flex;align-items:center;justify-content:center;color:#c87a35;font-weight:700}
+.ipt{font-size:11.5px;font-weight:600;color:var(--n)}
+.ipd{font-size:10.5px;color:var(--g8);line-height:1.6;margin-bottom:9px}
+.ipa{display:flex;gap:7px}
+.ipb{padding:5px 11px;border-radius:3px;font-size:9.5px;font-weight:600;letter-spacing:.6px;border:none;font-family:inherit}
+.ipy{background:var(--gr);color:var(--w)}
+.ipn{background:var(--w);color:var(--rd);border:.5px solid var(--rd)}
+/* TICKER */
+.tic{background:var(--n);color:var(--w);padding:9px 16px;border-radius:5px;display:flex;gap:22px;font-family:'Fira Code',monospace;font-size:10.5px;flex-wrap:wrap}
+.ti2 .lb{color:rgba(255,255,255,.55);margin-right:5px}
+.ti2 .v{color:var(--w)}
+.de{margin-left:3px}
+.de.up{color:var(--gr)}
+.de.dn{color:#FF7474}
+/* CURRENCY */
+.cur{background:var(--w);border:.5px solid var(--g2);border-radius:7px;padding:14px}
+.ctg{display:flex;border:.5px solid var(--g);border-radius:4px;overflow:hidden;width:fit-content;margin-bottom:12px}
+.cbt{padding:6px 13px;font-size:10.5px;font-weight:600;cursor:pointer;background:var(--w);color:var(--n)}
+.cbt.ac{background:var(--g);color:var(--w)}
+.fxd{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fx{font-family:'Fira Code',monospace;font-size:21px;color:var(--n);font-weight:500}
+.fx small{display:block;font-size:9.5px;color:var(--g6);letter-spacing:1px;margin-bottom:3px}
+.fxm{font-size:9.5px;color:var(--g6);margin-top:3px}
+.fxm strong{color:var(--gr)}
+/* NOTES PANEL */
+.np{background:var(--w);border-left:3px solid var(--g);border-radius:0 7px 7px 0;padding:13px 16px;max-width:340px;margin:0 auto}
+.nph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
+.nt{font-family:'Playfair Display',serif;font-size:13px;color:var(--n);font-weight:500}
+.ne{font-size:8.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--g);font-weight:600}
+.ni{background:var(--c);padding:9px 11px;border-radius:3px;margin-bottom:7px}
+.ng{font-size:8.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--g);font-weight:600;margin-bottom:3px}
+.nb{font-size:10.5px;color:var(--g8);line-height:1.55}
+.nme{font-size:8.5px;color:var(--g6);margin-top:5px;font-family:'Fira Code',monospace}
+/* TEAR SHEET */
+.ts2{background:var(--w);border:.5px solid var(--g3);padding:18px;aspect-ratio:8.5/11;max-width:300px;margin:0 auto;box-shadow:0 8px 22px rgba(14,52,112,.12);position:relative;overflow:hidden}
+.ts2::before{content:'Mr. Cohen · Confidential · April 2026';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform:rotate(-30deg);color:rgba(188,156,69,.07);font-size:13px;font-weight:700;letter-spacing:3px;pointer-events:none;white-space:nowrap}
+.tsh{border-bottom:1.5px solid var(--g);padding-bottom:7px;margin-bottom:9px}
+.tsl{font-family:'Playfair Display',serif;font-size:10.5px;color:var(--g);letter-spacing:1.5px}
+.tst{font-family:'Playfair Display',serif;font-size:12.5px;color:var(--n);margin-top:3px;font-weight:500}
+.tsi{background:linear-gradient(135deg,#2a4a7a 0%,#4a6a9a 100%);height:54px;border-radius:3px;margin-bottom:9px}
+.tsr{display:flex;justify-content:space-between;padding:3px 0;font-size:8px;border-bottom:.5px solid var(--g1)}
+.tsr .l{color:var(--g6);letter-spacing:.8px;text-transform:uppercase;font-weight:600}
+.tsr .v{color:var(--n);font-weight:600}
+.tss2{margin-top:9px}
+.tss2 h6{font-size:8px;letter-spacing:1.4px;color:var(--g);text-transform:uppercase;margin-bottom:3px;font-weight:700}
+.tss2 p{font-size:8px;color:var(--g8);line-height:1.5}
+/* PORTFOLIO */
+.po{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:center}
+.pc{text-align:center}
+.pdl{font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--g6);font-weight:600;margin-bottom:6px}
+.plg{padding:13px;background:var(--w);border:.5px solid var(--g2);border-radius:5px}
+.lgr{display:flex;align-items:center;gap:9px;padding:4px 0;font-size:10.5px}
+.ldo{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.lnm{color:var(--n);font-weight:500;flex:1}
+.lpc{font-family:'Fira Code',monospace;color:var(--g6)}
+.lar{color:var(--gr);margin-left:5px;font-weight:600;font-size:9.5px}
+/* TRACK */
+.tr2{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+.tt3{background:var(--w);border:.5px solid var(--g2);border-radius:5px;padding:13px;text-align:center}
+.tnu{font-family:'Playfair Display',serif;font-size:24px;color:var(--g);font-weight:600}
+.tlb{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--g6);margin-top:3px;font-weight:600}
+/* CLOSED */
+.cs{display:flex;gap:9px;overflow-x:auto;padding:3px 0 7px}
+.csc{background:#efefe9;border:.5px solid var(--g2);border-radius:5px;padding:11px;min-width:190px;opacity:.85;flex-shrink:0}
+.cstg{display:inline-block;padding:2px 7px;background:rgba(0,169,128,.15);color:var(--gr);font-size:7.5px;letter-spacing:1.2px;font-weight:700;border-radius:2px;margin-bottom:6px}
+.cst{font-family:'Playfair Display',serif;font-size:11.5px;color:var(--n);font-weight:500}
+.csm{font-size:9px;color:var(--g6);margin-top:3px}
+.csd{font-family:'Fira Code',monospace;font-size:9.5px;color:var(--g);margin-top:5px;font-weight:600}
+/* PRE-PSA */
+.pp{background:var(--w);border:1.5px dashed var(--g);border-radius:7px;padding:16px}
+.ppb{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--gs);border-radius:3px;margin-bottom:11px;flex-wrap:wrap;gap:8px}
+.ppt{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--g);font-weight:600}
+.ppl{font-family:'Fira Code',monospace;font-size:9.5px;color:var(--g);letter-spacing:1.2px;text-transform:uppercase;font-weight:700}
+.ppd{font-size:9.5px;color:var(--g6);font-style:italic;margin-top:9px}
+.ppa{display:flex;gap:7px;margin-top:11px}
+.ppc{background:var(--g);color:var(--w);padding:7px 14px;border-radius:3px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;font-weight:700}
+.pps{background:var(--w);border:.5px solid var(--g3);color:var(--g6);padding:7px 14px;border-radius:3px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;font-weight:600}
+/* LANES */
+.la{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+.lan{background:var(--w);border:.5px solid var(--g2);border-radius:9px;padding:16px}
+.lan.fe{border:1.5px solid var(--g);background:linear-gradient(180deg,var(--c) 0%,var(--w) 100%)}
+.lah{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.lnu{font-family:'Playfair Display',serif;font-size:24px;color:var(--g);font-weight:600}
+.ltg{font-size:8.5px;letter-spacing:1.4px;color:var(--g);font-weight:700;text-transform:uppercase}
+.ltt{font-family:'Playfair Display',serif;font-size:15px;color:var(--n);font-weight:500}
+.lwd{font-family:'Fira Code',monospace;font-size:12.5px;color:var(--g);margin:7px 0;font-weight:500}
+.lsp{font-size:10.5px;color:var(--g8);line-height:1.6}
+.lsp strong{color:var(--n)}
+.lpf{display:inline-block;padding:2px 7px;border-radius:3px;font-size:8.5px;letter-spacing:1px;font-weight:700;margin-top:7px}
+.py{background:rgba(255,188,125,.18);color:#c87a35}
+.pyn{background:rgba(0,169,128,.12);color:var(--gr)}
+/* WIRE CONFIRM */
+.wc{background:var(--n);color:var(--w);padding:42px 24px;text-align:center;border-radius:10px;position:relative;overflow:hidden}
+.wc::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 30%,rgba(188,156,69,.18) 0%,transparent 60%);pointer-events:none}
+.cf{position:absolute;width:5px;height:5px;background:var(--g);border-radius:50%;opacity:0;animation:cf 4s ease-out infinite}
+.cf.c1{left:20%;animation-delay:0s}.cf.c2{left:35%;animation-delay:.3s;background:var(--w)}.cf.c3{left:50%;animation-delay:.6s}
+.cf.c4{left:65%;animation-delay:.9s;background:var(--w)}.cf.c5{left:80%;animation-delay:1.2s}
+@keyframes cf{0%{transform:translateY(-20px) rotate(0);opacity:0}20%{opacity:1}100%{transform:translateY(180px) rotate(360deg);opacity:0}}
+.wci{width:54px;height:54px;border-radius:50%;background:var(--g);color:var(--n);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;margin:0 auto 14px;position:relative;z-index:1}
+.wct{font-family:'Playfair Display',serif;font-size:25px;color:var(--g);font-weight:500;margin-bottom:6px;position:relative;z-index:1}
+.wcx{font-size:12.5px;color:rgba(255,255,255,.75);position:relative;z-index:1}
+/* DIGEST */
+.dg2{background:var(--w);border:.5px solid var(--g2);border-radius:7px;max-width:460px;margin:0 auto}
+.dgh{background:var(--n);color:var(--w);padding:13px 18px;border-radius:7px 7px 0 0}
+.dgf{font-size:9.5px;color:var(--g);letter-spacing:1.2px;text-transform:uppercase;font-weight:600}
+.dgs{font-family:'Playfair Display',serif;font-size:13px;margin-top:3px}
+.dgb{padding:16px 18px}
+.dgg{font-size:11.5px;color:var(--n);margin-bottom:9px;font-weight:500}
+.dgsc{margin-bottom:13px}
+.dgi{font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:var(--g);font-weight:700;margin-bottom:5px;padding-bottom:3px;border-bottom:.5px solid var(--g)}
+.dgt{font-size:11px;color:var(--g8);padding:3px 0}
+/* 1031 */
+.cl2{background:linear-gradient(135deg,var(--n) 0%,#1a4080 100%);color:var(--w);padding:24px 26px;border-radius:9px;position:relative;overflow:hidden}
+.cle{font-size:9.5px;letter-spacing:3px;color:var(--g);text-transform:uppercase;font-weight:600;margin-bottom:6px}
+.clt2{font-family:'Playfair Display',serif;font-size:30px;font-weight:500}
+.clr{width:74px;height:1.5px;background:var(--g);margin:12px 0}
+.clg{font-size:11.5px;color:rgba(255,255,255,.7);max-width:380px;line-height:1.5}
+.clk{display:flex;gap:14px;margin-top:14px;flex-wrap:wrap}
+.clkc{background:rgba(188,156,69,.12);border:.5px solid var(--g);padding:8px 13px;border-radius:5px}
+.clkn{font-family:'Playfair Display',serif;font-size:21px;color:var(--g);font-weight:600}
+.clkl{font-size:8.5px;letter-spacing:1.2px;color:rgba(255,255,255,.6);text-transform:uppercase;font-weight:600}
+/* LAB */
+.lh{background:var(--n);color:var(--w);padding:24px 26px;border-radius:9px}
+.ll{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:14px}
+.llr{background:rgba(255,255,255,.05);border:.5px solid rgba(188,156,69,.3);padding:11px;border-radius:5px}
+.lln{font-family:'Playfair Display',serif;font-size:15px;color:var(--g);font-weight:600}
+.lll{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.85);font-weight:600;margin-top:3px}
+.lld{font-size:9.5px;color:rgba(255,255,255,.55);margin-top:3px;line-height:1.45}
+/* OPEN */
+.ob2{background:var(--w);border:.5px solid var(--g);border-radius:11px;padding:24px 28px;margin-bottom:20px}
+.oh{font-family:'Playfair Display',serif;font-size:17px;color:var(--n);margin-bottom:12px;font-weight:500}
+.olst{list-style:none;padding:0}
+.olst li{padding:8px 0;border-bottom:.5px solid var(--g2);display:grid;grid-template-columns:24px 1fr;gap:9px;align-items:baseline}
+.olst li:last-child{border:none}
+.onu{font-family:'Fira Code',monospace;color:var(--g);font-weight:600;font-size:10.5px}
+.otx{font-size:12px;color:var(--g8);line-height:1.55}
+.otx strong{color:var(--n);font-weight:600}
+.otb{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:10px}
+.otb th{background:var(--n);color:var(--w);padding:8px 11px;text-align:left;font-size:9.5px;letter-spacing:1.4px;font-weight:600;text-transform:uppercase}
+.otb td{padding:9px 11px;border-bottom:.5px solid var(--g2);vertical-align:top}
+.otb tr:nth-child(even) td{background:var(--g1)}
+.dft{margin-top:64px;padding-top:24px;border-top:.5px solid var(--g3);text-align:center;color:var(--g6);font-size:10.5px;font-style:italic;line-height:1.7}
+.h2{font-family:'Playfair Display',serif;font-size:18px;color:var(--n);margin:24px 0 12px;font-weight:500}
+@media (max-width:768px){.lg,.tcc,.la,.cg,.vr,.tg,.sn2,.po{grid-template-columns:1fr}.tk{grid-template-columns:1fr 1fr}.ll{grid-template-columns:1fr 1fr}.tr2{grid-template-columns:1fr 1fr}h1{font-size:34px}.tb7{grid-template-columns:repeat(4,1fr)}.ta5{grid-template-columns:repeat(3,1fr)}.hm{grid-template-columns:repeat(12,1fr)}.dg{grid-template-columns:1fr}}
+</style></head><body><div class="page">
+
+<!-- COVER -->
+<div class="cover">
+<div class="eyebrow">Internal · Engineering Confidential</div>
+<h1>RePRIME TERMINAL</h1>
+<div class="gr"></div>
+<div class="sub">Investor-side build specification — every locked feature, ordered by build priority, with visual mockups.</div>
+<div class="meta">
+<div><div class="l">Owner</div><div class="v">Gideon Gratsiani</div></div>
+<div><div class="l">Audience</div><div class="v">Engineering Team</div></div>
+<div><div class="l">Version</div><div class="v">v1.0 · April 2026</div></div>
+<div><div class="l">Build sequence</div><div class="v">1 → 30 (linear)</div></div>
+</div>
+</div>
+
+<!-- INTRO -->
+<div class="intro">
+<h3>How to read this document</h3>
+<p>Each feature is numbered in <strong>build order</strong>. Start at #1, finish at #30. Sequential build is mandatory — earlier features are foundations for later ones.</p>
+<p>Every feature has three parts: <strong>visual mockup</strong> showing intended look and feel, <strong>specification</strong> describing behavior, and <strong>status badge</strong>.</p>
+<p>Open decisions awaiting founder input are listed at the end. Items in that section block their related features — do not build until resolved.</p>
+</div>
+
+<div class="lg">
+<div class="lc"><span class="b bL">Locked</span><div class="d">Build at launch. Specification is final.</div></div>
+<div class="lc"><span class="b bP">Phase 2</span><div class="d">Build post-launch (after 90 days). Reserve technical hooks now.</div></div>
+<div class="lc"><span class="b bO">Open</span><div class="d">Awaiting founder decision (see end of document).</div></div>
+</div>
+
+<!-- PHASE 1 -->
+<div class="phase"><div class="pn">Phase One</div><div class="pt">Foundation — brand, identity, and the showpiece</div><div class="pd">Build before anything else. The brand system and the active deal card are the most visible artifacts on the platform — every other surface inherits from them.</div></div>
+
+<!-- #1 BRAND -->
+<div class="f">
+<div class="fh"><div class="nu">01</div><div class="tt">Brand system — color tokens, typography, honorific naming</div><span class="mt">Foundation</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Six color tokens, three font families, and a mandatory honorific dropdown drive every surface. These are the source of truth — no surface deviates.</div>
+<div class="vis">
+<div class="tk">
+<div class="t"><div class="sw" style="background:#0E3470"></div><div class="tn">--rp-navy</div><div class="th">#0E3470 · primary text, banner</div></div>
+<div class="t"><div class="sw" style="background:#BC9C45"></div><div class="tn">--rp-gold</div><div class="th">#BC9C45 · accents, hero metrics</div></div>
+<div class="t"><div class="sw" style="background:#FAF6E8;border:.5px solid #C8C8C8"></div><div class="tn">--rp-cream</div><div class="th">#FAF6E8 · Tier A, page bg</div></div>
+<div class="t"><div class="sw" style="background:#FFFFFF;border:.5px solid #C8C8C8"></div><div class="tn">--rp-white</div><div class="th">#FFFFFF · cards</div></div>
+<div class="t"><div class="sw" style="background:#00A980"></div><div class="tn">--rp-green</div><div class="th">#00A980 · stable / committed</div></div>
+<div class="t"><div class="sw" style="background:#FFBC7D"></div><div class="tn">--rp-amber</div><div class="th">#FFBC7D · watch / clock</div></div>
+</div>
+<div class="typ">
+<div class="r"><span class="l">Body</span><span class="e1">Poppins · 300/400/500/600/700</span></div>
+<div class="r"><span class="l">Headlines</span><span class="e2">Playfair Display</span></div>
+<div class="r"><span class="l">Numbers</span><span class="e3">$24.2M · 6.50% · 64 days</span></div>
+</div>
+<div style="margin-top:14px;background:var(--w);border:.5px solid var(--g2);border-radius:7px;padding:14px">
+<div style="font-size:9.5px;letter-spacing:1.4px;color:var(--g6);font-weight:600;text-transform:uppercase;margin-bottom:7px">Honorific dropdown — mandatory at registration</div>
+<div class="hp">
+<span>Mr.</span><span>Mrs.</span><span>Ms.</span><span>Dr.</span><span>Prof.</span><span>Eng.</span><span>Gen.</span><span>Amb.</span><span>H.E.</span><span>Sheikh</span><span>Rabbi</span><span>The Hon.</span>
+</div>
+<div class="he"><div class="g">Good evening, <span class="pre">Dr. Cohen</span></div></div>
+</div>
+</div>
+</div>
+<div class="fn">Members are addressed by honorific + last name on every surface. First-name override format: "Mr. Gideon" — never bare "Gideon".</div>
+</div>
+
+<!-- #2 ACTIVE DEAL CARD -->
+<div class="f">
+<div class="fh"><div class="nu">02</div><div class="tt">Active deal card — the showpiece</div><span class="mt">Most-viewed component</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">The single most important component. Investors see four to twelve of these on the dashboard. Carries enough institutional information for an LP to form an initial position before clicking through. Eight stacked zones, exact order shown below.</div>
+<div class="dcw"><div class="dc">
+<div class="psa">
+<div class="p1">UNDER EXECUTED PSA · MARCH 18, 2026</div>
+<div class="p2">Targeted Close · Jun 30, 2026 · 64 days</div>
+<div class="p3">Currently in Extension I · Fixed-Rate Bank Financing</div>
+</div>
+<div class="prw">
+<div class="pr">
+<div class="rb"></div><div class="rf"></div>
+<div class="rs">
+<div class="sc"><span class="do dn">✓</span></div>
+<div class="sc"><span class="do dn">✓</span></div>
+<div class="sc"><span class="do ac"></span></div>
+<div class="sc"><span class="do fu"></span></div>
+<div class="sc"><span class="do fu"></span></div>
+</div>
+<div class="tm"><div class="ta"></div><div class="tl">TODAY</div></div>
+</div>
+<div class="sl">
+<div class="slc"><div class="sn">PSA</div><div class="sd">Mar 18</div></div>
+<div class="slc"><div class="sn">Initial DD</div><div class="sd">Apr 17</div></div>
+<div class="slc"><div class="sn act">Extension I</div><div class="sd act">May 17</div></div>
+<div class="slc"><div class="sn ft">Ext II</div><div class="sd">Jun 16</div></div>
+<div class="slc"><div class="sn ft">Close</div><div class="sd">Jun 30</div></div>
+</div>
+</div>
+<div class="hr">
+<div><div class="hl">Purchase Price</div><div class="hv">$24.2M</div></div>
+<div><div class="hl">Equity Required</div><div class="hv">$7.6M</div></div>
+</div>
+<div class="ta5">
+<div class="tac"><div class="tal">NOI</div><div class="tav">$1.77M</div></div>
+<div class="tac"><div class="tal">Cap</div><div class="tav">7.3%</div></div>
+<div class="tac"><div class="tal">CoC</div><div class="tav">8.4%</div></div>
+<div class="tac"><div class="tal">IRR</div><div class="tav gd">14.8%</div></div>
+<div class="tac"><div class="tal">Multiple</div><div class="tav">1.94x</div></div>
+</div>
+<div class="tb7">
+<div class="tbc"><div class="tbl">SF</div><div class="tbv">56,800</div></div>
+<div class="tbc"><div class="tbl">$/SF</div><div class="tbv">$426</div></div>
+<div class="tbc"><div class="tbl">Occ</div><div class="tbv">96%</div></div>
+<div class="tbc"><div class="tbl">WALT</div><div class="tbv">6.2 yr</div></div>
+<div class="tbc"><div class="tbl">DD Left</div><div class="tbv">20 d</div></div>
+<div class="tbc"><div class="tbl">Hold</div><div class="tbv">5 yr</div></div>
+<div class="tbc"><div class="tbl">Class</div><div class="tbv">B+</div></div>
+</div>
+<div class="lf">
+<span class="lp"></span>
+<span class="fd">Tenant Credit <strong>A- Stable</strong></span>
+<span class="fd">Submkt Cap <strong>-12bps 90d</strong></span>
+<span class="fd">Foot Traffic <strong>+4.2% YoY</strong></span>
+<span class="fd">10Y <strong>4.21%</strong></span>
+</div>
+<div class="fr">
+<div class="fc"><div class="fl">Wells Fargo</div><div class="fv">6.50%</div><div class="fm">10yr · $61,940/mo</div></div>
+<div class="fc bs"><div class="bp">BEST</div><div class="fl">Credit Union</div><div class="fv gd">6.09%</div><div class="fm">10yr · $59,820/mo</div></div>
+<div class="fc"><div class="fl">Regional Bank</div><div class="fv">6.75%</div><div class="fm">7yr · $63,210/mo</div></div>
+</div>
+<div class="cb">
+<div class="ct">Day 14 of 30 — Extension I<span class="ca">→</span>Closes in 64 days</div>
+<span class="cp">Total close · 64 days</span>
+</div>
+<div class="df">
+<div class="dp"><span class="l">Diligence</span><span style="font-weight:600;color:var(--n)">5/8</span></div>
+<div class="dp"><span class="l">Tenants</span><span class="dm g"></span><span style="font-weight:600;color:var(--n)">6</span><span class="dm a"></span><span style="font-weight:600;color:var(--n)">1</span></div>
+<div class="fa"><button class="ab">+ Notes</button><button class="ob">Open Deal →</button></div>
+</div>
+</div></div>
+</div>
+<div class="fn">Hover scales 1.01, gold border thickens to 1px. Click navigates to /terminal/deal/[slug]. Min-width 380px. Mobile: zones stack vertically, path rail rotates to vertical.</div>
+</div>
+
+<!-- #3 DASHBOARD -->
+<div class="f">
+<div class="fh"><div class="nu">03</div><div class="tt">Dashboard layout — top bar, deal grid, right rail</div><span class="mt">Investor home</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">First authenticated surface. Top bar carries Direct Line + market ticker. Center grid 1/2/3 columns of deal cards (responsive). Right rail: Notes panel, Personal Track Record, Portfolio Lens.</div>
+<div class="vis"><div class="dm2">
+<div class="tb">
+<div class="lo">RePRIME</div>
+<div class="tk2">
+<span><span style="color:rgba(255,255,255,.5)">10Y</span> 4.21% <span class="up">+0.03</span></span>
+<span><span style="color:rgba(255,255,255,.5)">SOFR</span> 4.32%</span>
+<span><span style="color:rgba(255,255,255,.5)">CPPI</span> 198.4 <span class="dn">-0.2</span></span>
+</div>
+<div class="db">
+<button>📞 Call Adir</button><button>📅 Schedule</button>
+</div>
+</div>
+<div class="dg">
+<div class="dd">
+<div class="md"><div class="mb">UNDER PSA · 64 DAYS</div><div class="mh"><div class="mt">Florida Multifamily</div><div class="mp">Garden-style · 184 units</div></div><div class="mr2"><div class="mc">Equity <strong>$7.6M</strong></div><div class="mc">IRR <strong style="color:var(--g)">14.8%</strong></div></div><div class="mcl">Day 14/30 · Ext I → 64d</div></div>
+<div class="md"><div class="mb">UNDER PSA · 28 DAYS</div><div class="mh"><div class="mt">Texas Retail</div><div class="mp">Anchored center · 4 NNN</div></div><div class="mr2"><div class="mc">Equity <strong>$11.2M</strong></div><div class="mc">IRR <strong style="color:var(--g)">16.1%</strong></div></div><div class="mcl gr">Day 26/30 · Closing → 28d</div></div>
+<div class="md"><div class="mb">UNDER PSA · 41 DAYS</div><div class="mh"><div class="mt">Arizona Industrial</div><div class="mp">Last-mile · 96k SF</div></div><div class="mr2"><div class="mc">Equity <strong>$4.8M</strong></div><div class="mc">IRR <strong style="color:var(--g)">13.2%</strong></div></div><div class="mcl">Day 8/30 · DD → 41d</div></div>
+<div class="md"><div class="mb">UNDER PSA · 19 DAYS</div><div class="mh"><div class="mt">Georgia Office</div><div class="mp">Suburban Class A</div></div><div class="mr2"><div class="mc">Equity <strong>$6.2M</strong></div><div class="mc">IRR <strong style="color:var(--g)">12.4%</strong></div></div><div class="mcl gr">Day 11/14 · Closing → 19d</div></div>
+</div>
+<div class="dr">
+<div class="rs2"><div class="rt">📒 My Notes</div><div class="nm">FL · "Verify Q4 occupancy trend"</div><div class="nm">TX · "Anchor lease expiry 2031"</div></div>
+<div class="rs2"><div class="rt">Track Record</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;font-size:9.5px"><div><div style="color:var(--g6);font-size:8.5px">Active</div><strong style="color:var(--n);font-family:'Playfair Display',serif;font-size:15px">7</strong></div><div><div style="color:var(--g6);font-size:8.5px">Closed</div><strong style="color:var(--g);font-family:'Playfair Display',serif;font-size:15px">3</strong></div></div></div>
+<div><div class="rt">Portfolio Lens</div><svg viewBox="0 0 100 100" style="display:block;width:74px;margin:0 auto"><circle cx="50" cy="50" r="38" fill="none" stroke="var(--c)" stroke-width="14"/><circle cx="50" cy="50" r="38" fill="none" stroke="var(--g)" stroke-width="14" stroke-dasharray="84 240" transform="rotate(-90 50 50)"/><circle cx="50" cy="50" r="38" fill="none" stroke="var(--gr)" stroke-width="14" stroke-dasharray="56 240" stroke-dashoffset="-84" transform="rotate(-90 50 50)"/><circle cx="50" cy="50" r="38" fill="none" stroke="var(--n)" stroke-width="14" stroke-dasharray="42 240" stroke-dashoffset="-140" transform="rotate(-90 50 50)"/></svg></div>
+</div>
+</div>
+</div></div>
+</div>
+<div class="fn">CSS grid auto-fit minmax(360px, 1fr). Right rail collapses to drawer below 1280px. Pre-PSA Private Preview cards (#21) appear above active deals when admin enabled. Closed Deals strip (#23) below.</div>
+</div>
+
+<!-- #4 INVESTOR GATEWAY -->
+<div class="f">
+<div class="fh"><div class="nu">04</div><div class="tt">Investor Gateway — three tier cards + social login</div><span class="mt">Public registration</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Public registration entrance. Three tier cards anchor expectation. Social login (Google / LinkedIn / Microsoft) and invitation code field. Inside the platform every member shows a universal "Founding Member" badge — tier is billing-only, never visible internally.</div>
+<div class="vis">
+<div class="tcc">
+<div class="tc"><div class="tcn">Associate</div><div class="tcp">$30K</div><div class="tcr">per year</div><ul class="tcl"><li>Active deal access</li><li>Monthly digest</li><li>Standard data room</li><li>Direct Line · scheduled hours</li></ul></div>
+<div class="tc fe"><div class="tcn">Principal</div><div class="tcp">$75K</div><div class="tcr">per year</div><ul class="tcl"><li>All Associate features</li><li>Pre-PSA preview access</li><li>Priority allocation</li><li>Direct Line · always-on WhatsApp</li><li>1031 Club access</li></ul></div>
+<div class="tc"><div class="tcn">Institutional</div><div class="tcp">$100K+</div><div class="tcr">per year</div><ul class="tcl"><li>All Principal features</li><li>Custom mandate sourcing</li><li>Live Deal Lab access</li><li>Dedicated relationship manager</li><li>Annual signed report</li></ul></div>
+</div>
+<div class="lg2">
+<div class="lt">Or sign in with —</div>
+<div class="so"><div>G · Google</div><div>in · LinkedIn</div><div>M · Microsoft</div></div>
+<div class="iv"><div>RPRM-XXXX-XXXX</div><div>Enter</div></div>
+<div style="font-size:10px;color:var(--g6);margin-top:7px">Have an invitation code? Enter to bypass application.</div>
+</div>
+</div>
+</div>
+<div class="fn">Tier cards never moved or removed — psychological anchors. No "most popular" badge. Cards visually equal weight. Invitation code triggers cinematic "Welcome, Founding Member" reveal that routes to /terminal.</div>
+</div>
+
+<!-- #5 ONBOARDING -->
+<div class="f">
+<div class="fh"><div class="nu">05</div><div class="tt">Progressive onboarding — terminal assembles itself</div><span class="mt">No tutorial</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">No welcome screen. No tutorial. The terminal assembles itself across the first three visits. Visit count tracked per member.</div>
+<div class="vis"><div class="vr">
+<div class="vs"><div class="vn">1</div><div class="vt">Visit 1 — First arrival</div><div class="vd">Active deal grid + Direct Line bar only. Sticky tooltip on first card pointing to PSA banner: "every deal here is under executed PSA."</div></div>
+<div class="vs"><div class="vn">2</div><div class="vt">Visit 2 — Notes reveal</div><div class="vd">Notes panel slides in from right. Tooltip: "your notes follow you to every deal — they never leave the terminal."</div></div>
+<div class="vs"><div class="vn">3</div><div class="vt">Visit 3 — Portfolio Lens</div><div class="vd">Portfolio Lens donut appears in right rail. Tooltip: "see how each commitment shifts your exposure."</div></div>
+</div></div>
+</div>
+<div class="fn">Track member visit count. Reveal flag flips at counts 1, 2, 3. Tutorials are marketplace pattern — institutional investors expect the product to respect their intelligence.</div>
+</div>
+
+<!-- PHASE 2 -->
+<div class="phase"><div class="pn">Phase Two</div><div class="pt">Deal page core</div><div class="pd">When a member clicks any deal card, this is what they see. Sequence locked top-to-bottom: photo → PSA banner → metrics → analysis → urgency. System 2 before System 1 — non-negotiable.</div></div>
+
+<!-- #6 PHOTO CAROUSEL -->
+<div class="f">
+<div class="fh"><div class="nu">06</div><div class="tt">Photo carousel — top of deal page</div><span class="mt">Deal page · zone 1</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Property photos with thumbnail strip and lightbox. Keyboard navigation. Counter visible. Embla Carousel or react-image-gallery acceptable.</div>
+<div class="vis"><div class="cl">
+<div class="clm">
+<div class="cla"><div>‹</div><div>›</div></div>
+<div class="clc">3 / 18</div>
+</div>
+<div class="clt"><div></div><div></div><div class="ac"></div><div></div><div></div><div></div><div></div></div>
+</div></div>
+</div>
+<div class="fn">Aerial drone shot, exterior, common areas, anchor unit, mechanical/structural detail. Each photo full-screen lightbox on click.</div>
+</div>
+
+<!-- #7 PSA BANNER LARGE -->
+<div class="f">
+<div class="fh"><div class="nu">07</div><div class="tt">PSA banner large — deal page version</div><span class="mt">Deal page · zone 2</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Same five-stage rail as the card but expanded. Each stage shows full date range. Active stage reveals full countdown. Below rail credits Bruce Smoler at First American Title with the escrow file number.</div>
+<div class="vis"><div class="pl2">
+<div class="plt">
+<div><div class="pll">UNDER EXECUTED PSA</div><div style="font-size:10.5px;color:rgba(255,255,255,.7);margin-top:3px">Executed March 18, 2026 · Targeted Close Jun 30, 2026</div></div>
+<div class="ple">Escrow file <strong>FA-2026-0318-742</strong></div>
+</div>
+<div class="pr" style="padding:0">
+<div class="rb" style="left:6%;right:6%"></div><div class="rf" style="left:6%;width:35%"></div>
+<div class="rs">
+<div class="sc"><span class="do dn">✓</span></div>
+<div class="sc"><span class="do dn">✓</span></div>
+<div class="sc"><span class="do ac"></span></div>
+<div class="sc"><span class="do fu"></span></div>
+<div class="sc"><span class="do fu"></span></div>
+</div>
+</div>
+<div style="display:flex;padding:16px 0 4px">
+<div style="flex:1;text-align:center"><div style="font-family:'Playfair Display',serif;font-size:11px">PSA Executed</div><div style="font-family:'Fira Code',monospace;font-size:8.5px;color:rgba(255,255,255,.55);margin-top:2px">Mar 18 — Mar 24</div></div>
+<div style="flex:1;text-align:center"><div style="font-family:'Playfair Display',serif;font-size:11px">Initial DD</div><div style="font-family:'Fira Code',monospace;font-size:8.5px;color:rgba(255,255,255,.55);margin-top:2px">Mar 25 — Apr 17</div></div>
+<div style="flex:1;text-align:center"><div style="font-family:'Playfair Display',serif;font-size:11px;color:var(--g);font-weight:700">Extension I</div><div style="font-family:'Fira Code',monospace;font-size:8.5px;color:var(--g);margin-top:2px">Apr 18 — May 17 · 16 days left</div></div>
+<div style="flex:1;text-align:center;opacity:.55"><div style="font-family:'Playfair Display',serif;font-size:11px">Extension II</div><div style="font-family:'Fira Code',monospace;font-size:8.5px;margin-top:2px">May 18 — Jun 16</div></div>
+<div style="flex:1;text-align:center;opacity:.55"><div style="font-family:'Playfair Display',serif;font-size:11px">Target Close</div><div style="font-family:'Fira Code',monospace;font-size:8.5px;margin-top:2px">Jun 30, 2026</div></div>
+</div>
+<div style="border-top:.5px solid rgba(188,156,69,.3);margin-top:14px;padding-top:11px;font-size:10.5px;color:rgba(255,255,255,.65)">
+Escrow held by <strong style="color:var(--g)">Bruce Smoler</strong>, First American Title — file <strong style="color:var(--g);font-family:'Fira Code',monospace">FA-2026-0318-742</strong>
+</div>
+</div></div>
+</div>
+<div class="fn">The escrow attorney name converts the rail from decoration into a notarized statement of position. Stage rail adapts to contract structure (cash deals show 4 stages — no Extension II).</div>
+</div>
+
+<!-- #8 TAB STRIP + WIRE FRAUD -->
+<div class="f">
+<div class="fh"><div class="nu">08</div><div class="tt">Deal page tab strip + anti-wire-fraud banner</div><span class="mt">Persistent</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Seven-tab navigation: Overview · Financials · Documents · Tenants · Map · Activity · Notes. Anti-wire-fraud banner present on every wire-related surface — investors notice both its presence and its absence.</div>
+<div class="vis">
+<div style="background:var(--w);border-radius:5px;padding:0">
+<div class="tn2">
+<button class="t ac">Overview</button><button class="t">Financials</button><button class="t">Documents</button><button class="t">Tenants</button><button class="t">Map</button><button class="t">Activity</button><button class="t">Notes</button>
+</div>
+<div style="padding:13px">
+<div class="wf"><div class="wfi">!</div><div><strong style="color:var(--g);font-weight:600">RePrime Terminal will NEVER change wire instructions by email.</strong><div style="margin-top:3px;color:rgba(255,255,255,.75);font-size:10.5px">If you receive an email requesting a change to wire instructions, call your designated contact immediately before taking any action.</div></div></div>
+</div>
+</div>
+</div>
+</div>
+<div class="fn">Wire fraud is endemic in CRE. Banner color: navy ground, gold border-left 4px, white text. Persistent on commitment flow, wire instructions page, deposit confirmation, and final escrow summary.</div>
+</div>
+
+<!-- PHASE 3 -->
+<div class="phase"><div class="pn">Phase Three</div><div class="pt">Analysis layer — the case for the deal</div><div class="pd">Financing, scenarios, tenants, comps, ownership, debt context, climate, geography. This is where institutional investors form conviction.</div></div>
+
+<!-- #9 FINANCING -->
+<div class="f">
+<div class="fh"><div class="nu">09</div><div class="tt">Financing — two-layer system</div><span class="mt">CommLoan-grade</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Layer 1 (deal card): three rate boxes, best gold-bordered. Layer 2 (Financials tab): full institutional comparison table — Listing Price · LTV · Loan Amount · Program · Rate · Monthly · Recourse · Prepay. Best quote highlighted.</div>
+<div class="vis">
+<table class="ft"><thead><tr><th>Lender</th><th>LTV</th><th>Loan</th><th>Program</th><th>Rate</th><th>Monthly</th><th>Recourse</th><th>Prepay</th></tr></thead>
+<tbody>
+<tr class="bs"><td><strong>Credit Union — National</strong></td><td>68%</td><td>$16.5M</td><td>10yr fixed</td><td style="color:var(--g);font-weight:700">6.09%</td><td>$59,820</td><td>Non-recourse</td><td>2-1-0-0</td></tr>
+<tr><td>Wells Fargo</td><td>65%</td><td>$15.7M</td><td>10yr fixed</td><td>6.50%</td><td>$61,940</td><td>Non-recourse</td><td>YM</td></tr>
+<tr><td>Regional Bank — TX</td><td>70%</td><td>$16.9M</td><td>7yr fixed</td><td>6.75%</td><td>$63,210</td><td>Recourse</td><td>5-4-3-2-1</td></tr>
+<tr><td>CMBS — JLL</td><td>72%</td><td>$17.4M</td><td>10yr IO/AM</td><td>7.10%</td><td>$66,840</td><td>Non-recourse</td><td>YM</td></tr>
+<tr><td>Life Co — MetLife</td><td>62%</td><td>$15.0M</td><td>15yr fixed</td><td>6.20%</td><td>$58,460</td><td>Non-recourse</td><td>YM</td></tr>
+</tbody></table>
+<div style="margin-top:10px;font-size:9.5px;color:var(--g6);font-style:italic">Each row's "View Loan Quote →" link opens the original lender PDF in the data room (signed URL with watermark).</div>
+</div>
+</div>
+<div class="fn">Build using flexbox or CSS grid table — not the &lt;table&gt; element (responsive control). Best quote row highlighted on cream-gold band.</div>
+</div>
+
+<!-- #10 SCENARIO LAB -->
+<div class="f">
+<div class="fh"><div class="nu">10</div><div class="tt">Scenario Lab — live IRR / Multiple recompute</div><span class="mt">Institutional underwriting</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Four sliders + numeric input each: Exit Cap · Hold Period · NOI Growth · Financing Rate. Live recompute IRR / Multiple / Exit Value / Cash-on-Cash. "Reset to base" + "Save scenario" private to investor.</div>
+<div class="vis"><div class="sn2">
+<div class="ss">
+<div class="sr"><div class="sl2"><span>Exit Cap</span><span class="sv">7.50%</span></div><div class="st"><div class="sf" style="width:50%"></div><div class="sh" style="left:50%"></div></div></div>
+<div class="sr"><div class="sl2"><span>Hold Period</span><span class="sv">5 yr</span></div><div class="st"><div class="sf" style="width:50%"></div><div class="sh" style="left:50%"></div></div></div>
+<div class="sr"><div class="sl2"><span>NOI Growth</span><span class="sv">3.25%</span></div><div class="st"><div class="sf" style="width:65%"></div><div class="sh" style="left:65%"></div></div></div>
+<div class="sr"><div class="sl2"><span>Financing Rate</span><span class="sv">6.09%</span></div><div class="st"><div class="sf" style="width:38%"></div><div class="sh" style="left:38%"></div></div></div>
+<div style="display:flex;gap:7px;margin-top:14px">
+<div style="flex:1;padding:7px;text-align:center;border:.5px solid var(--g3);border-radius:3px;font-size:9.5px;color:var(--g6);letter-spacing:1px;text-transform:uppercase;font-weight:600">Reset</div>
+<div style="flex:1;padding:7px;text-align:center;background:var(--g);color:var(--w);border-radius:3px;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;font-weight:700">Save Scenario</div>
+</div>
+</div>
+<div class="so2">
+<div class="og">
+<div><div class="ol">IRR</div><div class="ov">14.8%</div></div>
+<div><div class="ol">Multiple</div><div class="ov">1.94x</div></div>
+<div><div class="ol">Exit Value</div><div class="ov">$28.4M</div></div>
+<div><div class="ol">CoC Yr 1</div><div class="ov">8.4%</div></div>
+</div>
+<div style="border-top:.5px solid rgba(188,156,69,.3);margin-top:12px;padding-top:9px;font-size:9.5px;color:rgba(255,255,255,.55);font-style:italic">Scenarios save private to your account.</div>
+</div>
+</div></div>
+</div>
+<div class="fn">Standard CRE waterfall math. Slider step granularity: cap 5bps, hold 1y, NOI growth 25bps, rate 5bps. Saved scenarios per investor — never shared.</div>
+</div>
+
+<!-- #11 TENANT INTELLIGENCE -->
+<div class="f">
+<div class="fh"><div class="nu">11</div><div class="tt">Tenant Intelligence — credit cards per major tenant</div><span class="mt">Anchor-tenant clarity</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Color-coded card per major tenant (≥5% of NOI). STABLE / WATCH / DISTRESS. Hover or click reveals: tenant credit score, parent company, recent news, % NOI, lease term. Crexi has tenant rosters but no credit overlay.</div>
+<div class="vis"><div class="tg">
+<div class="tnc s"><div class="tnn">AT&T Wireless</div><div class="tnm">Parent · NYSE: T</div><div class="tp">28% of NOI · 8.2 yr WALT</div><div class="tt2 ts">STABLE · A-</div></div>
+<div class="tnc s"><div class="tnn">Starbucks</div><div class="tnm">Parent · NASDAQ: SBUX</div><div class="tp">18% of NOI · 6.5 yr WALT</div><div class="tt2 ts">STABLE · BBB+</div></div>
+<div class="tnc w"><div class="tnn">Local Restaurant Group</div><div class="tnm">Private · Texas LLC</div><div class="tp">9% of NOI · 4.1 yr WALT</div><div class="tt2 tw">WATCH · Unrated</div></div>
+<div class="tnc s"><div class="tnn">Chase Bank</div><div class="tnm">Parent · NYSE: JPM</div><div class="tp">14% of NOI · 7.8 yr WALT</div><div class="tt2 ts">STABLE · A+</div></div>
+<div class="tnc w"><div class="tnn">Regional Fitness</div><div class="tnm">Franchise — PE backed</div><div class="tp">7% of NOI · 3.2 yr WALT</div><div class="tt2 tw">WATCH · BB-</div></div>
+<div class="tnc d"><div class="tnn">Boutique Apparel</div><div class="tnm">Independent · 4 locations</div><div class="tp">5% of NOI · 1.4 yr WALT</div><div class="tt2 td2">DISTRESS · Watch</div></div>
+</div></div>
+</div>
+<div class="fn">Vendor decision OPEN — see end of document. Options: CreditRiskMonitor FRISK / RapidRatings / Moody's RiskCalc. Refresh monthly.</div>
+</div>
+
+<!-- #12 STACKING PLAN -->
+<div class="f">
+<div class="fh"><div class="nu">12</div><div class="tt">Visual Stacking Plan — multi-tenant lease expiration</div><span class="mt">Cash-flow durability</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Multi-tenant only. Color-coded by lease expiration risk: green ≥5yr, amber 1–3yr, red &lt;12mo, gray vacant, navy amenity/common. Hover reveals tenant detail.</div>
+<div class="vis">
+<div class="spk">
+<span><i style="background:var(--gr)"></i> ≥5yr</span>
+<span><i style="background:var(--am)"></i> 1-3yr</span>
+<span><i style="background:#FF7474"></i> &lt;12mo</span>
+<span><i style="background:var(--g3)"></i> Vacant</span>
+<span><i style="background:var(--n)"></i> Common</span>
+</div>
+<div class="sp">
+<div class="spc spg">AT&T<br>5,200 SF</div><div class="spc spg">Starbucks<br>2,800 SF</div><div class="spc spg">Chase<br>4,100 SF</div><div class="spc spa">Local Rest.<br>3,200 SF</div>
+<div class="spc spg">Subway<br>1,800 SF</div><div class="spc spa">Fitness<br>4,800 SF</div><div class="spc spr">Boutique<br>2,100 SF</div><div class="spc spgr">Vacant<br>1,400 SF</div>
+<div class="spc spg">UPS<br>1,200 SF</div><div class="spc spg">Dental<br>2,400 SF</div><div class="spc spa">Salon<br>1,800 SF</div><div class="spc spg">Pet Supply<br>3,600 SF</div>
+<div class="spc spn">Common<br>2,000 SF</div><div class="spc spg">Insurance<br>1,400 SF</div><div class="spc spa">Cleaners<br>900 SF</div><div class="spc spn">Common<br>1,800 SF</div>
+</div>
+</div>
+</div>
+<div class="fn">Render as flex grid sized proportionally to floor area. Variant per asset class — different default zones (office floors, industrial bays, multifamily unit mix).</div>
+</div>
+
+<!-- #13 COMP LIBRARY -->
+<div class="f">
+<div class="fh"><div class="nu">13</div><div class="tt">Comp Library — cap rate dot chart + table</div><span class="mt">Drives valuation</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Five to ten hand-picked comps per deal. Cap-rate distribution dot chart with subject highlighted in gold. Comp table: Property · City · Date · Sale Price · Cap Rate · $/SF. Median callout above table.</div>
+<div class="vis"><div class="cc">
+<div class="ch"><div style="font-size:10.5px;color:var(--g6);letter-spacing:1.2px;text-transform:uppercase;font-weight:600">Cap Rate Distribution — 6 Comparables</div><div style="font-size:10.5px;color:var(--n)">Median: <strong style="color:var(--g);font-family:'Fira Code',monospace">7.15%</strong></div></div>
+<div class="cax"><div class="cm2"></div>
+<div class="cd" style="left:22%;top:45%"></div><div class="cd" style="left:38%;top:60%"></div><div class="cd" style="left:50%;top:30%"></div>
+<div class="cd sb" style="left:56%;top:50%"></div><div class="cd" style="left:65%;top:70%"></div><div class="cd" style="left:78%;top:35%"></div><div class="cd" style="left:88%;top:55%"></div>
+</div>
+<div class="cax2"><span>5.5%</span><span>6.0%</span><span>6.5%</span><span>7.0%</span><span>7.5%</span><span>8.0%</span><span>8.5%</span></div>
+<table class="ctb"><thead><tr><th>Property</th><th>City</th><th>Date</th><th>$/SF</th><th>Cap</th></tr></thead><tbody>
+<tr><td>Sunset Plaza</td><td>Tampa, FL</td><td>Jan 26</td><td>$398</td><td>6.40%</td></tr>
+<tr><td>Eastgate Center</td><td>Orlando, FL</td><td>Dec 25</td><td>$412</td><td>7.10%</td></tr>
+<tr class="sb"><td><strong>Subject Deal</strong></td><td>FL</td><td>Apr 26</td><td><strong>$426</strong></td><td><strong style="color:var(--g)">7.30%</strong></td></tr>
+<tr><td>Riverwalk</td><td>Jacksonville, FL</td><td>Nov 25</td><td>$385</td><td>7.45%</td></tr>
+<tr><td>Westside Common</td><td>Tampa, FL</td><td>Oct 25</td><td>$402</td><td>6.95%</td></tr>
+<tr><td>Bayshore Plaza</td><td>Miami, FL</td><td>Sep 25</td><td>$455</td><td>6.20%</td></tr>
+</tbody></table>
+</div></div>
+</div>
+<div class="fn">Vendor decision OPEN — CoStar / MSCI Real Capital Analytics. Admin curates per deal — not auto-generated.</div>
+</div>
+
+<!-- #14 MAPBOX -->
+<div class="f">
+<div class="fh"><div class="nu">14</div><div class="tt">Mapbox map — custom navy/gold style</div><span class="mt">Drive-time isochrone</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Custom Mapbox style. Subject property: pulsing gold marker. Demographic rings 1/3/5 mile, gold dashed. Anchor tenants pinned where licenses allow. Toggle: street / satellite / drive-time. Stat block: Pop, Median HHI, Daytime Pop, Job Growth.</div>
+<div class="vis"><div class="mm">
+<div class="mr r5"></div><div class="mr r3"></div><div class="mr r1"></div>
+<div class="mp"><div class="mpn"></div></div>
+<div class="mt2 t1"><div class="ic">AT&T</div></div>
+<div class="mt2 t2"><div class="ic">SBUX</div></div>
+<div class="mc"><div class="mb2 ac">Street</div><div class="mb2">Satellite</div><div class="mb2">Drive-Time</div></div>
+<div class="ms">
+<div>Population <strong>96,400</strong></div>
+<div>Median HHI <strong>$78,200</strong></div>
+<div>Daytime Pop <strong>112,800</strong></div>
+<div>Job Growth <strong>+3.4% YoY</strong></div>
+</div>
+</div></div>
+</div>
+<div class="fn">Mapbox GL JS v3.x. Custom style ID at mapbox.com — token in env var. Drive-time isochrone via Mapbox Isochrone API. Demographics from Census ACS.</div>
+</div>
+
+<!-- #15 PROPERTY CONDITION TIMELINE -->
+<div class="f">
+<div class="fh"><div class="nu">15</div><div class="tt">Property Condition Timeline — permits over time</div><span class="mt">BuildFax</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Horizontal timeline of permits, renovations, and major events. Color-coded events. Reveals capex history. BuildFax sourced.</div>
+<div class="vis" style="background:var(--w);border:.5px solid var(--g2)"><div class="tlm">
+<div class="tlm-l"></div>
+<div class="tls">
+<div class="tlst"><span class="tld"></span><div class="tly">1998</div><div class="tle">Built</div></div>
+<div class="tlst"><span class="tld ev1"></span><div class="tly">2008</div><div class="tle">Roof replacement</div></div>
+<div class="tlst"><span class="tld"></span><div class="tly">2012</div><div class="tle">HVAC capital</div></div>
+<div class="tlst"><span class="tld ev2"></span><div class="tly">2018</div><div class="tle">Renov $1.4M</div></div>
+<div class="tlst"><span class="tld"></span><div class="tly">2021</div><div class="tle">Parking</div></div>
+<div class="tlst"><span class="tld ev2"></span><div class="tly">2024</div><div class="tle">LED facade</div></div>
+<div class="tlst"><span class="tld" style="background:var(--g);box-shadow:0 0 0 3px var(--w),0 0 0 4px var(--g)"></span><div class="tly" style="color:var(--g);font-weight:700">2026</div><div class="tle" style="color:var(--g);font-weight:600">Acquisition</div></div>
+</div>
+</div></div>
+</div>
+<div class="fn">BuildFax API. Yellow events (roof) trigger CapEx review prompt; green events (renovation) reduce near-term CapEx assumption.</div>
+</div>
+
+<!-- #16 OWNERSHIP -->
+<div class="f">
+<div class="fh"><div class="nu">16</div><div class="tt">True Ownership History — pierce LLC, full chain</div><span class="mt">ATTOM + Reonomy</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Pierces LLC. Full ownership chain. Years owned, hold period, sale price each transfer, why selling (admin entered). Family offices manually run this for every deal — surfacing it kills 30+ minutes of investor research.</div>
+<div class="vis"><table class="ow"><thead><tr><th>Period</th><th>Owner</th><th>Hold</th><th>Sale Price</th><th>$/SF</th><th>Why Selling</th></tr></thead>
+<tbody>
+<tr><td><strong>2026 →</strong></td><td><span class="on">RePrime Acquisitions</span><br><span class="lc">RePrime Buyer LLC</span></td><td>—</td><td>$24.2M</td><td>$426</td><td><span style="color:var(--g);font-weight:600">Acquiring</span></td></tr>
+<tr><td>2018 — 2026</td><td><span class="on">Sunbelt Holdings IX</span><br><span class="lc">Sunbelt FL Plaza LLC · DE</span></td><td>8 yr</td><td>$24.2M</td><td>$426</td><td>Fund-end · 1031 candidate</td></tr>
+<tr><td>2010 — 2018</td><td><span class="on">Atlantic Property Trust</span><br><span class="lc">Atlantic FL Realty III LP</span></td><td>8 yr</td><td>$16.8M</td><td>$296</td><td>Portfolio rebalance</td></tr>
+<tr><td>1998 — 2010</td><td><span class="on">Original Developer</span><br><span class="lc">FL Plaza Development LLC</span></td><td>12 yr</td><td>$11.4M</td><td>$201</td><td>Stabilization sale post-build</td></tr>
+</tbody></table></div>
+</div>
+<div class="fn">ATTOM API for chain. Reonomy or Sayari Graph for LLC unmask (vendor OPEN). Cache: refresh quarterly. Admin populates "why selling" before deal goes live.</div>
+</div>
+
+<!-- #17 LOAN MATURITY -->
+<div class="f">
+<div class="fh"><div class="nu">17</div><div class="tt">Loan Maturity Heat Map — submarket debt wall</div><span class="mt">Trepp-grade</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">24-month CMBS debt-wall view of submarket. X-axis: months. Y-axis: maturing loan volume. Highlights opportunity windows when refinance pressure peaks. Tells the investor why now.</div>
+<div class="vis">
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;flex-wrap:wrap;gap:6px"><div style="font-size:10.5px;color:var(--g6);letter-spacing:1.2px;text-transform:uppercase;font-weight:600">Submarket CMBS Maturities · 24 Months</div><div style="font-size:10.5px;color:var(--g);font-weight:600">Peak: M+14 to M+18 ($840M)</div></div>
+<div class="hm">
+<div class="hc h1"></div><div class="hc h2"></div><div class="hc h1"></div><div class="hc h2"></div><div class="hc h3"></div><div class="hc h2"></div>
+<div class="hc h1"></div><div class="hc h2"></div><div class="hc h3"></div><div class="hc h3"></div><div class="hc h2"></div><div class="hc h3"></div>
+<div class="hc h3"></div><div class="hc h4"></div><div class="hc h4"></div><div class="hc h4"></div><div class="hc h4"></div><div class="hc h3"></div>
+<div class="hc h2"></div><div class="hc h2"></div><div class="hc h1"></div><div class="hc h2"></div><div class="hc h1"></div><div class="hc h1"></div>
+</div>
+<div style="display:flex;justify-content:space-between;font-family:'Fira Code',monospace;font-size:8.5px;color:var(--g6);padding:6px 4px 0"><span>M+1</span><span>M+6</span><span>M+12</span><span>M+18</span><span>M+24</span></div>
+<div style="display:flex;gap:13px;margin-top:9px;align-items:center;font-size:9.5px;color:var(--g6);flex-wrap:wrap">
+<span>Volume:</span>
+<span style="display:flex;align-items:center;gap:5px"><span style="width:13px;height:13px;background:rgba(188,156,69,.18);border-radius:2px"></span>Low</span>
+<span style="display:flex;align-items:center;gap:5px"><span style="width:13px;height:13px;background:rgba(188,156,69,.4);border-radius:2px"></span>Mod</span>
+<span style="display:flex;align-items:center;gap:5px"><span style="width:13px;height:13px;background:rgba(188,156,69,.65);border-radius:2px"></span>High</span>
+<span style="display:flex;align-items:center;gap:5px"><span style="width:13px;height:13px;background:var(--g);border-radius:2px"></span>Peak</span>
+</div>
+</div>
+</div>
+<div class="fn">Source: Trepp API ($15-50K/yr — vendor OPEN). Heat-map rendered with d3 or visx.</div>
+</div>
+
+<!-- #18 CLIMATE -->
+<div class="f">
+<div class="fh"><div class="nu">18</div><div class="tt">Climate &amp; Risk panel — flood, wind, heat, wildfire</div><span class="mt">First Street · white-labeled</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">First Street Risk Factor data white-labeled as "Terminal Climate Intelligence". Four scores: Flood, Wind, Heat, Wildfire. Color-coded LOW / MODERATE / HIGH.</div>
+<div class="vis"><div class="cg">
+<div class="ct2 lo"><div class="ci">💧</div><div class="cn">Flood</div><div class="cs2">2/10</div><div class="cr lo">LOW</div></div>
+<div class="ct2 mo"><div class="ci">💨</div><div class="cn">Wind</div><div class="cs2">5/10</div><div class="cr mo">MODERATE</div></div>
+<div class="ct2 hi"><div class="ci">🔥</div><div class="cn">Heat</div><div class="cs2">8/10</div><div class="cr hi">HIGH</div></div>
+<div class="ct2 lo"><div class="ci">🌲</div><div class="cn">Wildfire</div><div class="cs2">1/10</div><div class="cr lo">LOW</div></div>
+</div></div>
+</div>
+<div class="fn">First Street API ($50-500K enterprise — vendor OPEN). White-labeled — never expose "First Street" brand. Always render as "Terminal Climate Intelligence".</div>
+</div>
+
+<!-- #19 ACTIVITY FEED -->
+<div class="f">
+<div class="fh"><div class="nu">19</div><div class="tt">Deal Activity Feed — Bloomberg-style</div><span class="mt">Anonymous, real events</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Time-stamped events per deal. Examples: "Group entered data room", "Phase II ESA uploaded", "Title cleared". Never names of other investors. Only event class + timestamp. Authentic institutional social proof — no Booking.com pulse.</div>
+<div class="vis"><div class="ac2">
+<div style="font-size:9.5px;letter-spacing:1.2px;color:var(--g);font-weight:700;text-transform:uppercase;margin-bottom:11px;padding-bottom:5px;border-bottom:.5px solid rgba(188,156,69,.3)">Deal Activity · Live</div>
+<div class="ar"><div class="at">14:32</div><div class="ae"><span class="lbl">DR</span>Group entered data room</div></div>
+<div class="ar"><div class="at">11:08</div><div class="ae"><span class="lbl">DOC</span>Phase II ESA uploaded</div></div>
+<div class="ar"><div class="at">09:45</div><div class="ae"><span class="lbl">LOI</span>Backing intent submitted</div></div>
+<div class="ar"><div class="at">Yesterday</div><div class="ae"><span class="lbl">TITLE</span>Preliminary title cleared · no exceptions</div></div>
+<div class="ar"><div class="at">Apr 25</div><div class="ae"><span class="lbl">DOC</span>Operating statements YTD uploaded</div></div>
+<div class="ar"><div class="at">Apr 24</div><div class="ae"><span class="lbl">FIN</span>Credit Union — Loan quote issued</div></div>
+<div class="ar"><div class="at">Apr 22</div><div class="ae"><span class="lbl">INSP</span>Property condition assessment scheduled</div></div>
+</div></div>
+</div>
+<div class="fn">Backend: events table with anonymous group hash. UI polls every 30s while tab active. Tufte-approved: every event is a real event.</div>
+</div>
+
+<!-- #20 DATA ROOM -->
+<div class="f">
+<div class="fh"><div class="nu">20</div><div class="tt">Data Room — institutional structure with watermark</div><span class="mt">12 categories · 30+ subfolders</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">12 folder categories, 30+ subfolders. Asset-class DD checklists: Multifamily 56 docs, Retail 60 docs, Office 50 docs, Industrial 45 docs. Document grid with status: Pending / Uploaded / Reviewed / Flagged. In-browser viewer with dynamic per-page watermark (member email burned into each page server-side).</div>
+<div class="vis"><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<div style="background:var(--w);border:.5px solid var(--g2);border-radius:7px;padding:12px;font-size:11px">
+<div style="display:flex;align-items:center;gap:7px;padding:5px 0;color:var(--n);font-weight:500"><span style="color:var(--g)">📁</span> 01 · Property Information</div>
+<div style="padding-left:20px;font-size:10.5px;color:var(--g8)">
+<div style="display:flex;justify-content:space-between;padding:3px 0">Title Report — Preliminary <span style="font-size:8px;letter-spacing:1px;padding:1px 5px;border-radius:2px;font-weight:700;background:var(--gs);color:var(--g)">REVIEWED</span></div>
+<div style="display:flex;justify-content:space-between;padding:3px 0">Survey · ALTA <span style="font-size:8px;letter-spacing:1px;padding:1px 5px;border-radius:2px;font-weight:700;background:rgba(0,169,128,.12);color:var(--gr)">UPLOADED</span></div>
+<div style="display:flex;justify-content:space-between;padding:3px 0">Zoning Letter <span style="font-size:8px;letter-spacing:1px;padding:1px 5px;border-radius:2px;font-weight:700;background:rgba(0,169,128,.12);color:var(--gr)">UPLOADED</span></div>
+</div>
+<div style="display:flex;align-items:center;gap:7px;padding:5px 0;color:var(--n);font-weight:500"><span style="color:var(--g)">📁</span> 02 · Financial</div>
+<div style="padding-left:20px;font-size:10.5px;color:var(--g8)">
+<div style="display:flex;justify-content:space-between;padding:3px 0">T-12 Operating <span style="font-size:8px;letter-spacing:1px;padding:1px 5px;border-radius:2px;font-weight:700;background:var(--gs);color:var(--g)">REVIEWED</span></div>
+<div style="display:flex;justify-content:space-between;padding:3px 0">YTD P&amp;L 2026 <span style="font-size:8px;letter-spacing:1px;padding:1px 5px;border-radius:2px;font-weight:700;background:rgba(0,169,128,.12);color:var(--gr)">UPLOADED</span></div>
+<div style="display:flex;justify-content:space-between;padding:3px 0">Rent Roll · Current <span style="font-size:8px;letter-spacing:1px;padding:1px 5px;border-radius:2px;font-weight:700;background:var(--gs);color:var(--g)">REVIEWED</span></div>
+<div style="display:flex;justify-content:space-between;padding:3px 0">Tax Bills · 3-year <span style="font-size:8px;letter-spacing:1px;padding:1px 5px;border-radius:2px;font-weight:700;background:rgba(0,169,128,.12);color:var(--gr)">UPLOADED</span></div>
+</div>
+<div style="display:flex;align-items:center;gap:7px;padding:5px 0;color:var(--n);font-weight:500"><span style="color:var(--g)">📁</span> 03 · Leases</div>
+<div style="padding-left:20px;font-size:10.5px;color:var(--g8)">
+<div style="display:flex;justify-content:space-between;padding:3px 0">Master Lease — AT&T <span style="font-size:8px;letter-spacing:1px;padding:1px 5px;border-radius:2px;font-weight:700;background:var(--gs);color:var(--g)">REVIEWED</span></div>
+<div style="display:flex;justify-content:space-between;padding:3px 0">Estoppel Pkg <span style="font-size:8px;letter-spacing:1px;padding:1px 5px;border-radius:2px;font-weight:700;background:rgba(255,188,125,.18);color:#c87a35">PENDING</span></div>
+</div>
+<div style="display:flex;align-items:center;gap:7px;padding:5px 0;color:var(--n);font-weight:500"><span style="color:var(--g)">📁</span> 04 · Environmental</div>
+<div style="display:flex;align-items:center;gap:7px;padding:5px 0;color:var(--n);font-weight:500"><span style="color:var(--g)">📁</span> 05 · Physical Inspection ...</div>
+</div>
+<div>
+<div style="background:var(--g1);border-radius:7px;padding:14px">
+<div style="background:var(--w);padding:18px 22px;border:.5px solid var(--g2);position:relative;min-height:210px;overflow:hidden">
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-22deg);pointer-events:none">
+<div style="font-size:13px;color:rgba(188,156,69,.16);font-weight:700;letter-spacing:3px;line-height:2.4">
+Mr. Cohen · Confidential<br>Mr. Cohen · Confidential<br>Mr. Cohen · Confidential<br>Mr. Cohen · Confidential
+</div></div>
+<div style="font-size:8.5px;color:var(--g6);letter-spacing:1.4px;font-weight:600;text-transform:uppercase">Sample Document</div>
+<div style="font-family:'Playfair Display',serif;font-size:13px;color:var(--n);margin-top:3px">Phase II Environmental Site Assessment</div>
+<div style="font-size:9.5px;color:var(--g8);margin-top:9px;line-height:1.6">Section 1 · Site Description<br>The subject property is located at... soil samples were collected at depths of...</div>
+</div>
+</div>
+<div style="font-size:9.5px;color:var(--g6);margin-top:7px;font-style:italic">Member email watermark burned into every page server-side at render time — not a CSS overlay.</div>
+</div>
+</div></div>
+</div>
+<div class="fn">Data room schema in /data/dr_taxonomy.json (separate file). Watermark uses member email + timestamp. Deal Concierge (#22) can pull and explain any document in chat.</div>
+</div>
+
+<!-- PHASE 4 -->
+<div class="phase"><div class="pn">Phase Four</div><div class="pt">Trust &amp; human layer</div><div class="pd">A wire of $500K is not committed to a logo. It is committed to a named person who answers their phone. Every surface here puts a human face on the commitment.</div></div>
+
+<!-- #21 DIRECT LINE -->
+<div class="f">
+<div class="fh"><div class="nu">21</div><div class="tt">Direct Line — always-on top bar</div><span class="mt">WhatsApp · Cal.com</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Always-visible top bar. WhatsApp call (international wa.me deep link) + Schedule meeting (Cal.com — Zoom/Meet auto-generated). Per-deal thread history auto-tagged. Fallback: if Adir misses, system logs attempt + alerts him via Slack + SMS. Member sees: "Adir notified — will respond within 1 business hour."</div>
+<div class="vis">
+<div class="db2">
+<div><div class="dbg">Good evening, <strong>Dr. Cohen</strong></div><div class="dbs">Adir is online · Tel Aviv 21:42 · response &lt; 5 min typical</div></div>
+<div class="dba">
+<button class="dbb">📞 WhatsApp Adir</button>
+<button class="dbb">📅 Schedule 15 min</button>
+<button class="dbb">💬 Send message</button>
+</div>
+</div>
+<div style="margin-top:11px;padding:11px 14px;background:var(--w);border:.5px solid var(--g2);border-radius:5px;font-size:10.5px;color:var(--g8);display:flex;align-items:center;gap:9px">
+<div style="width:7px;height:7px;border-radius:50%;background:var(--am);flex-shrink:0"></div>
+<div><strong style="color:var(--n)">Fallback if Adir doesn't pick up:</strong> system logs the contact attempt, sends Adir an internal alert via Slack + SMS, and the member sees "Adir has been notified — he will respond within 1 business hour."</div>
+</div>
+</div>
+</div>
+<div class="fn">Adir's WhatsApp number and Cal.com URL are OPEN — required from founder before launch. Backend logs every Direct Line interaction.</div>
+</div>
+
+<!-- #22 DEAL CONCIERGE -->
+<div class="f">
+<div class="fh"><div class="nu">22</div><div class="tt">Deal Concierge — per-deal expert</div><span class="mt">Never labeled "AI"</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Available on every deal page. Knows every document, Zoom transcript, email thread tied to the deal since inception. Answers any question except code, algorithms, regulatory advice, or anything outside deal scope. Conversation downloadable as PDF. Persists per investor.</div>
+<div class="vis"><div class="cn2">
+<div class="cnh"><div class="ic">DC</div><div class="nm2">Deal Concierge<small>FL Multifamily · 56,800 SF</small></div></div>
+<div class="cnb">
+<div class="ms2 us"><div class="mb3">Pull up the AT&T lease and check renewal clause.</div><div class="mm3">14:38</div></div>
+<div class="ms2 bo"><div class="mb3">AT&T's master lease (<strong>signed Nov 18, 2018</strong>) shows two renewal options: 5-year + 5-year. Current term expires Aug 2031. Notice required 270 days prior. Escalator: greater of 3% or CPI annually. Want me to flag this in your notes for this deal?</div><div class="mm3">14:38 · cited from /02-Leases/master-lease-att.pdf p.14</div></div>
+<div class="ms2 us"><div class="mb3">Yes, and download summary as PDF.</div><div class="mm3">14:39</div></div>
+<div class="ms2 bo"><div class="mb3">Done. Note added to your "FL Multifamily" notebook tagged <em>AT&T Lease</em>. PDF summary <strong style="color:var(--g)">↓ download</strong>.</div><div class="mm3">14:39</div></div>
+</div>
+<div class="cni"><input type="text" placeholder="Ask Concierge anything about this deal..."><button>Ask</button></div>
+</div></div>
+</div>
+<div class="fn">RAG over deal docs + Zoom + email. Vector DB: Pinecone or Weaviate. <strong>Critical:</strong> NEVER label as "AI". Always "Deal Concierge". System prompt strictly bounded to deal scope.</div>
+</div>
+
+<!-- #23 DEAL TEAM -->
+<div class="f">
+<div class="fh"><div class="nu">23</div><div class="tt">Deal Team panel — adapts to stage</div><span class="mt">Identifiable victim effect</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Active human contact based on deal stage: DD → Steve Philipp · Commitment → Adir Yonasi · Closing → Bruce Smoler. Photo, name, role, WhatsApp + Schedule buttons. Tel Aviv timezone alongside US ET.</div>
+<div class="vis"><div class="tp2">
+<div class="tss">
+<span class="sg">Due Diligence</span>
+<span class="sg a">Commitment</span>
+<span class="sg">Closing</span>
+</div>
+<div class="tcd">
+<div class="tav2">AY</div>
+<div class="ti"><div class="tnm2">Adir Yonasi</div><div class="tro">Investor Relations</div><div class="tz">Tel Aviv 21:42 · NY 14:42</div></div>
+<div class="tac2"><div class="tbn">📞 WhatsApp</div><div class="tbn">📅 Schedule</div></div>
+</div>
+<div style="margin-top:11px;padding:9px 11px;background:var(--c);border-radius:3px;font-size:10.5px;color:var(--g8);border-left:2px solid var(--g)">
+<strong style="color:var(--n)">Stage handoff:</strong> when deal moves to Closing (day 14 of Extension I), this panel switches to <strong style="color:var(--g)">Bruce Smoler — Escrow, First American Title</strong>.
+</div>
+</div></div>
+</div>
+<div class="fn">Schelling's identifiable victim effect. Wiring $500K to a named human face who answers their phone changes the psychology completely.</div>
+</div>
+
+<!-- #24 BROKER OF RECORD + NDA + SESSION + IP -->
+<div class="f">
+<div class="fh"><div class="nu">24</div><div class="tt">Trust details — broker of record · NDA archive · session timeout · IP anomaly</div><span class="mt">Four trust mechanics</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Four small trust mechanics that read as institutional polish. Build together — they share the same "private bank" register.</div>
+
+<div class="h2">24.1 — Broker of Record disclosure</div>
+<div class="vis" style="background:var(--w);border:.5px solid var(--g2);padding:14px">
+<div style="font-size:8.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--g6);font-weight:700;margin-bottom:5px">Sourcing</div>
+<div style="font-family:'Playfair Display',serif;font-size:15px;color:var(--n);font-weight:500">Marcus &amp; Millichap — Net Lease Group</div>
+<div style="font-size:10.5px;color:var(--g6);margin-top:2px">Lead broker: Rick D. · Senior Director · 14 yr</div>
+<div style="margin-top:11px;padding:9px 13px;background:var(--c);border-left:3px solid var(--g);border-radius:0 3px 3px 0;font-size:10.5px;color:var(--n)">
+<strong>RePrime takes no broker fee from investors.</strong><br><span style="color:var(--g6);font-size:9.5px">Sourcing commission paid by seller — disclosed at PSA execution.</span>
+</div>
+</div>
+
+<div class="h2">24.2 — NDA Archive ("My Signed Agreements")</div>
+<div class="vis" style="padding:14px"><div class="nl">
+<div class="nr"><div class="nn">FL Multifamily — Garden-style 184 units<small>Confidentiality Agreement · 8 pages</small></div><div class="nd">Apr 22, 2026</div><div class="ndl">↓ Download</div></div>
+<div class="nr"><div class="nn">TX Retail — Anchored Center<small>Mutual NDA · 6 pages</small></div><div class="nd">Apr 14, 2026</div><div class="ndl">↓ Download</div></div>
+<div class="nr"><div class="nn">AZ Industrial — Last-mile 96k SF<small>CA · 8 pages</small></div><div class="nd">Apr 02, 2026</div><div class="ndl">↓ Download</div></div>
+<div class="nr"><div class="nn">GA Office — Suburban Class A<small>Mutual NDA · 7 pages</small></div><div class="nd">Mar 18, 2026</div><div class="ndl">↓ Download</div></div>
+</div></div>
+
+<div class="h2">24.3 — Session timeout (graceful close)</div>
+<div class="vis" style="padding:14px"><div class="mo">
+<div class="mc2"><div class="moi">🔒</div><div class="mt3">Dr. Cohen, your session has ended</div><div class="mtx">For your security, we sign you out after 30 minutes of inactivity. Your last position will be restored when you sign back in.</div><div class="mob">Sign In</div></div>
+</div></div>
+
+<div class="h2">24.4 — IP anomaly detection</div>
+<div class="vis" style="padding:14px"><div class="ip">
+<div class="iph"><div class="ipi">!</div><div class="ipt">New login attempt detected</div></div>
+<div class="ipd"><strong>Dubai, UAE</strong> · Apr 28, 2026 · 14:42 GST<br>IP <span style="font-family:'Fira Code',monospace;font-size:9.5px">94.205.xxx.xx</span> · Chrome on macOS<br>This location is not one of your usual login points (Tel Aviv, New York).</div>
+<div class="ipa"><button class="ipb ipy">Yes, that was me</button><button class="ipb ipn">No — secure my account</button></div>
+</div></div>
+</div>
+<div class="fn">External broker names format: first name + last initial only ("Rick D."). Session restoration preserves scroll, active tab, active deal. IP geo lookup via ipapi or ipinfo.</div>
+</div>
+
+<!-- PHASE 5 -->
+<div class="phase"><div class="pn">Phase Five</div><div class="pt">Structural &amp; commitment</div><div class="pd">Persistent surfaces (ticker, currency, notes) and the commitment flow (lanes, wire confirmation). Track-record and portfolio surfaces close the loop on each completed deal.</div></div>
+
+<!-- #25 TICKER + CURRENCY -->
+<div class="f">
+<div class="fh"><div class="nu">25</div><div class="tt">Live market ticker + currency toggle with FX trend</div><span class="mt">FRED API · multi-currency</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Top-of-page ticker: 10Y · SOFR · 30Y Mortgage · CRE-CPPI · Cap Spread · RePrime Pipeline. Currency toggle USD/ILS/AED/EUR — converts $ values, leaves % fixed. Reveals 30-day FX sparkline, current rate, daily change, 30d high/low, YTD. Locked at conversion moment per session.</div>
+
+<div class="h2">25.1 — Live market ticker</div>
+<div class="vis"><div class="tic">
+<div class="ti2"><span class="lb">10Y</span><span class="v">4.21%</span><span class="de up">+0.03</span></div>
+<div class="ti2"><span class="lb">SOFR</span><span class="v">4.32%</span><span class="de up">+0.01</span></div>
+<div class="ti2"><span class="lb">30Y MORTG</span><span class="v">7.28%</span><span class="de dn">-0.04</span></div>
+<div class="ti2"><span class="lb">CRE-CPPI</span><span class="v">198.4</span><span class="de dn">-0.2</span></div>
+<div class="ti2"><span class="lb">CAP SPREAD</span><span class="v">312bps</span><span class="de up">+8</span></div>
+<div class="ti2"><span class="lb">PIPELINE</span><span class="v">14 deals</span></div>
+</div></div>
+
+<div class="h2">25.2 — Currency toggle with FX trend</div>
+<div class="vis"><div class="cur">
+<div class="ctg"><div class="cbt">USD</div><div class="cbt ac">ILS</div><div class="cbt">AED</div><div class="cbt">EUR</div></div>
+<div class="fxd">
+<div>
+<div class="fx"><small>USD → ILS · 30-DAY</small>3.7142</div>
+<svg width="100%" height="36" viewBox="0 0 200 36" style="margin-top:6px"><polyline points="0,28 20,30 40,26 60,22 80,24 100,18 120,20 140,14 160,12 180,10 200,8" fill="none" stroke="var(--g)" stroke-width="1.5"/><polyline points="0,28 20,30 40,26 60,22 80,24 100,18 120,20 140,14 160,12 180,10 200,8 200,36 0,36" fill="rgba(188,156,69,.12)" stroke="none"/><circle cx="200" cy="8" r="3" fill="var(--g)"/></svg>
+<div class="fxm">Today: <strong>3.7142 +0.18%</strong> · 30d high 3.745 / low 3.682 · YTD +1.4%</div>
+</div>
+<div style="font-size:10.5px;color:var(--g8);line-height:1.7">
+<div style="font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--g6);font-weight:600;margin-bottom:6px">Why this matters</div>
+International investors evaluate exposure in home currency. Showing live FX trend with historical context signals fluency in their financial reality. Returns (%) stay fixed — only $ values convert.
+</div>
+</div>
+</div></div>
+</div>
+<div class="fn">FRED API for ticker rates (free tier: 120 req/min). FX rates from exchangerate.host or fxratesapi.com (cache 60 min server-side). Sparkline d3 or visx 200px wide.</div>
+</div>
+
+<!-- #26 NOTES PANEL -->
+<div class="f">
+<div class="fh"><div class="nu">26</div><div class="tt">Notes panel — sticky everywhere</div><span class="mt">Auto-tagged context</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Persistent collapsible panel pinned to right edge. Visible on every authenticated page. Auto-tags context (deal, document, tab). Searchable, filterable. Downloadable as Markdown bundle. Persists across sessions and devices.</div>
+<div class="vis"><div class="np">
+<div class="nph"><div class="nt">📒 My Notes</div><div class="ne">↓ Export</div></div>
+<div class="ni"><div class="ng">FL Multifamily · AT&T Lease</div><div class="nb">Verify Q4 occupancy trend. AT&T renewal options: 5+5 yrs, expires Aug 2031.</div><div class="nme">Apr 28 · 14:39</div></div>
+<div class="ni"><div class="ng">TX Retail · Anchor</div><div class="nb">Anchor lease expiry 2031 — confirm escalator. Greater of 3% or CPI.</div><div class="nme">Apr 27 · 11:14</div></div>
+<div class="ni"><div class="ng">FL Multifamily · Phase II ESA</div><div class="nb">Soil sample depths flagged — ask DC to summarize remediation language.</div><div class="nme">Apr 25 · 09:08</div></div>
+<div class="ni"><div class="ng">AZ Industrial · Financing</div><div class="nb">Best quote 6.09% Credit Union — 10yr non-recourse. Compare to Wells (6.50%).</div><div class="nme">Apr 24 · 16:42</div></div>
+</div></div>
+</div>
+<div class="fn">Backend: notes table (user_id, deal_id, body, context_json, created_at). Frontend: lazy save on blur with 1.5s debounce. Export bundle = ZIP of one MD file per deal.</div>
+</div>
+
+<!-- #27 TEAR SHEET -->
+<div class="f">
+<div class="fh"><div class="nu">27</div><div class="tt">Tear-Sheet PDF — one-page institutional export</div><span class="mt">For LP committee</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">One-page PDF per deal. Components: timeline strip · property photo · hero metrics · Tier A returns · 3 financing quotes · 3-mile market context · DD status · written thesis · primary risks · deal team. Watermarked with member email + timestamp. LP carries this to investment committee — without it the LP must screenshot and re-narrate.</div>
+<div class="vis"><div class="ts2">
+<div class="tsh"><div class="tsl">RePRIME · TEAR SHEET</div><div class="tst">Florida Multifamily · 184 Units</div></div>
+<div class="tsi"></div>
+<div class="tsr"><span class="l">Purchase Price</span><span class="v">$24.2M</span></div>
+<div class="tsr"><span class="l">Equity Required</span><span class="v">$7.6M</span></div>
+<div class="tsr"><span class="l">Cap Rate</span><span class="v">7.30%</span></div>
+<div class="tsr"><span class="l">IRR (Pro Forma)</span><span class="v" style="color:var(--g)">14.8%</span></div>
+<div class="tsr"><span class="l">Multiple</span><span class="v">1.94x</span></div>
+<div class="tsr"><span class="l">Hold Period</span><span class="v">5 yr</span></div>
+<div class="tss2"><h6>Best Loan Quote</h6><p>Credit Union — 6.09% · 10yr fixed · 68% LTV · Non-recourse</p></div>
+<div class="tss2"><h6>Thesis</h6><p>Garden-style multifamily in growing Sunbelt submarket. 96% occupancy, 6.2 yr WALT. 8-year basis discount to 2018 transfer.</p></div>
+<div class="tss2"><h6>Primary Risks</h6><p>One distress tenant (5% NOI, 1.4 yr remaining). Heat climate score elevated.</p></div>
+<div class="tss2"><h6>Deal Team</h6><p>Adir Yonasi · IR · Bruce Smoler · Escrow · First American</p></div>
+</div></div>
+</div>
+<div class="fn">Generated server-side with Puppeteer or react-pdf. Watermark at 8% opacity, diagonal, repeating. PDF metadata includes member email + timestamp for forensic tracking.</div>
+</div>
+
+<!-- #28 PORTFOLIO LENS + TRACK RECORD + CLOSED -->
+<div class="f">
+<div class="fh"><div class="nu">28</div><div class="tt">Portfolio Lens · Personal Track Record · Closed Deals strip</div><span class="mt">Track-record surfaces</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Three surfaces that close the loop on each completed deal. Portfolio Lens (right rail) shows before/after donut on every commitment. Track Record (Portfolio tab) shows every deal. Closed Deals strip (dashboard) shows muted track record without speculative returns.</div>
+
+<div class="h2">28.1 — Portfolio Lens</div>
+<div class="vis"><div class="po">
+<div class="pc">
+<div class="pdl">Before · Current Allocation</div>
+<svg viewBox="0 0 100 100" style="display:block;width:120px;margin:0 auto"><circle cx="50" cy="50" r="38" fill="none" stroke="var(--c)" stroke-width="14"/><circle cx="50" cy="50" r="38" fill="none" stroke="var(--g)" stroke-width="14" stroke-dasharray="84 240" transform="rotate(-90 50 50)"/><circle cx="50" cy="50" r="38" fill="none" stroke="var(--gr)" stroke-width="14" stroke-dasharray="56 240" stroke-dashoffset="-84" transform="rotate(-90 50 50)"/><circle cx="50" cy="50" r="38" fill="none" stroke="var(--n)" stroke-width="14" stroke-dasharray="42 240" stroke-dashoffset="-140" transform="rotate(-90 50 50)"/></svg>
+</div>
+<div class="plg">
+<div class="lgr"><span class="ldo" style="background:var(--g)"></span><span class="lnm">Multifamily</span><span class="lpc">42%</span><span class="lar">+3%</span></div>
+<div class="lgr"><span class="ldo" style="background:var(--gr)"></span><span class="lnm">Retail</span><span class="lpc">28%</span></div>
+<div class="lgr"><span class="ldo" style="background:var(--n)"></span><span class="lnm">Industrial</span><span class="lpc">18%</span></div>
+<div class="lgr"><span class="ldo" style="background:var(--am)"></span><span class="lnm">Office</span><span class="lpc">12%</span><span class="lar" style="color:#c87a35">-3%</span></div>
+<div style="margin-top:9px;padding-top:9px;border-top:.5px solid var(--g2);font-size:9.5px;color:var(--g6);font-style:italic">Toggle dimensions: Asset / Geography / Strategy / Tenant Credit</div>
+</div>
+</div></div>
+
+<div class="h2">28.2 — Personal Track Record (Portfolio tab)</div>
+<div class="vis"><div class="tr2">
+<div class="tt3"><div class="tnu">7</div><div class="tlb">Active Deals</div></div>
+<div class="tt3"><div class="tnu">3</div><div class="tlb">Closed Deals</div></div>
+<div class="tt3"><div class="tnu">$48M</div><div class="tlb">Total Deployed</div></div>
+<div class="tt3"><div class="tnu" style="color:var(--gr)">+13.8%</div><div class="tlb">Cumulative Return</div></div>
+</div></div>
+
+<div class="h2">28.3 — Closed Deals strip (dashboard)</div>
+<div class="vis"><div class="cs">
+<div class="csc"><div class="cstg">CLOSED</div><div class="cst">Florida Office</div><div class="csm">Closed Sep 2025</div><div class="csd">PSA → close · 58 days</div></div>
+<div class="csc"><div class="cstg">CLOSED</div><div class="cst">Texas MOB</div><div class="csm">Closed Jul 2025</div><div class="csd">PSA → close · 42 days</div></div>
+<div class="csc"><div class="cstg">CLOSED</div><div class="cst">Arizona Industrial</div><div class="csm">Closed Mar 2025</div><div class="csd">PSA → close · 64 days</div></div>
+</div></div>
+</div>
+<div class="fn">Closed deals: muted/grayscale tile. No realized returns until materialized from the asset. Portfolio Lens recomputes on every commitment. Donut: d3 or visx 240px diameter.</div>
+</div>
+
+<!-- #29 PRE-PSA + DEAL LOCK + WIRE CONFIRM -->
+<div class="f">
+<div class="fh"><div class="nu">29</div><div class="tt">Pre-PSA Private Preview · three-lane Deal Lock · cinematic wire confirmation</div><span class="mt">Commitment flow</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Three sequential surfaces. Pre-PSA Private Preview (admin-triggered exclusivity) → three-lane Deal Lock (choice architecture without forcing speed) → cinematic wire confirmation (peak-end memorable moment).</div>
+
+<div class="h2">29.1 — Pre-PSA Private Preview (above active deals on dashboard)</div>
+<div class="vis"><div class="pp">
+<div class="ppb"><div class="ppt"><span style="width:8px;height:8px;border-radius:50%;background:var(--g);display:inline-block"></span> Private Preview · You + 4 others</div><div class="ppl">LOI Stage</div></div>
+<div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--n);font-weight:500">Florida Coastal Hospitality · 142 Keys</div>
+<div style="font-size:11px;color:var(--g6);margin-top:4px">Boutique resort · oceanfront submarket</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:11px;padding:11px;background:var(--c);border-radius:5px">
+<div style="font-size:9px"><div style="color:var(--g6);letter-spacing:1px;text-transform:uppercase;font-weight:600">Est. Price</div><div style="font-family:'Playfair Display',serif;font-size:14px;color:var(--n);font-weight:600">~$38M</div></div>
+<div style="font-size:9px"><div style="color:var(--g6);letter-spacing:1px;text-transform:uppercase;font-weight:600">Est. Cap</div><div style="font-family:'Playfair Display',serif;font-size:14px;color:var(--n);font-weight:600">~8.4%</div></div>
+<div style="font-size:9px"><div style="color:var(--g6);letter-spacing:1px;text-transform:uppercase;font-weight:600">Est. IRR</div><div style="font-family:'Playfair Display',serif;font-size:14px;color:var(--g);font-weight:600">~17%</div></div>
+</div>
+<div class="ppd">Subject to PSA execution. Numbers indicative only — to be confirmed at PSA stage.</div>
+<div class="ppa"><button class="ppc">Confirm backing intent</button><button class="pps">Pass</button></div>
+</div></div>
+
+<div class="h2">29.2 — Three-lane Deal Lock (commitment stage only)</div>
+<div class="vis"><div class="la">
+<div class="lan"><div class="lah"><div class="lnu">1</div><span class="ltg">Standard</span></div><div class="ltt">7-Day Window</div><div class="lwd">Wire deposit within 7 days</div><div class="lsp">Refundable through DD. Most members select this lane. <strong>POF not required.</strong></div><div class="lpf pyn">No POF</div></div>
+<div class="lan fe"><div class="lah"><div class="lnu">2</div><span class="ltg">Accelerated</span></div><div class="ltt">72-Hour Window</div><div class="lwd">Wire deposit within 72 hours</div><div class="lsp">Priority allocation. <strong>Proof of Funds required.</strong> Position locked on receipt.</div><div class="lpf py">POF required</div></div>
+<div class="lan"><div class="lah"><div class="lnu">3</div><span class="ltg">Rapid</span></div><div class="ltt">24-Hour Window</div><div class="lwd">Wire deposit within 24 hours</div><div class="lsp">Top priority + early-access discount where available. <strong>POF required.</strong></div><div class="lpf py">POF required</div></div>
+</div></div>
+
+<div class="h2">29.3 — Cinematic wire confirmation</div>
+<div class="vis"><div class="wc">
+<div class="cf c1"></div><div class="cf c2"></div><div class="cf c3"></div><div class="cf c4"></div><div class="cf c5"></div>
+<div class="wci">✓</div>
+<div class="wct">Position Locked</div>
+<div class="wcx">Welcome to the Florida Multifamily syndication, <strong style="color:var(--g)">Dr. Cohen</strong>.<br>Adir will reach out within the hour to walk you through next steps.</div>
+</div></div>
+</div>
+<div class="fn">Default lane selection: Standard. Lane changes mid-flow blocked — investor must abandon and re-enter to switch. Wire confirmation animation: 1.2s, then auto-redirect to deposit instructions.</div>
+</div>
+
+<!-- #30 NOTIFICATIONS + EMAIL DIGEST + 1031 + LIVE LAB -->
+<div class="f">
+<div class="fh"><div class="nu">30</div><div class="tt">Notifications &amp; tier-3 destinations — email digest · 1031 Club · Live Deal Lab</div><span class="mt">Final layer</span><span class="b bL">Locked</span></div>
+<div class="fb">
+<div class="desc">Notifications minimal at launch (digest + max 3 WhatsApp/week + in-platform red dot — no SMS, no push, no marketing). Two dedicated destination surfaces complete the platform: The 1031 Club (forced sellers) and The Live Deal Lab (Bloomberg moment per deal).</div>
+
+<div class="h2">30.1 — Daily 8am email digest (member's local time)</div>
+<div class="vis"><div class="dg2">
+<div class="dgh"><div class="dgf">From RePrime Terminal</div><div class="dgs">Your Wednesday Morning · Apr 29</div></div>
+<div class="dgb">
+<div class="dgg">Good morning, Dr. Cohen.</div>
+<div class="dgsc"><div class="dgi">Active Deals — 2 Updates</div>
+<div class="dgt">FL Multifamily · Phase II ESA uploaded · 16 days remaining in Extension I</div>
+<div class="dgt">TX Retail · Title cleared · 19 days to close</div></div>
+<div class="dgsc"><div class="dgi">Pipeline — 1 New</div>
+<div class="dgt">FL Coastal Hospitality · Private Preview now available · LOI stage</div></div>
+<div class="dgsc" style="margin-bottom:0"><div class="dgi">From Adir</div>
+<div class="dgt" style="font-style:italic;color:var(--n)">"Available all day Tel Aviv time. Reach out anytime via Direct Line."</div></div>
+</div>
+</div></div>
+
+<div class="h2">30.2 — The 1031 Club (Tier 3 destination)</div>
+<div class="vis"><div class="cl2">
+<div class="cle">Tier 3 · Standalone Destination</div>
+<div class="clt2">The 1031 Club</div>
+<div class="clr"></div>
+<div class="clg">Eligible inventory for tax-deferred exchanges. 45-day identification clock. 180-day close clock. 8824 letter generation. QI roster. Adir as designated human contact through the panic moments.</div>
+<div class="clk">
+<div class="clkc"><div class="clkn">22 d</div><div class="clkl">Identification window</div></div>
+<div class="clkc"><div class="clkn">157 d</div><div class="clkl">Close window</div></div>
+<div class="clkc"><div class="clkn">3</div><div class="clkl">Eligible deals</div></div>
+</div>
+</div></div>
+
+<div class="h2">30.3 — The Live Deal Lab (Tier 3 destination)</div>
+<div class="vis"><div class="lh">
+<div class="cle">Tier 3 · Per-Deal Interactive</div>
+<div class="clt2">The Live Deal Lab</div>
+<div class="clr"></div>
+<div class="clg">The Bloomberg moment for CRE. Four data layers fused with knowledge graph cross-links across tenants, expirations, FRISK scores, and historical comps.</div>
+<div class="ll">
+<div class="llr"><div class="lln">L1</div><div class="lll">CoStar Foundation</div><div class="lld">Property fundamentals</div></div>
+<div class="llr"><div class="lln">L2</div><div class="lll">Mapbox Comps</div><div class="lld">Click-through transactions</div></div>
+<div class="llr"><div class="lln">L3</div><div class="lll">Scenario Lab</div><div class="lld">Live recompute</div></div>
+<div class="llr"><div class="lln">L4</div><div class="lll">Re-tenanting</div><div class="lld">Who could lease this?</div></div>
+</div>
+</div></div>
+</div>
+<div class="fn">Notifications: max 3 WhatsApp/week. No SMS. No push. No marketing. Send time = member's stored timezone. 1031 Club + Live Deal Lab have full separate spec briefs (PROMPT_1031_Club.md and PROMPT_Live_Deal_Lab.md). Member self-attests 1031 status to enter the Club. Live Deal Lab requires CoStar API integration.</div>
+</div>
+
+<!-- OPEN DECISIONS -->
+<div class="phase" style="background:var(--w);color:var(--n);border-left-color:var(--g);border:1px solid var(--g)">
+<div class="pn" style="color:var(--g)">Awaiting Founder Input</div>
+<div class="pt" style="color:var(--n)">Open decisions</div>
+<div class="pd" style="color:var(--g6)">These items block their related features. Each requires a founder decision before specification is complete.</div>
+</div>
+
+<div class="ob2">
+<div class="oh">Operational data — required before launch</div>
+<ul class="olst">
+<li><span class="onu">01</span><span class="otx"><strong>Adir Yonasi's WhatsApp number</strong> (format: +972 XX XXX XXXX) — required for Direct Line wa.me link.</span></li>
+<li><span class="onu">02</span><span class="otx"><strong>Adir Yonasi's Cal.com URL</strong> — required for Schedule Call button.</span></li>
+<li><span class="onu">03</span><span class="otx"><strong>Steve Philipp's WhatsApp + Cal.com URL</strong> — for DD-stage Deal Team panel.</span></li>
+<li><span class="onu">04</span><span class="otx"><strong>Bruce Smoler's WhatsApp / office line</strong> — for closing-stage Deal Team panel.</span></li>
+</ul>
+</div>
+
+<div class="ob2">
+<div class="oh">Vendor selections — required before launch</div>
+<table class="otb"><thead><tr><th>Capability</th><th>Vendor options</th><th>Annual budget</th></tr></thead>
+<tbody>
+<tr><td>Tenant credit (#11)</td><td>CreditRiskMonitor FRISK / RapidRatings / Moody's RiskCalc</td><td>$10–30K</td></tr>
+<tr><td>LLC unmasking (#16)</td><td>Reonomy / Sayari Graph</td><td>$3–100K</td></tr>
+<tr><td>Loan maturity (#17)</td><td>Trepp / CRED iQ</td><td>$10–50K</td></tr>
+<tr><td>Foot traffic (live data)</td><td>Placer.ai / Near</td><td>$25–75K</td></tr>
+<tr><td>Climate risk (#18)</td><td>First Street Risk Factor / Moody's Climate</td><td>$50–500K (enterprise)</td></tr>
+<tr><td>Comps (#13)</td><td>CoStar / MSCI Real Capital Analytics</td><td>$25–150K</td></tr>
+<tr><td>Asset specialist</td><td>Yardi Matrix (multifamily emphasis)</td><td>$15–40K</td></tr>
+<tr><td>Accredited verification gate</td><td>VerifyInvestor / Parallel Markets</td><td>Per-verification fee</td></tr>
+</tbody></table>
+</div>
+
+<div class="ob2">
+<div class="oh">Conflicts to resolve</div>
+<ul class="olst">
+<li><span class="onu">01</span><span class="otx"><strong>Cash-on-Cash on the active deal card</strong> — current v8 includes CoC in Tier A. Master brief said remove. Confirm: keep CoC on card or move to deal page only.</span></li>
+<li><span class="onu">02</span><span class="otx"><strong>Backup buyer wire window</strong> — 72hr universal vs. tiered by lane (Lane 1 = 72h, Lane 2 = 48h, Lane 3 = 24h).</span></li>
+</ul>
+</div>
+
+<div class="ob2">
+<div class="oh">Phase 2 vs launch sequencing — confirm before sprint 8</div>
+<ul class="olst">
+<li><span class="onu">01</span><span class="otx"><strong>Custom Mandate</strong> — investor's standing brief to sourcing team. No competitor has it. Launch or Phase 2?</span></li>
+<li><span class="onu">02</span><span class="otx"><strong>Terminal Property Chronicle</strong> — cinematic 1940s→present aerial time-lapse with ElevenLabs voice. Launch or Phase 2?</span></li>
+<li><span class="onu">03</span><span class="otx"><strong>Multilingual Hebrew/RTL + Arabic</strong> — 2hr build technically. Confirm Phase 1 (EN/HE/AR) at launch.</span></li>
+<li><span class="onu">04</span><span class="otx"><strong>Saved searches with WhatsApp/email alerts</strong> — currently Phase 2. Confirm or upgrade.</span></li>
+<li><span class="onu">05</span><span class="otx"><strong>Mobile parity</strong> — full mobile / read-only / desktop-only at launch. (Recommendation: read-only at launch, full mobile Phase 2.)</span></li>
+<li><span class="onu">06</span><span class="otx"><strong>LP-Committee Summary export PDF</strong> — multi-deal package. Phase 2 unless elevated.</span></li>
+<li><span class="onu">07</span><span class="otx"><strong>Document version control "NEW VERSION" badge</strong> — Phase 2 unless elevated.</span></li>
+<li><span class="onu">08</span><span class="otx"><strong>Per-investor deal-specific WhatsApp thread integration</strong> — beyond Direct Line.</span></li>
+<li><span class="onu">09</span><span class="otx"><strong>Cap-rate sensitivity slider on individual deal Financial Modeling tab</strong> — currently only Compare view.</span></li>
+</ul>
+</div>
+
+<div class="ob2">
+<div class="oh">Logo finalization</div>
+<ul class="olst">
+<li><span class="onu">01</span><span class="otx"><strong>Direction</strong> — A (Cut Wordmark) vs B (abstract R sigil) vs C (alternate).</span></li>
+<li><span class="onu">02</span><span class="otx"><strong>Identity firm</strong> — Chermayeff &amp; Geismar &amp; Haviv vs Pentagram vs Wolff Olins.</span></li>
+<li><span class="onu">03</span><span class="otx"><strong>Type foundry</strong> — Klim vs Frere-Jones / Commercial Type vs hybrid.</span></li>
+<li><span class="onu">04</span><span class="otx"><strong>Total commission</strong> — $70K–120K.</span></li>
+</ul>
+</div>
+
+<!-- PHASE 2 BACKLOG (kept brief) -->
+<div class="phase" style="background:var(--w);color:var(--n);border-left-color:var(--g);border:1px solid var(--g2)">
+<div class="pn" style="color:var(--g)">Post-Launch</div>
+<div class="pt" style="color:var(--n)">Phase 2 backlog</div>
+<div class="pd" style="color:var(--g6)">Decided in principle. Ship after launch (post 90 days). Reserve technical hooks during launch build.</div>
+</div>
+
+<div class="ob2">
+<ul class="olst">
+<li><span class="onu">01</span><span class="otx"><strong>Annual Member Report</strong> — once a year, signed PDF from Gideon to each member. Every deal reviewed, returns to date. Personal note signed.</span></li>
+<li><span class="onu">02</span><span class="otx"><strong>Three-surface Notes</strong> — sticky panel ships at launch. Card popover + detail tab + Notes Dashboard model after.</span></li>
+<li><span class="onu">03</span><span class="otx"><strong>Terminal Score expandable sub-scores</strong> — click ring → reveal Location / Basis / Tenancy / Upside / Risk with qualitative readouts.</span></li>
+<li><span class="onu">04</span><span class="otx"><strong>Compare view upgrade</strong> — radar + sensitivity slider + financing scenario columns + cap-rate overlay.</span></li>
+<li><span class="onu">05</span><span class="otx"><strong>Saved searches with email/WhatsApp alerts.</strong></span></li>
+<li><span class="onu">06</span><span class="otx"><strong>LP-Committee Summary PDF export</strong> — multi-deal package for IC.</span></li>
+<li><span class="onu">07</span><span class="otx"><strong>Compare PDF export.</strong></span></li>
+<li><span class="onu">08</span><span class="otx"><strong>Portfolio Summary PDF export</strong> — status report across investor's full position set.</span></li>
+<li><span class="onu">09</span><span class="otx"><strong>Document access log per investor per deal.</strong></span></li>
+<li><span class="onu">10</span><span class="otx"><strong>Document version control "NEW VERSION" badge.</strong></span></li>
+<li><span class="onu">11</span><span class="otx"><strong>Per-investor deal-specific WhatsApp thread integration.</strong></span></li>
+<li><span class="onu">12</span><span class="otx"><strong>Cap-rate sensitivity slider on individual deal.</strong></span></li>
+<li><span class="onu">13</span><span class="otx"><strong>Knox Mall guard rail</strong> — code rule: never show DD countdown on a deal with zero documents in data room.</span></li>
+<li><span class="onu">14</span><span class="otx"><strong>Hebrew/RTL toggle (full)</strong> — EN | עב toggle in nav. Almoni Neue. /he/portal routes.</span></li>
+<li><span class="onu">15</span><span class="otx"><strong>Mobile parity (full)</strong> — DD Vault + closing tracker on mobile.</span></li>
+<li><span class="onu">16</span><span class="otx"><strong>Capital Partner deposit pool structure</strong> — pool model for sub-$100K investors. Securities review required before scoping.</span></li>
+</ul>
+</div>
+
+<div class="dft">
+Confidential · RePrime Group · April 2026 · v1.0<br>
+If anything in here contradicts a project file, this document wins.
+</div>
+
+</div></body></html>

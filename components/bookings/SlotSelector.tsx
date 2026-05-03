@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 
@@ -93,13 +93,13 @@ export default function SlotSelector({ value, onChange }: SlotSelectorProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       <label style={{ color: '#8A8680', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-        Three slots · 30 min each · Central
+        Three slots Â· 30 min each Â· Central
       </label>
       {locals.map((local, idx) => {
         const iso = localToCentralIso(local)
         return (
           <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <span style={{ color: '#BC9C45', fontSize: '0.85rem', minWidth: '1.5rem' }}>{idx + 1}.</span>
+            <span style={{ color: '#FFCC33', fontSize: '0.85rem', minWidth: '1.5rem' }}>{idx + 1}.</span>
             <input
               type="datetime-local"
               value={local}
@@ -110,7 +110,7 @@ export default function SlotSelector({ value, onChange }: SlotSelectorProps) {
                 padding: '0.5rem 0.75rem',
                 background: '#0E3470',
                 color: '#fff',
-                border: '1px solid #1A3560',
+                border: '1px solid rgba(14, 52, 112, 0.70)',
                 borderRadius: '4px',
                 fontFamily: 'inherit',
                 fontSize: '0.9rem',

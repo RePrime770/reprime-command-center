@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" role="img" aria-label="Terminal by RePrime — Monochrome">
+  <title>RePrime Terminal — Monochrome</title>
+  <desc>Single-color version. Use currentColor or override fill to deploy in any single ink — black for fax, gold for foil emboss, white for reverse on dark.</desc>
+  <g fill="currentColor">
+    <rect x="90" y="86" width="620" height="2"/>
+    <text x="400" y="196" text-anchor="middle" font-family="Cinzel, 'Trajan Pro', Georgia, serif" font-weight="600" font-size="100" letter-spacing="12">TERMINAL</text>
+    <rect x="90" y="220" width="620" height="2"/>
+    <text x="400" y="262" text-anchor="middle" font-family="'EB Garamond', Garamond, Georgia, serif" font-style="italic" font-size="27" letter-spacing="1.4" opacity="0.88">by RePrime</text>
+  </g>
+</svg>

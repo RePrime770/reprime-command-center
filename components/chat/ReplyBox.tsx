@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useEffect, useRef, useState } from 'react'
 import type { Panel, DashboardMessage } from '@/lib/timelines/types'
 import { isHebrew } from '@/lib/timelines/parse'
@@ -148,7 +148,7 @@ export default function ReplyBox({
         color: textColor,
       }}
     >
-      {/* ── Toolbar row: above the textarea ── */}
+      {/* â”€â”€ Toolbar row: above the textarea â”€â”€ */}
       <div
         style={{
           display: 'flex',
@@ -189,14 +189,14 @@ export default function ReplyBox({
         />
       </div>
 
-      {/* ── Textarea ── */}
+      {/* â”€â”€ Textarea â”€â”€ */}
       <textarea
         ref={taRef}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         onKeyDown={onKeyDown}
         dir={rtl ? 'rtl' : 'ltr'}
-        placeholder="Type a message…"
+        placeholder="Type a messageâ€¦"
         rows={1}
         style={{
           width: '100%',
@@ -212,7 +212,7 @@ export default function ReplyBox({
         }}
       />
 
-      {/* ── Bottom row: char count + Send ── */}
+      {/* â”€â”€ Bottom row: char count + Send â”€â”€ */}
       <div
         style={{
           display: 'flex',
@@ -238,7 +238,7 @@ export default function ReplyBox({
             cursor: canSend ? 'pointer' : 'not-allowed',
           }}
         >
-          {sending ? 'Sending…' : 'Send'}
+          {sending ? 'Sendingâ€¦' : 'Send'}
         </button>
       </div>
       {lastFailed && (
@@ -249,13 +249,13 @@ export default function ReplyBox({
             alignItems: 'center',
             gap: '0.5rem',
             fontSize: '0.75rem',
-            color: lastFailed.isQuota ? 'var(--rp-gold, #BC9C45)' : 'var(--rp-red)',
+            color: lastFailed.isQuota ? 'var(--rp-gold, #FFCC33)' : 'var(--rp-red)',
           }}
         >
           <span>
             {lastFailed.isQuota
-              ? '⚠ WhatsApp (Timelines) quota exceeded — resets May 1. Message saved.'
-              : '✗ Send failed.'}
+              ? 'âš  WhatsApp (Timelines) quota exceeded â€” resets May 1. Message saved.'
+              : 'âœ— Send failed.'}
           </span>
           {!lastFailed.isQuota && (
             <button

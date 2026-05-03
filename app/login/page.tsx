@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -42,14 +42,14 @@ export default function Login() {
           maxWidth: 420,
           width: '100%',
           padding: '2.5rem',
-          background: '#0A1F44',
-          border: '1px solid #1A3560',
+          background: 'rgba(14, 52, 112, 0.85)',
+          border: '1px solid rgba(14, 52, 112, 0.70)',
           borderRadius: 8,
         }}
       >
         <h1
           style={{
-            color: '#BC9C45',
+            color: '#FFCC33',
             margin: 0,
             fontSize: '1.75rem',
             fontWeight: 600,
@@ -57,7 +57,7 @@ export default function Login() {
         >
           RePrime Command Center
         </h1>
-        <p style={{ color: '#D4B86A', marginTop: '1rem', fontSize: '0.95rem' }}>
+        <p style={{ color: '#FFCC33', marginTop: '1rem', fontSize: '0.95rem' }}>
           Sign in to continue.
         </p>
         {!sent ? (
@@ -68,7 +68,7 @@ export default function Login() {
               marginTop: '2rem',
               width: '100%',
               padding: '0.85rem',
-              background: '#BC9C45',
+              background: '#FFCC33',
               color: '#0E3470',
               border: 'none',
               borderRadius: 4,

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -25,7 +25,7 @@ export default function TagChips({ threadId, panel }: Props) {
   const [picking, setPicking] = useState(false)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
-  const [newColor, setNewColor] = useState('#BC9C45')
+  const [newColor, setNewColor] = useState('#FFCC33')
   const [busy, setBusy] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
 
@@ -159,7 +159,7 @@ export default function TagChips({ threadId, panel }: Props) {
             }}
             aria-label={`Remove ${t.name}`}
           >
-            ×
+            Ã—
           </button>
         </span>
       ))}
