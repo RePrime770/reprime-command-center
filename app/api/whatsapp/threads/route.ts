@@ -83,9 +83,9 @@ export async function GET(request: NextRequest) {
       }
     } catch (timelinesErr: unknown) {
       const msg = (timelinesErr as Error).message ?? ''
-      // 403 = quota exhausted — serve from DB cache instead of hard-failing
-      if (msg.includes('403')) {
-        console.warn('[/api/whatsapp/threads] Timelines 403 quota — falling back to DB cache', { panel, msg: msg.slice(0, 200) })
+      // 403 = quota exhausted; 429 = rate limited — both fall back to DB cache
+      if (msg.includes('403') || msg.includes('429')) {
+        console.warn('[/api/whatsapp/threads] Timelines rate/quota limit — falling back to DB cache', { panel, msg: msg.slice(0, 200) })
         timelinesSkipped = true
       } else {
         throw timelinesErr
