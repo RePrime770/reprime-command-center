@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { formatPhoneDisplay } from '@/lib/timelines/parse'
 import MessageView from '@/components/chat/MessageView'
 import ReplyBox from '@/components/chat/ReplyBox'
+import InvestorProfile, { mockProfileForName } from '@/components/panels/InvestorProfile'
 import type { DashboardMessage, DashboardThread } from '@/lib/timelines/types'
 
 // ── Theme ────────────────────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ export default function InvestorChatPanel() {
   const queryClient = useQueryClient()
   const supabase = useMemo(() => createClient(), [])
   const [selected, setSelected] = useState<DashboardThread | null>(null)
+  const [profileOpen, setProfileOpen] = useState(false)
   const [search, setSearch] = useState('')
   const prevSelectedId = useRef<string | null>(null)
 
@@ -381,12 +383,60 @@ export default function InvestorChatPanel() {
             }}
           >
             <div style={{ padding: '0.5rem 1rem 0', background: NAVY, flexShrink: 0 }}>
-              {/* Show which number we're sending from */}
-              <div style={{ fontSize: 11, color: MUTED, marginBottom: 2, paddingLeft: 2 }}>
-                Sending via{' '}
-                <span style={{ color: selected.panel === '718' ? '#a5b4fc' : GOLD_LITE, fontWeight: 600 }}>
-                  {selected.panel === '718' ? '+1 (718) 550-5500' : '+1 (305) 778-4861'}
-                </span>
+              {/* Contact header row */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  marginBottom: 2,
+                  paddingLeft: 2,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: GOLD, lineHeight: 1.2 }}>
+                    ★{' '}
+                    {(() => {
+                      const nameIsDigits =
+                        !selected.contact_name ||
+                        /^\+?\d[\d\s\-()]*$/.test(selected.contact_name.trim())
+                      return nameIsDigits
+                        ? selected.phone
+                        : selected.contact_name
+                    })()}
+                  </div>
+                  <div style={{ fontSize: 11, color: MUTED }}>
+                    Sending via{' '}
+                    <span
+                      style={{
+                        color: selected.panel === '718' ? '#a5b4fc' : GOLD_LITE,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {selected.panel === '718' ? '+1 (718) 550-5500' : '+1 (305) 778-4861'}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setProfileOpen(true)}
+                  style={{
+                    background: GOLD,
+                    color: NAVY,
+                    border: 'none',
+                    padding: '8px 14px',
+                    fontFamily: 'inherit',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: '0.10em',
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                >
+                  ★ Open Profile
+                </button>
               </div>
               <ReplyBox
                 panel={selected.panel}
@@ -420,6 +470,13 @@ export default function InvestorChatPanel() {
           </div>
         )}
       </div>
+
+      {profileOpen && selected && (
+        <InvestorProfile
+          data={mockProfileForName(selected.contact_name)}
+          onClose={() => setProfileOpen(false)}
+        />
+      )}
     </div>
   )
 }
