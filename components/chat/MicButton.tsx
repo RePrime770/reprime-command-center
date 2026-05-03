@@ -14,13 +14,14 @@ type Props = {
 // The Web Speech API is implemented in Chrome/Edge. TypeScript's lib.dom doesn't
 // always include the webkit-prefixed variant; cast through unknown to be safe.
 interface SpeechRecognitionResultLike {
-  isFinal: boolean
-  length: number
-  [i: number]: { transcript: string }
+  readonly isFinal: boolean
+  readonly length: number
+  [index: number]: { readonly transcript: string }
 }
+
 interface SpeechRecognitionEventLike {
-  resultIndex: number
-  results: SpeechRecognitionResultLike[]
+  readonly resultIndex: number
+  readonly results: { length: number; [index: number]: SpeechRecognitionResultLike }
 }
 interface SpeechRecognitionLike {
   lang: string
@@ -50,7 +51,8 @@ export default function MicButton({ language, onTranscript }: Props) {
   const [state, setState] = useState<State>('idle')
   const [error, setError] = useState<string | null>(null)
   const recogRef = useRef<SpeechRecognitionLike | null>(null)
-  const accRef = useRef<string>('')   // accumulated finals while recording
+  const accRef = useRef<string>('')      // accumulated final results
+  const interimRef = useRef<string>('')  // latest interim (fallback if finals empty)
 
   // Cleanup on unmount
   useEffect(() => {
@@ -66,22 +68,25 @@ export default function MicButton({ language, onTranscript }: Props) {
 
     setError(null)
     accRef.current = ''
+    interimRef.current = ''
 
     const rec = new SpeechRec()
     rec.lang = language === 'he' ? 'he-IL' : 'en-US'
-    rec.continuous = true        // keep listening until we call stop()
-    rec.interimResults = false   // only deliver finalized words
+    rec.continuous = true
+    rec.interimResults = true  // capture interim too — used as fallback in onend
 
     rec.onresult = (e: SpeechRecognitionEventLike) => {
-      // SpeechRecognitionResultList is cumulative; grab only new finals
+      let latestInterim = ''
       for (let i = e.resultIndex; i < e.results.length; i++) {
+        const chunk = e.results[i][0].transcript.trim()
+        if (!chunk) continue
         if (e.results[i].isFinal) {
-          const chunk = e.results[i][0].transcript.trim()
-          if (chunk) {
-            accRef.current = accRef.current ? `${accRef.current} ${chunk}` : chunk
-          }
+          accRef.current = accRef.current ? `${accRef.current} ${chunk}` : chunk
+        } else {
+          latestInterim = chunk
         }
       }
+      if (latestInterim) interimRef.current = latestInterim
     }
 
     rec.onerror = (e: { error: string }) => {
@@ -100,15 +105,22 @@ export default function MicButton({ language, onTranscript }: Props) {
     }
 
     rec.onend = () => {
-      const text = accRef.current.trim()
+      // Chrome sometimes fires onend before delivering the final onresult.
+      // Fall back to the last interim result so the transcript is never lost.
+      const text = (accRef.current || interimRef.current).trim()
       if (text) onTranscript(text, language === 'he')
       setState('idle')
       recogRef.current = null
     }
 
-    rec.start()
-    recogRef.current = rec
-    setState('recording')
+    try {
+      rec.start()
+      recogRef.current = rec
+      setState('recording')
+    } catch {
+      setError('Could not start microphone')
+      setState('idle')
+    }
   }
 
   const stop = () => {

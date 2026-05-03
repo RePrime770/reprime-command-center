@@ -160,11 +160,17 @@ export default function ReplyBox({
       >
         <MicButton
           language="en"
-          onTranscript={(text) => setBody((b) => (b ? b + ' ' + text : text))}
+          onTranscript={(text) => {
+            setBody((b) => (b ? b + ' ' + text : text))
+            requestAnimationFrame(() => taRef.current?.focus())
+          }}
         />
         <MicButton
           language="he"
-          onTranscript={(text) => setBody((b) => (b ? b + ' ' + text : text))}
+          onTranscript={(text) => {
+            setBody((b) => (b ? b + ' ' + text : text))
+            requestAnimationFrame(() => taRef.current?.focus())
+          }}
         />
         <SpeakerButton text={body} />
         <DraftButton
@@ -248,7 +254,7 @@ export default function ReplyBox({
         >
           <span>
             {lastFailed.isQuota
-              ? '⚠ API quota exceeded — resets May 1. Message saved.'
+              ? '⚠ WhatsApp (Timelines) quota exceeded — resets May 1. Message saved.'
               : '✗ Send failed.'}
           </span>
           {!lastFailed.isQuota && (
