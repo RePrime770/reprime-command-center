@@ -150,47 +150,21 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           Private Introduction
         </p>
 
-        {/* ══ Terminal Logo Block ══ */}
+        {/* ══ Terminal Circle Logo ══ */}
         {isTerminal && (
-          <div style={{ margin: '0 0 2.75rem' }}>
-            {/* Top rule */}
-            <div style={{
-              height: '1px',
-              background: 'linear-gradient(90deg, transparent 0%, #C9A84C 25%, #C9A84C 75%, transparent 100%)',
-              marginBottom: '1.5rem',
-            }} />
-
-            {/* TERMINAL */}
-            <h2 style={{
-              fontFamily: 'Georgia, serif',
-              fontSize: 'clamp(1.9rem, 5.5vw, 3rem)',
-              fontWeight: 400,
-              color: '#C9A84C',
-              letterSpacing: '0.38em',
-              textTransform: 'uppercase',
-              margin: '0 0 0.55rem',
-              paddingLeft: '0.38em',
-            }}>
-              Terminal
-            </h2>
-
-            {/* by RePrime */}
-            <p style={{
-              fontFamily: 'Georgia, serif',
-              color: 'rgba(201,168,76,0.75)',
-              fontSize: '1rem',
-              fontStyle: 'italic',
-              letterSpacing: '0.04em',
-              margin: '0 0 1.5rem',
-            }}>
-              by RePrime
-            </p>
-
-            {/* Bottom rule */}
-            <div style={{
-              height: '1px',
-              background: 'linear-gradient(90deg, transparent 0%, #C9A84C 25%, #C9A84C 75%, transparent 100%)',
-            }} />
+          <div style={{ margin: '0 0 2.75rem', display: 'flex', justifyContent: 'center' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/TERMINAL_logo_512px.png"
+              alt="Terminal by RePrime"
+              width={200}
+              height={200}
+              style={{
+                width: 'clamp(140px, 38vw, 200px)',
+                height: 'auto',
+                display: 'block',
+              }}
+            />
           </div>
         )}
 
