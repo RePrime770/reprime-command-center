@@ -342,6 +342,46 @@ export async function GET(request: NextRequest) {
       investorIds = new Set((tagJoins || []).map((t: { thread_id: string }) => t.thread_id))
     }
 
+    // UNION with Pipedrive TAG-based investor flag (Pipedrive is now source of truth).
+    // Reuses the same Upstash cache key as /api/whatsapp/investor-chat-threads.
+    const investorTierByThreadId = new Map<string, { tier: 'A' | 'B' | 'C' | 'D' | null; role: 'principal' | 'connector' | null }>()
+    try {
+      const cacheKey = 'pipedrive:investors:tagged:v1'
+      let pdInvestors: Array<{ id: number; tier: 'A' | 'B' | 'C' | 'D' | null; role: 'principal' | 'connector' | null; phones: string[] }> | null = null
+      if (redis) {
+        try {
+          const cached = await redis.get<typeof pdInvestors>(cacheKey)
+          if (cached && Array.isArray(cached)) pdInvestors = cached
+        } catch {}
+      }
+      if (!pdInvestors) {
+        const { listInvestorTaggedPersons } = await import('@/lib/pipedrive/client')
+        const fresh = await listInvestorTaggedPersons()
+        pdInvestors = fresh.map((p) => ({ id: p.id, tier: p.tier, role: p.role, phones: p.phones }))
+        if (redis) {
+          try { await redis.set(cacheKey, pdInvestors, { ex: 3600 }) } catch {}
+        }
+      }
+      const pdById = new Map(pdInvestors.map((p) => [p.id, p]))
+      const pdByPhone = new Map<string, typeof pdInvestors[number]>()
+      for (const p of pdInvestors) {
+        for (const ph of p.phones) {
+          const norm = normalizePhone(ph)
+          if (norm) pdByPhone.set(norm, p)
+        }
+      }
+      for (const t of threads ?? []) {
+        let pd = t.pipedrive_contact_id ? pdById.get(t.pipedrive_contact_id) : undefined
+        if (!pd) pd = pdByPhone.get(t.phone)
+        if (pd) {
+          investorIds.add(t.id)
+          investorTierByThreadId.set(t.id, { tier: pd.tier, role: pd.role })
+        }
+      }
+    } catch (err) {
+      console.warn('[/api/whatsapp/threads] Pipedrive investor list failed — keeping thread_tags-only', { message: (err as Error).message })
+    }
+
     const previewByChatId = new Map<number, string>()
     for (const c of allChats) {
       if (c.last_message_uid && (c as TimelinesChat & { last_message_text?: string }).last_message_text) {
@@ -376,6 +416,8 @@ export async function GET(request: NextRequest) {
         unread_count: t.unread_count ?? 0,
         pipedrive_contact_id: t.pipedrive_contact_id,
         is_investor: investorIds.has(t.id),
+        investor_tier: investorTierByThreadId.get(t.id)?.tier ?? null,
+        investor_role: investorTierByThreadId.get(t.id)?.role ?? null,
         is_priority: t.is_priority ?? false,
       })
     )

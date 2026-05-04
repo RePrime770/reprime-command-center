@@ -253,3 +253,83 @@ export async function updatePerson(
   })
   return res.data
 }
+
+// ── Investor TAG parsing ────────────────────────────────────────────────────
+// Pipedrive TAG values for investors follow the convention:
+//   investor-{A|B|C|D}-{principal|connector}
+// Bare `investor` (no tier/role) is also accepted for backward compat.
+
+export type InvestorTagTier = 'A' | 'B' | 'C' | 'D'
+export type InvestorTagRole = 'principal' | 'connector'
+
+export interface InvestorTagParsed {
+  isInvestor: boolean
+  tier: InvestorTagTier | null
+  role: InvestorTagRole | null
+}
+
+export function parseInvestorTag(value: unknown): InvestorTagParsed {
+  if (typeof value !== 'string') return { isInvestor: false, tier: null, role: null }
+  const trimmed = value.trim().toLowerCase()
+  if (!trimmed.startsWith('investor')) return { isInvestor: false, tier: null, role: null }
+  if (trimmed === 'investor') return { isInvestor: true, tier: null, role: null }
+  // investor-A-principal etc.
+  const m = trimmed.match(/^investor-([abcd])-(principal|connector)$/)
+  if (!m) return { isInvestor: true, tier: null, role: null } // anything starting with `investor` counts; just couldn't parse
+  return {
+    isInvestor: true,
+    tier: m[1].toUpperCase() as InvestorTagTier,
+    role: m[2] as InvestorTagRole,
+  }
+}
+
+export interface InvestorTaggedPerson {
+  id: number
+  name: string
+  emails: string[]
+  phones: string[]
+  tier: InvestorTagTier | null
+  role: InvestorTagRole | null
+  rawTag: string
+}
+
+/**
+ * Returns every Pipedrive Person whose TAG custom field starts with `investor`.
+ * Paginates the full Persons list (Pipedrive doesn't support filtering on
+ * custom-field values via the search endpoint without a saved Filter).
+ *
+ * Caller should cache the result in Upstash for ~1h — this is several
+ * sequential API calls.
+ */
+export async function listInvestorTaggedPersons(): Promise<InvestorTaggedPerson[]> {
+  const out: InvestorTaggedPerson[] = []
+  let start = 0
+  const limit = 500
+  // Pipedrive returns up to 500 per page; loop while more remains.
+  for (let safety = 0; safety < 20; safety++) {
+    const res = await pipedriveRequest<{
+      data: PipedrivePerson[] | null
+      additional_data?: { pagination?: { more_items_in_collection: boolean; next_start?: number } }
+    }>(`/persons?start=${start}&limit=${limit}`)
+    const persons = res.data ?? []
+    for (const p of persons) {
+      const tagValue = (p as Record<string, unknown>)[PIPEDRIVE_FIELD_KEYS.TAG]
+      const parsed = parseInvestorTag(tagValue)
+      if (!parsed.isInvestor) continue
+      out.push({
+        id: p.id,
+        name: p.name,
+        emails: ((p.email as PipedriveContactValue[] | null) ?? []).map((e) => e.value).filter(Boolean),
+        phones: ((p.phone as PipedriveContactValue[] | null) ?? []).map((e) => e.value).filter(Boolean),
+        tier: parsed.tier,
+        role: parsed.role,
+        rawTag: typeof tagValue === 'string' ? tagValue : '',
+      })
+    }
+    const more = res.additional_data?.pagination?.more_items_in_collection
+    const nextStart = res.additional_data?.pagination?.next_start
+    if (!more || typeof nextStart !== 'number') break
+    start = nextStart
+  }
+  return out
+}

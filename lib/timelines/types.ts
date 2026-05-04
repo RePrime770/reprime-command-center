@@ -2,6 +2,10 @@ export type Panel = '718' | '305'
 export type ChannelType = 'whatsapp' | 'sms' | 'imessage' | 'google_voice'
 export type Direction = 'in' | 'out'
 
+/** Investor tier from Pipedrive TAG: investor-{A|B|C|D}-{principal|connector} */
+export type InvestorTier = 'A' | 'B' | 'C' | 'D'
+export type InvestorRole = 'principal' | 'connector'
+
 export interface TimelinesChat {
   id: number
   name: string
@@ -55,6 +59,12 @@ export interface DashboardThread {
   unread_count: number
   pipedrive_contact_id: number | null
   is_investor: boolean
+  /** Tier letter parsed from Pipedrive TAG `investor-A-principal` etc. Null if investor flag came only from the Supabase tags table. */
+  investor_tier: InvestorTier | null
+  /** Role parsed from Pipedrive TAG. Null if from tags table. */
+  investor_role: InvestorRole | null
+  /** True for synthetic stubs returned for investor-tagged Pipedrive contacts who have no WhatsApp thread yet. The UI should render contact metadata but no message preview. */
+  is_stub?: boolean
   /** AI-flagged as important (deal interest, urgency, commitment language) */
   is_priority: boolean
 }
