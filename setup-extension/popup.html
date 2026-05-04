@@ -46,6 +46,14 @@
       border: 1px solid rgba(255,204,51,0.35);
     }
 
+    /* ── Section divider ── */
+    .section-divider {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: rgba(255,204,51,0.5);
+      border-top: 1px solid rgba(255,204,51,0.15);
+      padding-top: 14px; margin: 4px 0 14px;
+    }
+
     /* ── Credential fields ── */
     .field { margin-bottom: 18px; }
     .field-label {
@@ -67,6 +75,12 @@
     }
     .field input:focus { border-color: #FFCC33; }
     .field input::placeholder { color: rgba(245,239,216,0.28); font-size: 13px; }
+
+    .optional-badge {
+      font-size: 10px; font-weight: 400; letter-spacing: 0.04em;
+      text-transform: uppercase; color: rgba(255,204,51,0.45);
+      margin-left: 6px; vertical-align: middle;
+    }
 
     .error-box {
       background: rgba(255,80,80,0.1); border: 1px solid rgba(255,80,80,0.35);
@@ -150,7 +164,7 @@
     </svg>
     <div>
       <div class="hdr-title">RePrime Setup</div>
-      <div class="hdr-sub">One click — sets up Supabase, Vercel, and Quo automatically</div>
+      <div class="hdr-sub">One click — sets up Supabase, Vercel, Quo, and BlueBubbles automatically</div>
     </div>
   </div>
 
@@ -183,11 +197,25 @@
       <label class="field-label">3 — Quo (OpenPhone) API Key</label>
       <span class="field-hint">
         Get it at:
-        <a onclick="chrome.tabs.create({url:'https://app.openphone.com/settings/api'})">
-          app.openphone.com → Settings → API → Create key
+        <a onclick="chrome.tabs.create({url:'https://my.quo.com/settings/api'})">
+          my.quo.com → Settings → API → Create key
         </a>
       </span>
       <input id="f-quo" type="password" placeholder="paste API key here" spellcheck="false" autocomplete="new-password">
+    </div>
+
+    <div class="section-divider">BlueBubbles Server <span class="optional-badge">optional — skip if not ready</span></div>
+
+    <div class="field">
+      <label class="field-label">4 — BlueBubbles Server URL</label>
+      <span class="field-hint">The URL of your BlueBubbles Mac server (e.g. https://hostname:1234)</span>
+      <input id="f-bb-url" type="text" placeholder="https://your-mac.hostmyapple.com:1234" spellcheck="false" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label class="field-label">5 — BlueBubbles Server Password</label>
+      <span class="field-hint">The password you set in BlueBubbles Server → Settings → General</span>
+      <input id="f-bb-pwd" type="password" placeholder="your BlueBubbles password" spellcheck="false" autocomplete="new-password">
     </div>
 
     <div id="creds-err" class="error-box" style="display:none"></div>
@@ -200,7 +228,7 @@
     <div class="steps">
 
       <div class="step" id="s-supa">
-        <div class="step-icon wait" id="s-supa-icon">1</div>
+        <div class="step-icon wait" id="s-supa-icon" data-num="1">1</div>
         <div class="step-body">
           <div class="step-name">Create phone_calls table in Supabase</div>
           <div class="step-detail" id="s-supa-detail">Waiting…</div>
@@ -208,7 +236,7 @@
       </div>
 
       <div class="step" id="s-webhook">
-        <div class="step-icon wait" id="s-webhook-icon">2</div>
+        <div class="step-icon wait" id="s-webhook-icon" data-num="2">2</div>
         <div class="step-body">
           <div class="step-name">Register Quo webhook</div>
           <div class="step-detail" id="s-webhook-detail">Waiting…</div>
@@ -216,7 +244,7 @@
       </div>
 
       <div class="step" id="s-v1">
-        <div class="step-icon wait" id="s-v1-icon">3</div>
+        <div class="step-icon wait" id="s-v1-icon" data-num="3">3</div>
         <div class="step-body">
           <div class="step-name">Set QUO_API_KEY in Vercel</div>
           <div class="step-detail" id="s-v1-detail">Waiting…</div>
@@ -224,7 +252,7 @@
       </div>
 
       <div class="step" id="s-v2">
-        <div class="step-icon wait" id="s-v2-icon">4</div>
+        <div class="step-icon wait" id="s-v2-icon" data-num="4">4</div>
         <div class="step-body">
           <div class="step-name">Set QUO_WEBHOOK_SECRET in Vercel</div>
           <div class="step-detail" id="s-v2-detail">Waiting…</div>
@@ -232,7 +260,7 @@
       </div>
 
       <div class="step" id="s-v3">
-        <div class="step-icon wait" id="s-v3-icon">5</div>
+        <div class="step-icon wait" id="s-v3-icon" data-num="5">5</div>
         <div class="step-body">
           <div class="step-name">Set BLUEBUBBLES_WEBHOOK_SECRET in Vercel</div>
           <div class="step-detail" id="s-v3-detail">Waiting…</div>
@@ -240,10 +268,18 @@
       </div>
 
       <div class="step" id="s-v4">
-        <div class="step-icon wait" id="s-v4-icon">6</div>
+        <div class="step-icon wait" id="s-v4-icon" data-num="6">6</div>
         <div class="step-body">
           <div class="step-name">Set BB_CALL_SECRET in Vercel</div>
           <div class="step-detail" id="s-v4-detail">Waiting…</div>
+        </div>
+      </div>
+
+      <div class="step" id="s-bb">
+        <div class="step-icon wait" id="s-bb-icon" data-num="7">7</div>
+        <div class="step-body">
+          <div class="step-name">Configure BlueBubbles webhook</div>
+          <div class="step-detail" id="s-bb-detail">Waiting…</div>
         </div>
       </div>
 
@@ -271,20 +307,25 @@
 
     <div id="webhook-manual" class="manual-note" style="display:none">
       <strong>One manual step left — register the Quo webhook yourself:</strong><br>
-      Go to <a style="color:#FFCC33" onclick="chrome.tabs.create({url:'https://app.openphone.com/settings/webhooks'})">app.openphone.com → Settings → Webhooks</a>
+      Go to <a style="color:#FFCC33" onclick="chrome.tabs.create({url:'https://my.quo.com/settings/webhooks'})">my.quo.com → Settings → Webhooks</a>
       and add this URL:<br>
       <div class="url-box">https://project-7e87w.vercel.app/api/phone/quo-webhook</div>
-      Events: <strong>call.completed, recording.completed, message.received, message.sent</strong><br><br>
+      Events: <strong>call.completed, recording.completed, message.received, message.delivered</strong><br><br>
       Then copy the signing secret Quo gives you and paste it as <strong>QUO_WEBHOOK_SECRET</strong> in
       <a style="color:#FFCC33" onclick="chrome.tabs.create({url:'https://vercel.com/g-8390s-projects/reprime-command-center/settings/environment-variables'})">Vercel env vars</a>.
     </div>
 
-    <div class="final-note">
-      <strong>Last step — BlueBubbles Server (takes 1 minute):</strong><br>
+    <div id="bb-manual" class="manual-note" style="display:none">
+      <strong>BlueBubbles webhook could not be configured automatically.</strong><br>
       In BlueBubbles Server → Settings → Webhooks → Add:<br>
-      URL: <strong>https://project-7e87w.vercel.app/api/phone/bb-webhook</strong><br>
+      URL: <div class="url-box">https://project-7e87w.vercel.app/api/phone/bb-webhook</div>
       Header name: <strong>x-bb-secret</strong><br>
-      Header value: <em>copy BLUEBUBBLES_WEBHOOK_SECRET above</em>
+      Header value: <span id="r-bb-secret-2" style="font-family:monospace;color:#FFCC33;font-size:12px;word-break:break-all"></span>
+    </div>
+
+    <div class="final-note" id="all-done-note">
+      <strong>All done! The dashboard is live.</strong><br>
+      Quo calls/texts and iPhone calls will now sync automatically.
     </div>
 
   </div>

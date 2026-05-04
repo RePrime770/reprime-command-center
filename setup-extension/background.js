@@ -56,7 +56,7 @@ function makeSecret(len = 32) {
 
 // ── Progress helper ───────────────────────────────────────────────────────────
 
-const STEP_KEYS = ['supa', 'webhook', 'v1', 'v2', 'v3', 'v4'];
+const STEP_KEYS = ['supa', 'webhook', 'v1', 'v2', 'v3', 'v4', 'bb'];
 
 function initProgress() {
   return Object.fromEntries(
@@ -79,7 +79,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
 
 // ── Main setup orchestrator ───────────────────────────────────────────────────
 
-async function runSetup({ supa, vercel, quo }) {
+async function runSetup({ supa, vercel, quo, bbUrl, bbPwd }) {
   const progress   = initProgress();
   const bbSecret   = makeSecret();
   const callSecret = makeSecret();
@@ -93,7 +93,6 @@ async function runSetup({ supa, vercel, quo }) {
     await setStep(progress, 'supa', 'ok', 'phone_calls table ready');
   } catch (err) {
     await setStep(progress, 'supa', 'fail', err.message);
-    // non-fatal — continue
   }
 
   // ── Step 2: Register Quo webhook ────────────────────────────────────────────
@@ -101,7 +100,8 @@ async function runSetup({ supa, vercel, quo }) {
   try {
     quoSecret = await registerQuoWebhook(quo);
     webhookOk = true;
-    await setStep(progress, 'webhook', 'ok', quoSecret ? 'Webhook registered, secret captured' : 'Registered (get secret from Quo dashboard)');
+    await setStep(progress, 'webhook', 'ok',
+      quoSecret ? 'Webhook ready, secret captured' : 'Webhook already registered');
   } catch (err) {
     await setStep(progress, 'webhook', 'fail', `${err.message} — see manual instructions`);
     quoSecret = 'REPLACE_WITH_QUO_SIGNING_SECRET';
@@ -109,19 +109,14 @@ async function runSetup({ supa, vercel, quo }) {
 
   // ── Steps 3-6: Vercel env vars ──────────────────────────────────────────────
   const envVars = [
-    { stepKey: 'v1', key: 'QUO_API_KEY',                value: quo },
-    { stepKey: 'v2', key: 'QUO_WEBHOOK_SECRET',          value: quoSecret },
-    { stepKey: 'v3', key: 'BLUEBUBBLES_WEBHOOK_SECRET',  value: bbSecret },
-    { stepKey: 'v4', key: 'BB_CALL_SECRET',              value: callSecret },
+    { stepKey: 'v1', key: 'QUO_API_KEY',               value: quo },
+    { stepKey: 'v2', key: 'QUO_WEBHOOK_SECRET',         value: quoSecret },
+    { stepKey: 'v3', key: 'BLUEBUBBLES_WEBHOOK_SECRET', value: bbSecret },
+    { stepKey: 'v4', key: 'BB_CALL_SECRET',             value: callSecret },
   ];
 
-  // Fetch Vercel project once (need accountId for team scoping)
   let teamId = null;
-  try {
-    teamId = await getVercelTeamId(vercel);
-  } catch (_) {
-    // proceed without teamId — might still work for personal accounts
-  }
+  try { teamId = await getVercelTeamId(vercel); } catch (_) {}
 
   for (const { stepKey, key, value } of envVars) {
     await setStep(progress, stepKey, 'run');
@@ -131,6 +126,19 @@ async function runSetup({ supa, vercel, quo }) {
     } catch (err) {
       await setStep(progress, stepKey, 'fail', err.message);
     }
+  }
+
+  // ── Step 7: BlueBubbles webhook ─────────────────────────────────────────────
+  if (bbUrl && bbPwd) {
+    await setStep(progress, 'bb', 'run');
+    try {
+      await configureBlueBubblesWebhook(bbUrl, bbPwd, bbSecret);
+      await setStep(progress, 'bb', 'ok', 'Webhook registered on BB Server');
+    } catch (err) {
+      await setStep(progress, 'bb', 'fail', err.message);
+    }
+  } else {
+    await setStep(progress, 'bb', 'skip', 'BB URL/password not provided — skipped');
   }
 
   return { progress, bbSecret, callSecret, webhookOk };
@@ -150,7 +158,6 @@ async function runSupabaseMigration(token) {
       body: JSON.stringify({ query: MIGRATION_SQL }),
     }
   );
-
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     let msg = `Supabase ${res.status}`;
@@ -162,7 +169,19 @@ async function runSupabaseMigration(token) {
 // ── Quo / OpenPhone API ───────────────────────────────────────────────────────
 
 async function registerQuoWebhook(apiKey) {
-  // OpenPhone API — Quo is built on this
+  const targetUrl = `${DASHBOARD_URL}/api/phone/quo-webhook`;
+
+  // Check if the webhook already exists — avoid duplicates
+  const listRes = await fetch('https://api.openphone.com/v1/webhooks', {
+    headers: { 'Authorization': apiKey },
+  });
+  if (listRes.ok) {
+    const listData = await listRes.json();
+    const existing = (listData?.data ?? []).find((w) => w.url === targetUrl);
+    if (existing) return existing?.signingSecret ?? existing?.secret ?? '';
+  }
+
+  // Create it
   const res = await fetch('https://api.openphone.com/v1/webhooks', {
     method: 'POST',
     headers: {
@@ -170,7 +189,7 @@ async function registerQuoWebhook(apiKey) {
       'Content-Type':  'application/json',
     },
     body: JSON.stringify({
-      url: `${DASHBOARD_URL}/api/phone/quo-webhook`,
+      url: targetUrl,
       events: ['call.completed', 'recording.completed', 'message.received', 'message.sent'],
     }),
   });
@@ -183,7 +202,6 @@ async function registerQuoWebhook(apiKey) {
   }
 
   const data = await res.json().catch(() => ({}));
-  // Return signing secret if present in response
   return (
     data?.data?.signingSecret ??
     data?.signingSecret ??
@@ -191,6 +209,52 @@ async function registerQuoWebhook(apiKey) {
     data?.data?.secret ??
     ''
   );
+}
+
+// ── BlueBubbles Server API ────────────────────────────────────────────────────
+
+async function configureBlueBubblesWebhook(bbUrl, bbPassword, secret) {
+  const base = bbUrl.replace(/\/$/, '');
+  const targetUrl = `${DASHBOARD_URL}/api/phone/bb-webhook`;
+
+  // Verify connectivity
+  const pingRes = await fetch(`${base}/api/v1/server/info`, {
+    headers: { 'x-password': bbPassword },
+  });
+  if (!pingRes.ok) {
+    throw new Error(`Cannot reach BB Server (${pingRes.status}) — check URL and password`);
+  }
+
+  // Check for existing webhook to avoid duplicates
+  const listRes = await fetch(`${base}/api/v1/webhook`, {
+    headers: { 'x-password': bbPassword },
+  });
+  if (listRes.ok) {
+    const listData = await listRes.json();
+    const webhooks = listData?.data ?? listData?.webhooks ?? [];
+    if (webhooks.find((w) => w.url === targetUrl)) return; // already set
+  }
+
+  // Register webhook
+  const createRes = await fetch(`${base}/api/v1/webhook`, {
+    method: 'POST',
+    headers: {
+      'x-password':   bbPassword,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      url:               targetUrl,
+      isSubscribedToAll: true,
+      headers:           { 'x-bb-secret': secret },
+    }),
+  });
+
+  if (!createRes.ok) {
+    const body = await createRes.text().catch(() => '');
+    let msg = `BB Server ${createRes.status}`;
+    try { msg = JSON.parse(body)?.error?.message || msg; } catch (_) {}
+    throw new Error(msg);
+  }
 }
 
 // ── Vercel API ────────────────────────────────────────────────────────────────
@@ -202,7 +266,6 @@ async function getVercelTeamId(token) {
   );
   if (!res.ok) return null;
   const data = await res.json();
-  // accountId is team ID if it starts with "team_"
   const id = data?.accountId ?? data?.link?.org ?? null;
   return id?.startsWith('team_') ? id : null;
 }
@@ -210,7 +273,6 @@ async function getVercelTeamId(token) {
 async function upsertVercelEnv(token, teamId, key, value) {
   const qs = teamId ? `?teamId=${teamId}` : '';
 
-  // Try to create first
   const createRes = await fetch(
     `https://api.vercel.com/v10/projects/${VERCEL_PROJECT}/env${qs}`,
     {
@@ -240,7 +302,6 @@ async function upsertVercelEnv(token, teamId, key, value) {
     throw new Error(createBody?.error?.message || `Vercel ${createRes.status}`);
   }
 
-  // Env var exists — list all, find ID, PATCH it
   const listRes = await fetch(
     `https://api.vercel.com/v10/projects/${VERCEL_PROJECT}/env${qs}`,
     { headers: { 'Authorization': `Bearer ${token}` } }

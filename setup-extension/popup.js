@@ -15,10 +15,12 @@ $('btn-run').addEventListener('click', async () => {
   const supa   = $('f-supa').value.trim();
   const vercel = $('f-vercel').value.trim();
   const quo    = $('f-quo').value.trim();
+  const bbUrl  = $('f-bb-url').value.trim();
+  const bbPwd  = $('f-bb-pwd').value.trim();
   const errEl  = $('creds-err');
 
   if (!supa || !vercel || !quo) {
-    errEl.textContent = 'All three fields are required before running setup.';
+    errEl.textContent = 'Fields 1, 2, and 3 are required before running setup.';
     errEl.style.display = 'block';
     return;
   }
@@ -26,9 +28,8 @@ $('btn-run').addEventListener('click', async () => {
   errEl.style.display = 'none';
   showView('v-progress');
 
-  // Tell background to run setup; receive step-by-step updates via storage
   chrome.runtime.sendMessage(
-    { type: 'run-setup', supa, vercel, quo },
+    { type: 'run-setup', supa, vercel, quo, bbUrl, bbPwd },
     (result) => {
       if (chrome.runtime.lastError) {
         showView('v-creds');
@@ -40,13 +41,11 @@ $('btn-run').addEventListener('click', async () => {
     }
   );
 
-  // Poll for progress updates while background runs
   const pollId = setInterval(async () => {
     const s = await chrome.storage.local.get('setupProgress');
     if (s.setupProgress) renderProgress(s.setupProgress);
   }, 300);
 
-  // Clean up poll once result arrives (done in callback above)
   window._pollId = pollId;
 });
 
@@ -54,7 +53,7 @@ $('btn-run').addEventListener('click', async () => {
 
 function renderProgress(steps) {
   for (const [key, state] of Object.entries(steps)) {
-    const iconEl  = $(`s-${key}-icon`);
+    const iconEl   = $(`s-${key}-icon`);
     const detailEl = $(`s-${key}-detail`);
     if (!iconEl) continue;
 
@@ -89,16 +88,24 @@ function renderProgress(steps) {
 function showResults(result) {
   clearInterval(window._pollId);
 
-  // Render final progress state
   if (result.progress) renderProgress(result.progress);
 
-  // Show generated secrets
   $('r-bb-secret').textContent   = result.bbSecret   || '(not set)';
   $('r-call-secret').textContent = result.callSecret || '(not set)';
 
-  // Show manual webhook note if Quo registration failed
+  // Mirror BB secret for the manual fallback note
+  const bbSecretEl2 = $('r-bb-secret-2');
+  if (bbSecretEl2) bbSecretEl2.textContent = result.bbSecret || '';
+
+  // Show manual Quo note if webhook registration failed
   if (!result.webhookOk) {
     $('webhook-manual').style.display = 'block';
+  }
+
+  // Show manual BB note if BB step failed
+  const bbState = result.progress?.bb;
+  if (bbState && bbState.status === 'fail') {
+    $('bb-manual').style.display = 'block';
   }
 
   showView('v-done');
@@ -115,5 +122,4 @@ function copyVal(elId, btn) {
   });
 }
 
-// expose globally for inline onclick
 window.copyVal = copyVal;
