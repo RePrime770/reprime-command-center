@@ -1,7 +1,7 @@
 # RePrime Command Center — Full Handoff Brief
 **Generated:** 2026-04-30 | **For:** Next Claude session — read this entire document before touching any code.
 
-> ⚠ **STOP — read SESSION_HANDOFF_2026-05-03.md FIRST.** It supersedes parts of this document (particularly anything about Google Voice, dashboard color tokens, the 305 line, and the Investors panel UX). This file is still the architectural reference — but the May 3 handoff is the current source of truth for state and what to build next.
+> ⚠ **STOP — read SESSION_HANDOFF_2026-05-04.md FIRST.** It supersedes parts of this document (Google Voice retired, color tokens migrated to Imperial Gold #FFCC33, investor profile slide-in built, BlueBubbles cloud Mac live, Quo + BB webhooks wired, and a dozen other May 3–4 changes). This file is still the architectural reference — but the May 4 handoff is the current source of truth for state and what to build next. The May 3 handoff is now historical.
 
 ---
 
