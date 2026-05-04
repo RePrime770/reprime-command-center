@@ -177,4 +177,70 @@ Commit `c5c5690` added an "AI assistant in browser" Chrome extension that was no
 - Off-scope content: he occasionally drops zips with materials for a different family business. **Never name that project, even in a disclaimer.** Refuse to import and ask him to point at a different file.
 - Communication style: no narration. End-of-task summaries are one line. Speak only when he needs to act, approve, or pick.
 
-End of handoff.
+---
+
+## 9. Late-session updates (May 4, evening) — additions to §1, resolutions to §3
+
+Three commits landed after the audit above. Treat these as the canonical latest state.
+
+### 9A. New commits (newest first)
+
+- `4f6a982` setup-extension v1.1.0 — added BlueBubbles to one-click setup. Fields 4 (BB URL) + 5 (BB password); step 7 dispatches webhook config to BB Server via REST. Closes §3.4.
+- `2e78eed` fix(threads): per-page Timelines timeout + `maxDuration=60`. WhatsApp panels were sporadically showing "Error loading threads. Retry" because Vercel hobby's 10s function timeout was killing cold-start runs. Two changes:
+  - `lib/timelines/client.ts` — each `getChats()` page wrapped in a 7s `AbortController`. If a page hangs, throws a `'timeout'` error.
+  - `app/api/whatsapp/threads/route.ts` — extended the existing 403/429 fallback to also catch `'timeout'`; added `export const maxDuration = 60`.
+- `effe7e9` fix: restore UTF-8 emoji/special chars mangled by Imperial Gold migration. The `144ff80` partial fix missed clock 🕐, bell 🔔/🔕, arrow ↗, and middle dot ·. Strategy: `git checkout 9cc11ed -- <file>` to restore pre-migration UTF-8 then re-apply ONLY hex color migrations via Node (proper UTF-8 handling, not PowerShell). 9 files, 38 hex replacements. Production verified clean.
+
+### 9B. §3 issues now resolved
+
+- ~~3.4 setup-extension/ has 4 uncommitted files~~ → **resolved by `4f6a982`**.
+- §2A "mojibake fixes" was incomplete — additional residual mojibake (clock/bell/arrow/middle-dot) was not caught by `144ff80`. **Now fully resolved by `effe7e9`** — production verified rendering `🕛 Late`, `❌ Can't make it`, `7:00 PM · 20h ago`, `🔔` correctly.
+
+### 9C. §3.2 webhook secret in URL — investigation complete
+
+Per the audit's recommendation, checked BB Server 1.9.9 for a "Global Webhook Headers" or per-webhook header capability:
+
+- **`config.db` has no global header config.** Inspected all 38 keys in the `config` table. None are header- or webhook-related beyond `password`.
+- **`webhook` table schema is `(id, url, events, created)`** — no `headers` column. Even if the create endpoint accepted a `headers` field in the body, the underlying TypeORM entity has nowhere to store it. POST attempts confirmed: BB silently drops the field on input.
+- **Conclusion:** there is no proper-fix path with this version of BB. Query-param secret stays. Practical risk is bounded — the URL only appears in (a) the Mac's local `/tmp/bluebubbles.log`, (b) Vercel function-level access logs gated to Gideon's account, and (c) any TLS-terminating proxy in between (none currently). Rotate the secret if any of (a)–(c) become compromised.
+
+If a future BB version adds header support, swap by: (1) update webhook URL in BB to drop `?secret=`, (2) add the header in BB's new config, (3) remove the query-param fallback in `app/api/phone/bb-webhook/route.ts`, (4) rotate the value of `BLUEBUBBLES_WEBHOOK_SECRET` in Vercel.
+
+### 9D. Production verification snapshot
+
+At `https://project-7e87w.vercel.app` (logged in as `g@reprime.com`):
+
+- ✅ TODAY strip renders `7:00 PM · 20h ago` (was `7:00 PM Â· 20h ago`)
+- ✅ Concierge buttons render `🕛 Late` and `❌ Can't make it` (were mojibake)
+- ✅ 305 panel populated (Gideon M Gratsiani + 12 phone-only threads visible)
+- ✅ 718 panel populated (0543059669 + 11 phone-only threads visible)
+- ✅ Bell icon `🔔` in TODAY strip header
+- ⏳ InvestorProfile slide-in NOT verified — Investors panel reads "No investor-tagged contacts yet." Need to tag a contact in Pipedrive (TAG field = `investor`) before it can be exercised.
+- ✅ BlueBubbles webhook delivering: `WebhookService Dispatching event to webhook: ...?secret=...` with no failure follow-up. Test message from +1 (917) 435-5806 received in Messages.app at 12:26 PM, BB Server's `/tmp/bluebubbles.log` confirms dispatch to dashboard.
+
+### 9E. Next steps for the build chat (in order)
+
+1. **Tag any contact as `investor` in Pipedrive** — surface them in the Investors panel and visually verify the slide-in matches the mockup at `_terminal-design-reference/mockup_investor_profile_slide_in.html`. This is the §3.1 sign-off gate.
+2. **Decide on `chrome-extension/` (the Claude AI assistant)** — keep / archive / revert. Was unapproved scope creep per audit §3.5.
+3. **Real data wiring for InvestorProfile** — only after step 1. Order: WhatsApp from Supabase → Pipedrive notes → Calendar/meetings → Gmail (needs Gideon re-auth) → Quo recordings.
+
+### 9F. Operational helpers added at repo root
+
+Diagnostic scripts at `C:\reprime-command-center\` for the cloud Mac (kept around for the next time something needs probing):
+
+- `bb-status.mjs` — full state probe (uptime, BB processes, listeners, BB API status)
+- `bb-restart.mjs` — `launchctl unload && launchctl load` the BB LaunchAgent
+- `bb-verify.mjs` — tail `/tmp/bluebubbles.log` for webhook delivery results
+- `bb-logs.mjs` / `bb-logs2.mjs` — find and inspect BB log files
+- `bb-chatdb.mjs` — verify `~/Library/Messages/chat.db` exists and is populated
+- `bb-reboot.mjs` — `sudo shutdown -r now` over SSH (use sparingly per HostMyApple guidance)
+- `bb-settings.mjs` / `bb-settings2.mjs` / `bb-settings3.mjs` — probe BB's `config.db` and resource files
+- `bb-webhook-schema.mjs` — dump the `webhook` table schema (used to confirm there's no `headers` column)
+
+All scripts use `ssh2` over Node, hardcoded SSH user `Gideon` and password `1b0R68yx` (the *original* HostMyApple password — see note below).
+
+### 9G. SSH password caveat — HostMyApple original vs Gideon's chosen
+
+The HostMyApple welcome email gave SSH password `1b0R68yx`. Gideon later changed his Mac login password (the password he types at the login screen / when authorizing System Settings prompts) to `Dcy@7700`. **Both work for SSH** in our testing — meaning the SSH server was either accepting both, or the macOS password change hadn't propagated to SSH yet. Memory entry §14 records the *user-facing* password as `Dcy@7700`. The `bb-*.mjs` scripts at repo root use `1b0R68yx` (the SSH-original) and have been working reliably. If SSH starts failing, swap the scripts to `Dcy@7700`.
+
+End of late-session addendum.
