@@ -31,6 +31,8 @@ export interface InvestorRecommendation {
 
 export interface InvestorProfileData {
   id: string
+  /** Pipedrive Person id — used as the foreign key when scheduling reminders, etc. */
+  pipedriveContactId: number | null
   name: string
   phone: string
   email: string | null
@@ -39,6 +41,14 @@ export interface InvestorProfileData {
   lastContactChannel: string | null
   lastContactMessage: string | null
   taggedDaysAgo: number | null
+  /** Tier letter parsed from Pipedrive TAG (`investor-A-principal` → A). */
+  tier: 'A' | 'B' | 'C' | 'D' | null
+  /** Role parsed from Pipedrive TAG. */
+  role: 'principal' | 'connector' | null
+  /** Pipedrive deals associated with this contact (open status). */
+  activeDealsCount: number
+  /** Human-readable last meeting time, e.g. "5d ago" or null. */
+  lastMeetingAgo: string | null
   summary: string | null
   recommendation: InvestorRecommendation | null
   tasks: InvestorTask[]
@@ -59,6 +69,7 @@ export interface InvestorProfileData {
 export const MOCK_INVESTORS: InvestorProfileData[] = [
   {
     id: 'mock-david-cohen',
+    pipedriveContactId: null,
     name: 'David Cohen',
     phone: '+1 (305) 555-0192',
     email: 'david@cohencap.com',
@@ -67,6 +78,10 @@ export const MOCK_INVESTORS: InvestorProfileData[] = [
     lastContactChannel: '2h ago · WhatsApp 305 (inbound)',
     lastContactMessage: '"Sounds good, see you Tuesday at 9"',
     taggedDaysAgo: 14,
+    tier: 'A',
+    role: 'principal',
+    activeDealsCount: 2,
+    lastMeetingAgo: '5d ago',
     summary:
       'David runs Cohen Capital. He has $40 million to invest in Florida real estate.\n\n' +
       'He likes two of your deals right now:\n' +
@@ -138,6 +153,7 @@ export const MOCK_INVESTORS: InvestorProfileData[] = [
   },
   {
     id: 'mock-mendy-tuitou',
+    pipedriveContactId: null,
     name: 'Mendy Tuitou',
     phone: '+1 (305) 555-0137',
     email: 'mendy@tuitougroup.com',
@@ -146,6 +162,10 @@ export const MOCK_INVESTORS: InvestorProfileData[] = [
     lastContactChannel: '3h ago · WhatsApp 305 (inbound)',
     lastContactMessage: '"Got the term sheet, will review tonight"',
     taggedDaysAgo: 30,
+    tier: 'B',
+    role: 'principal',
+    activeDealsCount: 1,
+    lastMeetingAgo: 'No meetings yet',
     summary:
       'Mendy is your main connector in the Sephardic community. He has introduced you to at least 4 investors including David Cohen.\n\n' +
       'He is interested in 500 Bailey at $2.5M. He reviewed the term sheet today.\n\n' +
@@ -188,6 +208,7 @@ export const MOCK_INVESTORS: InvestorProfileData[] = [
   },
   {
     id: 'mock-levi-biton',
+    pipedriveContactId: null,
     name: 'Levi Izhak Biton',
     phone: '+1 (718) 555-0281',
     email: null,
@@ -196,6 +217,10 @@ export const MOCK_INVESTORS: InvestorProfileData[] = [
     lastContactChannel: '5 days ago · WhatsApp 718 (outbound)',
     lastContactMessage: '"Let\'s talk Q3 — I have a window opening up"',
     taggedDaysAgo: 45,
+    tier: 'D',
+    role: 'principal',
+    activeDealsCount: 0,
+    lastMeetingAgo: 'No meetings yet',
     summary:
       'Levi is a private investor from Brooklyn. He said he will have capital available in Q3 2026.\n\n' +
       'No specific deal has been pitched yet. He expressed general interest in commercial Florida real estate.\n\n' +
@@ -240,6 +265,56 @@ export function mockProfileForName(name: string | null): InvestorProfileData {
   return MOCK_INVESTORS[0]
 }
 
+/**
+ * Build a profile from a real DashboardThread row (e.g. a stub investor with
+ * just a Pipedrive id, name, and tier). Falls back to a matching mock if the
+ * name happens to match (for David / Mendy / Levi narratives), otherwise
+ * returns a minimal real-data record so the panel can render.
+ */
+export function profileFromThread(thread: {
+  contact_name: string | null
+  phone: string
+  pipedrive_contact_id: number | null
+  investor_tier: 'A' | 'B' | 'C' | 'D' | null
+  investor_role: 'principal' | 'connector' | null
+}): InvestorProfileData {
+  // If we have a matching mock by name, prefer its rich content but graft real ids/tier.
+  const mock = thread.contact_name
+    ? MOCK_INVESTORS.find((m) => m.name.toLowerCase() === thread.contact_name!.toLowerCase())
+    : null
+  if (mock) {
+    return {
+      ...mock,
+      pipedriveContactId: thread.pipedrive_contact_id ?? mock.pipedriveContactId,
+      tier: thread.investor_tier ?? mock.tier,
+      role: thread.investor_role ?? mock.role,
+    }
+  }
+  // Real stub — minimal record with no AI summary or recommendation yet.
+  return {
+    id: `pipedrive:${thread.pipedrive_contact_id ?? 'unknown'}`,
+    pipedriveContactId: thread.pipedrive_contact_id,
+    name: thread.contact_name || thread.phone || 'Unknown',
+    phone: thread.phone,
+    email: null,
+    company: null,
+    lastContactAt: null,
+    lastContactChannel: null,
+    lastContactMessage: null,
+    taggedDaysAgo: null,
+    tier: thread.investor_tier,
+    role: thread.investor_role,
+    activeDealsCount: 0,
+    lastMeetingAgo: null,
+    summary: null,
+    recommendation: null,
+    tasks: [],
+    notes: '',
+    timeline: [],
+    tabCounts: { timeline: 0, emails: 0, whatsapp: 0, calls: 0, meetings: 0, tasks: 0 },
+  }
+}
+
 // ── Styles (inline constants) ─────────────────────────────────────────────────
 
 const TEXT = '#F5EFD8'
@@ -266,14 +341,19 @@ export default function InvestorProfile({ data, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('timeline')
   const [timelineOpen, setTimelineOpen] = useState(false)
   const [notes, setNotes] = useState(data.notes)
+  const [reminderOpen, setReminderOpen] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        if (reminderOpen) setReminderOpen(false)
+        else onClose()
+      }
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [onClose])
+  }, [onClose, reminderOpen])
 
   useEffect(() => {
     setNotes(data.notes)
@@ -281,8 +361,21 @@ export default function InvestorProfile({ data, onClose }: Props) {
     setTimelineOpen(false)
   }, [data.id, data.notes])
 
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3500)
+    return () => clearTimeout(t)
+  }, [toast])
+
   const openTasks = data.tasks.filter((t) => t.status === 'open').length
   const doneTasks = data.tasks.filter((t) => t.status === 'done').length
+
+  const openReminder = () => setReminderOpen(true)
+  const onReminderSaved = (when: string) => {
+    setReminderOpen(false)
+    setToast(`Reminder set for ${when}.`)
+  }
 
   const panel = (
     <>
@@ -345,62 +438,129 @@ export default function InvestorProfile({ data, onClose }: Props) {
             ✕
           </button>
 
-          <div
-            style={{
-              display: 'inline-block',
-              fontSize: 9,
-              letterSpacing: '0.30em',
-              color: GOLD,
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              border: `0.5px solid ${GOLD}`,
-              padding: '3px 10px',
-              marginBottom: 12,
-            }}
-          >
-            ★ Investor
+          {/* Top row: name + tier badge */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24, paddingRight: 56 /* room for ✕ button */ }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  display: 'inline-block',
+                  fontSize: 9,
+                  letterSpacing: '0.30em',
+                  color: GOLD,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  border: `0.5px solid ${GOLD}`,
+                  padding: '3px 10px',
+                  marginBottom: 12,
+                }}
+              >
+                ★ Investor
+              </div>
+
+              <div
+                style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: 44,
+                  color: GOLD,
+                  fontWeight: 600,
+                  lineHeight: 1,
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                {data.name}
+              </div>
+
+              <div
+                style={{
+                  fontSize: 12,
+                  color: 'rgba(255,255,255,0.65)',
+                  marginTop: 8,
+                  display: 'flex',
+                  gap: 18,
+                  flexWrap: 'wrap',
+                }}
+              >
+                {data.phone && <span>📞 {data.phone}</span>}
+                {data.email && <span>✉ {data.email}</span>}
+                {data.company && <span>🏢 {data.company}</span>}
+              </div>
+            </div>
+
+            {/* Tier badge — large pill */}
+            {(data.tier || data.role) && (
+              <div
+                style={{
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  border: `1px solid ${GOLD}`,
+                  background: 'transparent',
+                  color: GOLD,
+                  padding: '8px 16px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: '0.18em',
+                  textTransform: 'uppercase',
+                  borderRadius: 999,
+                }}
+                aria-label="Investor tier"
+              >
+                {data.tier ? `Tier ${data.tier}` : 'Tier ?'}
+                <span style={{ opacity: 0.55, fontWeight: 400 }}>·</span>
+                {data.role ?? 'Investor'}
+              </div>
+            )}
           </div>
 
+          {/* Stats row — three blocks side by side */}
           <div
             style={{
-              fontFamily: "'Playfair Display', serif",
-              fontSize: 44,
-              color: GOLD,
-              fontWeight: 600,
-              lineHeight: 1,
-              letterSpacing: '-0.01em',
+              marginTop: 18,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: 12,
             }}
           >
-            {data.name}
+            <StatBlock
+              label="Active deals"
+              value={
+                data.activeDealsCount > 0
+                  ? `${data.activeDealsCount} active deal${data.activeDealsCount === 1 ? '' : 's'}`
+                  : 'No open deals'
+              }
+            />
+            <StatBlock label="Last meeting" value={data.lastMeetingAgo ?? 'No meetings yet'} />
+            <StatBlock
+              label="Tagged"
+              value={
+                data.taggedDaysAgo === null
+                  ? 'Newly tagged'
+                  : data.taggedDaysAgo === 0
+                  ? 'Today'
+                  : `${data.taggedDaysAgo} day${data.taggedDaysAgo === 1 ? '' : 's'} ago`
+              }
+            />
           </div>
 
+          {/* Header Quick Actions — three big buttons */}
           <div
             style={{
-              fontSize: 12,
-              color: 'rgba(255,255,255,0.65)',
-              marginTop: 8,
-              display: 'flex',
-              gap: 18,
-              flexWrap: 'wrap',
+              marginTop: 16,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: 8,
             }}
           >
-            {data.phone && <span>📞 {data.phone}</span>}
-            {data.email && <span>✉ {data.email}</span>}
-            {data.company && <span>🏢 {data.company}</span>}
-            {data.lastContactChannel && (
-              <span>
-                Last contact{' '}
-                <b style={{ color: `rgba(255,204,51,0.85)` }}>
-                  {data.lastContactChannel.split('·')[0]?.trim() ?? 'recently'}
-                </b>
-              </span>
-            )}
-            {data.taggedDaysAgo !== null && (
-              <span>
-                Tagged investor{' '}
-                <b style={{ color: `rgba(255,204,51,0.85)` }}>{data.taggedDaysAgo} days ago</b>
-              </span>
-            )}
+            <HeaderActionButton
+              label="💬 WhatsApp"
+              onClick={() => setToast('Opening WhatsApp — ' + data.name + '…')}
+            />
+            <HeaderActionButton
+              label="📞 Call"
+              onClick={() => setToast('Calling ' + data.name + '…')}
+            />
+            <HeaderActionButton label="📅 Schedule" onClick={openReminder} />
           </div>
         </div>
 
@@ -615,9 +775,17 @@ export default function InvestorProfile({ data, onClose }: Props) {
                 {data.recommendation.actions.map((a, i) => {
                   const isPrimary = a.variant === 'primary'
                   const isSecondary = a.variant === 'secondary'
+                  const isReminder = /reminder/i.test(a.label)
+                  const isWait = /^wait/i.test(a.label)
+                  const onClick = isReminder
+                    ? openReminder
+                    : isWait
+                    ? () => setToast('No action queued. Recommendation parked.')
+                    : () => setToast(`Action: ${a.label}`)
                   return (
                     <button
                       key={i}
+                      onClick={onClick}
                       style={{
                         background: isPrimary ? GOLD : 'transparent',
                         color: isPrimary ? NAVY : isSecondary ? GOLD : gold[55],
@@ -896,14 +1064,22 @@ export default function InvestorProfile({ data, onClose }: Props) {
             </span>
           </div>
           <textarea
+            className="rp-investor-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = GOLD
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(255, 204, 51, 0.25)'
+            }}
             placeholder={`Type your own notes about ${data.name.split(' ')[0]} here. Auto-saves as you type.`}
             style={{
               width: '100%',
               minHeight: 100,
-              background: 'rgba(255,255,255,0.04)',
-              border: `0.5px solid ${gold[35]}`,
+              // Faint gold tint on dark backdrop — readable on the navy panel
+              background: 'rgba(255, 204, 51, 0.04)',
+              border: '1px solid rgba(255, 204, 51, 0.25)',
               color: GOLD,
               padding: '12px 14px',
               fontFamily: "'Poppins', sans-serif",
@@ -912,6 +1088,7 @@ export default function InvestorProfile({ data, onClose }: Props) {
               resize: 'vertical',
               outline: 'none',
               boxSizing: 'border-box',
+              caretColor: GOLD,
             }}
           />
         </div>
@@ -1000,9 +1177,349 @@ export default function InvestorProfile({ data, onClose }: Props) {
           )}
         </div>
       </div>
+
+      {reminderOpen && (
+        <ScheduleReminderModal
+          contactId={data.pipedriveContactId}
+          contactName={data.name}
+          onClose={() => setReminderOpen(false)}
+          onSaved={onReminderSaved}
+        />
+      )}
+      {toast && <Toast text={toast} onDismiss={() => setToast(null)} />}
     </>
   )
 
   if (typeof document === 'undefined') return null
   return createPortal(panel, document.body)
+}
+
+// ── Header sub-components ─────────────────────────────────────────────────────
+
+function StatBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        background: 'rgba(0,0,0,0.25)',
+        border: `0.5px solid ${gold[18]}`,
+        padding: '10px 14px',
+      }}
+    >
+      <div
+        style={{
+          fontSize: 9,
+          letterSpacing: '0.20em',
+          color: gold[55],
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 13, color: GOLD, fontWeight: 600, lineHeight: 1.3 }}>
+        {value}
+      </div>
+    </div>
+  )
+}
+
+function HeaderActionButton({
+  label,
+  onClick,
+}: {
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: 'transparent',
+        border: `0.5px solid ${gold[45]}`,
+        color: GOLD,
+        padding: '12px 14px',
+        fontFamily: "'Poppins', sans-serif",
+        fontSize: 12,
+        fontWeight: 600,
+        letterSpacing: '0.10em',
+        textTransform: 'uppercase',
+        cursor: 'pointer',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = 'rgba(255,204,51,0.10)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'transparent'
+      }}
+    >
+      {label}
+    </button>
+  )
+}
+
+// ── Schedule Reminder Modal ───────────────────────────────────────────────────
+
+function ScheduleReminderModal({
+  contactId,
+  contactName,
+  onClose,
+  onSaved,
+}: {
+  contactId: number | null
+  contactName: string
+  onClose: () => void
+  onSaved: (when: string) => void
+}) {
+  // Default to tomorrow 9 AM local
+  const tomorrow9 = new Date()
+  tomorrow9.setDate(tomorrow9.getDate() + 1)
+  tomorrow9.setHours(9, 0, 0, 0)
+  const defaultDate = tomorrow9.toISOString().slice(0, 10)
+  const defaultTime = '09:00'
+
+  const [date, setDate] = useState(defaultDate)
+  const [time, setTime] = useState(defaultTime)
+  const [note, setNote] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const submit = async () => {
+    setError(null)
+    if (!date || !time) {
+      setError('Pick a date and time.')
+      return
+    }
+    if (contactId == null) {
+      // Mock contacts (no Pipedrive id) — just show the toast without writing
+      onSaved(`${date} at ${time}`)
+      return
+    }
+    setSubmitting(true)
+    try {
+      const remindAt = new Date(`${date}T${time}:00`).toISOString()
+      const r = await fetch('/api/investors/reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pipedrive_contact_id: contactId,
+          contact_name: contactName,
+          remind_at: remindAt,
+          note: note.trim() || undefined,
+        }),
+      })
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}))
+        setError(j?.detail || j?.error || `Server returned ${r.status}`)
+        setSubmitting(false)
+        return
+      }
+      onSaved(`${date} at ${time}`)
+    } catch (err) {
+      setError((err as Error).message)
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.6)',
+        zIndex: 220,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: "'Poppins', sans-serif",
+      }}
+    >
+      <div
+        style={{
+          width: 440,
+          maxWidth: 'calc(100vw - 32px)',
+          background: NAVY,
+          border: `1px solid ${GOLD}`,
+          color: '#F5EFD8',
+          padding: 28,
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Schedule reminder"
+      >
+        <div
+          style={{
+            fontSize: 11,
+            letterSpacing: '0.30em',
+            color: GOLD,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            marginBottom: 6,
+          }}
+        >
+          📅 Schedule Reminder
+        </div>
+        <div style={{ fontSize: 16, color: GOLD, fontWeight: 600, marginBottom: 14 }}>
+          Reminder for {contactName}
+        </div>
+
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: gold[55], marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.10em' }}>
+            Date
+          </div>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              background: 'rgba(255,204,51,0.04)',
+              border: `1px solid ${gold[35]}`,
+              color: GOLD,
+              fontFamily: 'inherit',
+              fontSize: 14,
+              outline: 'none',
+            }}
+          />
+        </label>
+
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: gold[55], marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.10em' }}>
+            Time
+          </div>
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              background: 'rgba(255,204,51,0.04)',
+              border: `1px solid ${gold[35]}`,
+              color: GOLD,
+              fontFamily: 'inherit',
+              fontSize: 14,
+              outline: 'none',
+            }}
+          />
+        </label>
+
+        <label style={{ display: 'block', marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: gold[55], marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.10em' }}>
+            Note <span style={{ opacity: 0.6 }}>(optional)</span>
+          </div>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={`e.g. "Follow up on Q3 capital window"`}
+            className="rp-investor-notes"
+            style={{
+              width: '100%',
+              minHeight: 70,
+              padding: '10px 12px',
+              background: 'rgba(255,204,51,0.04)',
+              border: `1px solid ${gold[35]}`,
+              color: GOLD,
+              fontFamily: 'inherit',
+              fontSize: 13,
+              lineHeight: 1.5,
+              resize: 'vertical',
+              outline: 'none',
+              boxSizing: 'border-box',
+              caretColor: GOLD,
+            }}
+          />
+        </label>
+
+        {error && (
+          <div
+            style={{
+              fontSize: 12,
+              color: '#ff8b8b',
+              marginBottom: 12,
+              padding: '8px 12px',
+              background: 'rgba(255,107,107,0.10)',
+              border: '0.5px solid rgba(255,107,107,0.40)',
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            style={{
+              background: 'transparent',
+              border: `0.5px solid ${gold[45]}`,
+              color: gold[55],
+              padding: '10px 18px',
+              fontFamily: 'inherit',
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: '0.10em',
+              textTransform: 'uppercase',
+              cursor: submitting ? 'wait' : 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={submitting}
+            style={{
+              background: GOLD,
+              border: 'none',
+              color: NAVY,
+              padding: '10px 18px',
+              fontFamily: 'inherit',
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.10em',
+              textTransform: 'uppercase',
+              cursor: submitting ? 'wait' : 'pointer',
+              opacity: submitting ? 0.6 : 1,
+            }}
+          >
+            {submitting ? 'Saving…' : 'Set Reminder'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+
+function Toast({ text, onDismiss }: { text: string; onDismiss: () => void }) {
+  return (
+    <div
+      onClick={onDismiss}
+      style={{
+        position: 'fixed',
+        bottom: 32,
+        right: 32,
+        zIndex: 230,
+        background: NAVY,
+        border: `1px solid ${GOLD}`,
+        color: GOLD,
+        padding: '14px 22px',
+        fontFamily: "'Poppins', sans-serif",
+        fontSize: 13,
+        fontWeight: 600,
+        letterSpacing: '0.04em',
+        cursor: 'pointer',
+        boxShadow: '0 4px 18px rgba(0,0,0,0.5)',
+        maxWidth: 360,
+      }}
+      role="status"
+    >
+      {text}
+    </div>
+  )
 }

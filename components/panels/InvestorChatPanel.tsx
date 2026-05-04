@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { formatPhoneDisplay } from '@/lib/timelines/parse'
 import MessageView from '@/components/chat/MessageView'
 import ReplyBox from '@/components/chat/ReplyBox'
-import InvestorProfile, { mockProfileForName } from '@/components/panels/InvestorProfile'
+import InvestorProfile, { profileFromThread } from '@/components/panels/InvestorProfile'
 import type { DashboardMessage, DashboardThread } from '@/lib/timelines/types'
 
 // ── Theme ────────────────────────────────────────────────────────────────────
@@ -473,7 +473,13 @@ export default function InvestorChatPanel() {
 
       {profileOpen && selected && (
         <InvestorProfile
-          data={mockProfileForName(selected.contact_name)}
+          data={profileFromThread({
+            contact_name: selected.contact_name,
+            phone: selected.phone,
+            pipedrive_contact_id: selected.pipedrive_contact_id,
+            investor_tier: selected.investor_tier ?? null,
+            investor_role: selected.investor_role ?? null,
+          })}
           onClose={() => setProfileOpen(false)}
         />
       )}

@@ -44,3 +44,9 @@
 html, body { margin: 0; padding: 0; height: 100%; }
 body { font-family: 'Poppins', Arial, sans-serif; }
 [lang="he"], [dir="rtl"] { direction: rtl; }
+
+/* InvestorProfile — readable notes textarea (faint gold on navy) */
+.rp-investor-notes::placeholder {
+  color: rgba(255, 204, 51, 0.4);
+  font-style: italic;
+}
