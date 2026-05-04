@@ -97,8 +97,8 @@ The Apple ID popup showed "Some Features Are Unavailable" on first sign-in — A
 ### 3.4 setup-extension/ has 4 uncommitted files
 `background.js`, `manifest.json`, `popup.html`, `popup.js`. They are outside the `dashboard/` git scope (they sit at `C:\reprime-command-center\setup-extension\`). Status of those changes is unclear. Either commit with a clear message explaining the change, or revert. Do not leave dangling.
 
-### 3.5 RePrime Claude Chrome extension — scope creep
-Commit `c5c5690` added an "AI assistant in browser" Chrome extension that was not in any track Gideon approved. Setup and Call Sync extensions are defensibly part of Track G ops. The Claude extension is not. **Decide before any further work:** keep, archive to `legacy/`, or revert.
+### 3.5 RePrime Claude Chrome extension — RESOLVED, archived
+~~Commit `c5c5690` added an "AI assistant in browser" Chrome extension that was not in any track Gideon approved.~~ Architect call (May 4 evening): **archive, don't ship.** Moved from `chrome-extension/` to `legacy/chrome-extension-claude-assistant/`. Work preserved, not built or shipped. Setup and Call Sync extensions stay (both defensible Track G ops).
 
 ### 3.6 The 3 locked recipient HTML pages
 `Page1_Base_Email.html`, `Page2_Confirmation.html`, `Page3_Choose_Time.html` are still on the **pre-migration legacy gold palette** by Gideon's instruction (we'd update them in a separate pass after dashboard validation). When Gideon greenlights, migrate to Imperial Gold (`#FFCC33`) per `_terminal-design-reference/brand/CLAUDE_CODE_MIGRATION_BRIEF.md`.
