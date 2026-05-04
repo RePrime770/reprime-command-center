@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { createClient } from '@/lib/supabase/client'
+import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { formatPhoneDisplay } from '@/lib/timelines/parse'
 import type { DashboardThread, Panel } from '@/lib/timelines/types'
 
@@ -83,48 +82,10 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
       const json = (await res.json()) as { threads: DashboardThread[] }
       return json.threads
     },
+    refetchInterval: 30_000,
     refetchOnWindowFocus: false,
     staleTime: 30_000,
   })
-
-  const queryClient = useQueryClient()
-
-  useEffect(() => {
-    const supabase = createClient()
-    const channel = supabase
-      .channel(`threads-${panel}`)
-      .on(
-        'postgres_changes',
-        {
-          // INSERT only — '*' causes an infinite loop because the threads
-          // GET endpoint itself upserts (UPDATE) on every call, which fires
-          // realtime → invalidates → refetches → upserts again → ∞
-          event: 'INSERT',
-          schema: 'public',
-          table: 'whatsapp_threads',
-          filter: `panel=eq.${panel}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['threads', panel] })
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' },
-        (payload: any) => {
-          if (payload.new?.thread_id) {
-            queryClient.invalidateQueries({
-              queryKey: ['messages', payload.new.thread_id],
-            })
-          }
-          queryClient.invalidateQueries({ queryKey: ['threads', panel] })
-        }
-      )
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [panel, queryClient])
 
   const threads = useMemo<DashboardThread[]>(() => {
     let list = data || []

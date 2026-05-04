@@ -1,8 +1,6 @@
 'use client'
 
-import { useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { createClient } from '@/lib/supabase/client'
 import type { ChannelType, Panel } from '@/lib/timelines/types'
 
 type InvestorMessage = {
@@ -70,8 +68,6 @@ function channelLabel(channel: ChannelType, panel: Panel): string {
 }
 
 export default function InvestorPanel({ onJump }: Props) {
-  const supabase = useMemo(() => createClient(), [])
-
   const { data, refetch, isLoading, error, isFetching } = useQuery({
     queryKey: ['investor-threads'],
     queryFn: async (): Promise<InvestorGroup[]> => {
@@ -84,29 +80,6 @@ export default function InvestorPanel({ onJump }: Props) {
     refetchOnWindowFocus: false,
     staleTime: 15_000,
   })
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('investor-panel:whatsapp_messages')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'whatsapp_messages' },
-        () => {
-          refetch()
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'thread_tags' },
-        () => {
-          refetch()
-        }
-      )
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [supabase, refetch])
 
   const groups = data || []
   const totalContacts = groups.length
