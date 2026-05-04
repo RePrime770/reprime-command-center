@@ -11,7 +11,11 @@ export const dynamic = 'force-dynamic'
 function verifySecret(request: NextRequest): boolean {
   const secret = process.env.BLUEBUBBLES_WEBHOOK_SECRET
   if (!secret) return true // not configured — allow (dev mode)
-  return request.headers.get('x-bb-secret') === secret
+  // BlueBubbles doesn't support custom headers via its webhook API,
+  // so accept the secret via either x-bb-secret header OR ?secret=XXX query param.
+  const headerSecret = request.headers.get('x-bb-secret')
+  const querySecret = request.nextUrl.searchParams.get('secret')
+  return headerSecret === secret || querySecret === secret
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
