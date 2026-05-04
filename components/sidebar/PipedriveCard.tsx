@@ -333,7 +333,7 @@ export default function PipedriveCard({
                 }}
               >
                 <div style={{ color: theme.muted, fontSize: 11 }}>
-                  {fmtActivityDate(a)} Â· {a.type}
+                  {fmtActivityDate(a)} · {a.type}
                 </div>
                 <div style={{ color: theme.text, wordBreak: 'break-word' }}>
                   {a.subject || '(no subject)'}
@@ -380,7 +380,7 @@ export default function PipedriveCard({
               (invite.view_count ?? 0) > 0 ? (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
                   <span style={{ color: theme.muted }}>
-                    Opened {invite.view_count}Ã—
+                    Opened {invite.view_count}×
                   </span>
                   <span style={{ color: theme.text }}>{relativeTimeShort(invite.last_opened_at)}</span>
                 </div>
@@ -422,7 +422,7 @@ export default function PipedriveCard({
                     letterSpacing: 0.3,
                   }}
                 >
-                  {(invite.view_count ?? 0) > 0 ? '⏳ Opened Â· Not scheduled' : '⏳ Pending'}
+                  {(invite.view_count ?? 0) > 0 ? '⏳ Opened · Not scheduled' : '⏳ Pending'}
                 </span>
               )}
               {invite.status === 'expired' && (
@@ -470,10 +470,10 @@ export default function PipedriveCard({
         >
           Notes from Dashboard
           {saveNote.isPending && (
-            <span style={{ color: theme.muted, marginLeft: 6, fontWeight: 400 }}>Â· saving…</span>
+            <span style={{ color: theme.muted, marginLeft: 6, fontWeight: 400 }}>· saving…</span>
           )}
           {saveNote.isError && (
-            <span style={{ color: 'var(--rp-red)', marginLeft: 6, fontWeight: 400 }}>Â· save failed</span>
+            <span style={{ color: 'var(--rp-red)', marginLeft: 6, fontWeight: 400 }}>· save failed</span>
           )}
         </h3>
         <textarea

@@ -23,7 +23,7 @@ export function buildGeneralMeetingEmail(p: GeneralMeetingParams): { subject: st
     <tr><td align="center" style="padding:2rem 1rem;">
       <table width="100%" style="max-width:600px; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
         <tr><td style="background:#0E3470; padding:1.75rem 2rem; border-bottom:3px solid #FFCC33;">
-          <span style="color:#FFCC33; letter-spacing:0.1em; font-size:0.8rem; text-transform:uppercase;">RePrime Group Â· Meeting Request</span>
+          <span style="color:#FFCC33; letter-spacing:0.1em; font-size:0.8rem; text-transform:uppercase;">RePrime Group · Meeting Request</span>
         </td></tr>
         ${personalSection}
         <tr><td style="padding:2.5rem 2rem;">

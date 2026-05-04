@@ -86,17 +86,17 @@ function pageHtml(opts: {
         : `<p style="color:#FFCC33;font-size:1rem;line-height:1.7;margin:0 0 2rem;">${message || 'If you think this is in error, reply to the original email and I\'ll sort it out.'}</p>`
 
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RePrime Group Â· Terminal</title></head>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RePrime Group · Terminal</title></head>
 <body style="margin:0;padding:0;background:#0E3470;color:#fff;font-family:'Poppins',Arial,sans-serif;">
   <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;">
     <div style="max-width:560px;width:100%;">
       <header style="border-bottom:1px solid rgba(14, 52, 112, 0.70);padding-bottom:1.5rem;display:flex;align-items:center;gap:1rem;margin-bottom:3rem;">
-        <span style="color:#FFCC33;letter-spacing:0.1em;font-size:0.85rem;text-transform:uppercase;">RePrime Group Â· Terminal Introduction</span>
+        <span style="color:#FFCC33;letter-spacing:0.1em;font-size:0.85rem;text-transform:uppercase;">RePrime Group · Terminal Introduction</span>
       </header>
       <h1 style="color:#FFCC33;font-size:1.85rem;font-weight:600;margin:0 0 1.5rem;">${heading}</h1>
       ${body}
       <p style="margin-top:3rem;color:#8A8680;font-size:0.85rem;border-top:1px solid rgba(14, 52, 112, 0.70);padding-top:1.5rem;">
-        Gideon Gratsiani Â· Founder, RePrime Group
+        Gideon Gratsiani · Founder, RePrime Group
       </p>
     </div>
   </main>
@@ -343,7 +343,7 @@ export async function POST(request: Request) {
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:2rem 1rem;">
 <table width="100%" style="max-width:600px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
 <tr><td style="background:#0E3470;padding:1.75rem 2rem;border-bottom:3px solid #FFCC33;">
-<span style="color:#FFCC33;letter-spacing:0.1em;font-size:0.8rem;text-transform:uppercase;">RePrime Group Â· Terminal Confirmed</span>
+<span style="color:#FFCC33;letter-spacing:0.1em;font-size:0.8rem;text-transform:uppercase;">RePrime Group · Terminal Confirmed</span>
 </td></tr>
 <tr><td style="padding:2.5rem 2rem;">
 <p style="color:#1F1D1A;font-size:1.05rem;margin:0 0 1.25rem;">${firstName},</p>
@@ -370,7 +370,7 @@ Founder, RePrime Group`
         to: inv.contact_email,
         from: FROM_EMAIL,
         replyTo: REPLY_TO,
-        subject: `Confirmed — Terminal Introduction Â· ${slot.display}`,
+        subject: `Confirmed — Terminal Introduction · ${slot.display}`,
         html,
         text,
         attachments: [

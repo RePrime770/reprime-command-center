@@ -320,9 +320,9 @@ export default function NotesPanel() {
         return
       }
       const r = json as BulkResult
-      const errSnippet = r.errors.length > 0 ? ` Â· ${r.errors.length} errors` : ''
+      const errSnippet = r.errors.length > 0 ? ` · ${r.errors.length} errors` : ''
       showToast({
-        text: `Processed ${r.processed} Â· tagged ${r.tagged} Â· created ${r.created}${errSnippet}`,
+        text: `Processed ${r.processed} · tagged ${r.tagged} · created ${r.created}${errSnippet}`,
         kind: r.errors.length > 0 ? 'err' : 'ok',
       })
     } catch (err) {
@@ -419,7 +419,7 @@ export default function NotesPanel() {
           + New
         </button>
         <button type="button" onClick={handleBulkUploadClick} style={btnGhost} title="Bulk tag upload (CSV)">
-          ðŸ“¤ Bulk Tag Upload
+          📤 Bulk Tag Upload
         </button>
         <input
           ref={fileInputRef}
@@ -429,7 +429,7 @@ export default function NotesPanel() {
           onChange={handleBulkFile}
         />
         <button type="button" onClick={() => setOpen(false)} style={btnGhost} aria-label="Close">
-          Ã—
+          ×
         </button>
       </header>
 
@@ -504,7 +504,7 @@ export default function NotesPanel() {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {n.is_pinned && <span style={{ color: 'var(--rp-gold)' }}>ðŸ“Œ</span>}
+                  {n.is_pinned && <span style={{ color: 'var(--rp-gold)' }}>📌</span>}
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.title}</span>
                 </div>
                 <div
@@ -594,7 +594,7 @@ export default function NotesPanel() {
                     fontWeight: 600,
                   }}
                 >
-                  Read-only Â· {selected.title}
+                  Read-only · {selected.title}
                 </div>
               )}
 

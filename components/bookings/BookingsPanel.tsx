@@ -62,7 +62,7 @@ const MEETING_CONFIG = {
   terminal: {
     symbol: 'T',
     label: 'Terminal Introduction',
-    tagline: 'RePrime Group Â· Terminal Introduction',
+    tagline: 'RePrime Group · Terminal Introduction',
     previewEmail: (firstName: string) =>
       `${firstName},\n\nI'm hosting a Terminal Introduction — a deal sourcing system unlike anything that exists. Built to surface and close opportunities at a different level.\n\n30 minutes to show you what it is.\n\nPick a time: [booking link — inserted on send]\n\n—\nGideon Gratsiani\nFounder, RePrime Group`,
     previewWhatsApp: (firstName: string) =>
@@ -70,9 +70,9 @@ const MEETING_CONFIG = {
     emailSubject: (firstName: string) => `Terminal Introduction — ${firstName}`,
   },
   meeting: {
-    symbol: 'Â·',
+    symbol: '·',
     label: 'General Meeting',
-    tagline: 'RePrime Group Â· Meeting Request',
+    tagline: 'RePrime Group · Meeting Request',
     previewEmail: (firstName: string) =>
       `${firstName},\n\nI'd value some time with you — thirty minutes, your schedule.\n\nPick what works and I'll be there:\n[booking link — inserted on send]\n\n—\nGideon Gratsiani\nFounder, RePrime Group`,
     previewWhatsApp: (firstName: string) =>
@@ -299,7 +299,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
         setToast(`Sent via ${sent.join(', ')}. ${errs.length} channel(s) failed.`)
         setToastIsError(false)
       } else {
-        setToast(`No channels sent. ${errs.map((e) => `${e.channel}: ${e.message}`).join(' Â· ')}`)
+        setToast(`No channels sent. ${errs.map((e) => `${e.channel}: ${e.message}`).join(' · ')}`)
         setToastIsError(true)
       }
     } catch (err) {
@@ -365,7 +365,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
           <button type="button" onClick={() => setView('compose')} style={tabBtn(view === 'compose')}>Compose</button>
           <button type="button" onClick={() => setView('status')} style={tabBtn(view === 'status')}>Status</button>
           {onClose && (
-            <button type="button" onClick={onClose} style={{ ...tabBtn(false), border: 'none', background: 'transparent' }}>âœ•</button>
+            <button type="button" onClick={onClose} style={{ ...tabBtn(false), border: 'none', background: 'transparent' }}>✕</button>
           )}
         </div>
       </header>
@@ -380,7 +380,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
                 Terminal Introduction
               </button>
               <button type="button" onClick={() => setMeetingType('meeting')} style={typeBtn(meetingType === 'meeting')}>
-                Â· General Meeting
+                · General Meeting
               </button>
             </div>
           </section>
@@ -393,7 +393,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
                 <div>
                   <div style={{ color: TEXT, fontSize: '0.95rem' }}>{contact.name}</div>
                   <div style={{ color: MUTED, fontSize: '0.8rem' }}>
-                    {[contact.emails?.[0], contact.phones?.[0]].filter(Boolean).join(' Â· ') || '—'}
+                    {[contact.emails?.[0], contact.phones?.[0]].filter(Boolean).join(' · ') || '—'}
                   </div>
                 </div>
                 <button type="button" onClick={() => { setContact(null); setQuery(''); setChannelHint(null); setChannels(new Set(DEFAULT_CHANNELS)); setPersonalMessage('') }} style={ghostBtn}>
@@ -420,7 +420,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
                         >
                           <div style={{ color: TEXT, fontSize: '0.9rem' }}>{r.name}</div>
                           <div style={{ color: MUTED, fontSize: '0.75rem' }}>
-                            {[r.emails?.[0], r.phones?.[0]].filter(Boolean).join(' Â· ') || '—'}
+                            {[r.emails?.[0], r.phones?.[0]].filter(Boolean).join(' · ') || '—'}
                           </div>
                         </button>
                       </li>
@@ -524,7 +524,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
             <section style={{ display: 'grid', gridTemplateColumns: channels.has('email') && (channels.has('whatsapp_305') || channels.has('whatsapp_718')) ? '1fr 1fr' : '1fr', gap: '0.75rem' }}>
               {channels.has('email') && previewEmail && (
                 <div style={previewBox}>
-                  <div style={previewTitle}>ðŸ“§ Email preview</div>
+                  <div style={previewTitle}>📧 Email preview</div>
                   <div style={{ color: GOLD_LIGHT, fontSize: '0.78rem', marginBottom: '0.5rem' }}>
                     Subject: {previewEmail.subject}
                   </div>
@@ -534,7 +534,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
               {(channels.has('whatsapp_305') || channels.has('whatsapp_718')) && previewWhatsapp && (
                 <div style={previewBox}>
                   <div style={previewTitle}>
-                    ðŸ’¬ WhatsApp preview {channels.has('whatsapp_305') && channels.has('whatsapp_718') ? '(305 + 718)' : channels.has('whatsapp_305') ? '(305)' : '(718)'}
+                    💬 WhatsApp preview {channels.has('whatsapp_305') && channels.has('whatsapp_718') ? '(305 + 718)' : channels.has('whatsapp_305') ? '(305)' : '(718)'}
                   </div>
                   <pre style={previewBody}>{previewWhatsapp}</pre>
                 </div>
@@ -546,7 +546,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
           {dbSetupSql && (
             <div style={{ background: '#1a0a0a', border: '1px solid #7f1d1d', borderRadius: 6, padding: '0.75rem', fontSize: '0.78rem' }}>
               <div style={{ color: '#ff7474', fontWeight: 600, marginBottom: '0.5rem' }}>
-                âš  Run this once in Supabase SQL Editor (Dashboard → SQL Editor → New query):
+                ⚠ Run this once in Supabase SQL Editor (Dashboard → SQL Editor → New query):
               </div>
               <pre style={{ color: '#fca5a5', fontSize: '0.72rem', whiteSpace: 'pre-wrap', margin: '0 0 0.5rem' }}>
                 {SETUP_SQL}

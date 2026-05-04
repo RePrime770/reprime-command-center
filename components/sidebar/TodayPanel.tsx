@@ -378,7 +378,7 @@ export default function TodayPanel() {
             {/* Time */}
             <span style={{ color: 'var(--rp-gold-lite)', fontSize: 13 }}>
               {timeAbs}
-              {timeRel && <span style={{ opacity: 0.75 }}> Â· {timeRel}</span>}
+              {timeRel && <span style={{ opacity: 0.75 }}> · {timeRel}</span>}
             </span>
 
             {/* Title */}
@@ -402,11 +402,11 @@ export default function TodayPanel() {
                 rel="noopener noreferrer"
                 style={{ color: 'var(--rp-gold)', textDecoration: 'none', fontWeight: 700, fontSize: 13 }}
               >
-                Zoomâ†—
+                Zoom↗
               </a>
             )}
 
-            {/* ðŸ”” Reminder toggle */}
+            {/* 🔔 Reminder toggle */}
             <button
               type="button"
               onClick={() => void toggleReminder(ev)}
@@ -431,7 +431,7 @@ export default function TodayPanel() {
                 flexShrink: 0,
               }}
             >
-              {isToggling ? '⏳' : reminderOn ? 'ðŸ””' : 'ðŸ”•'}
+              {isToggling ? '⏳' : reminderOn ? '🔔' : '🔕'}
             </button>
 
             {/* Late / Can't make it — inline */}

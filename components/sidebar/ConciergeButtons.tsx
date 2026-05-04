@@ -208,7 +208,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
           onClick={() => start('running_late')}
           style={{ ...baseBtn, borderColor: '#FFCC33', color: '#FFCC33' }}
         >
-          ðŸ• Late
+          🕐 Late
         </button>
         <button
           type="button"
@@ -216,7 +216,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
           onClick={() => start('couldnt_make_it')}
           style={{ ...baseBtn, borderColor: '#FF7474', color: '#FF7474' }}
         >
-          âŒ Can't make it
+          ❌ Can't make it
         </button>
       </div>
 
@@ -288,7 +288,7 @@ export default function ConciergeButtons({ meeting, onSent }: Props) {
                     {slots.map((s, i) => (
                       <span key={i} style={{ marginRight: 8 }}>
                         {s}
-                        {i < slots.length - 1 ? ' Â·' : ''}
+                        {i < slots.length - 1 ? ' ·' : ''}
                       </span>
                     ))}
                   </div>
