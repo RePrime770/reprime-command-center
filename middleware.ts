@@ -6,6 +6,8 @@ const PUBLIC_PATHS = [
   '/login',
   '/auth/callback',
   '/api/whatsapp/webhook',
+  '/api/phone/bb-webhook',
+  '/api/phone/quo-webhook',
   '/invite',
   '/api/bookings/confirm',
 ]
