@@ -26,8 +26,8 @@ Last updated: 2026-04-29 16:50 CT
 - reprime-terminal.com — SendGrid domain auth Verified Apr 29 with 3 CNAMEs in Vercel DNS
 
 ## Phone numbers
-- 718 personal: +1-718-550-5500 (WhatsApp, JID 17185505500@s.whatsapp.net)
-- 305 business: +1-305-778-4861 (WhatsApp, JID 13057784861@s.whatsapp.net, also Google Voice 305 SMS)
+- 718 personal: +1-718-550-5500 (WhatsApp, JID 17185505500@s.whatsapp.net; iMessage/SMS via BlueBubbles)
+- 305 business: +1-305-778-4861 (WhatsApp, JID 13057784861@s.whatsapp.net; SMS/calls via Quo — ported from Google Voice)
 
 ## Email identities
 - g@reprime.com — primary inbox
@@ -48,6 +48,10 @@ Last updated: 2026-04-29 16:50 CT
 - ZOOM credentials → Vercel env var (Server-to-Server OAuth app: "RePrime Command Center", account ID _ByMa6jsTOa3YQPnW_3n_w)
 - PAGERDUTY_ROUTING_KEY → Vercel env var (service: "Booking Reminders", was "Cal.com Booking Reminders")
 - SUPABASE_DB_URL — DB password stored in Gideon's password vault (1Password)
+- QUO_API_KEY → Vercel env var — Quo (OpenPhone) REST API key for recording proxy; get from https://app.openphone.com/settings/api
+- QUO_WEBHOOK_SECRET → Vercel env var — Quo webhook signing secret (from Quo dashboard → Webhooks → Signing secret)
+- BLUEBUBBLES_WEBHOOK_SECRET → Vercel env var — secret header value set in BlueBubbles Server → Webhooks → x-bb-secret; choose any strong random string
+- BB_CALL_SECRET → Vercel env var — Bearer token for the call-log daemon hitting /api/phone/call-event; choose any strong random string
 
 ### Pipedrive field keys
 Person custom fields (Pipedrive API hashed keys, NOT secrets, safe to commit):
