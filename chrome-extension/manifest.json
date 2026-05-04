@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "RePrime Call Sync",
+  "version": "1.0.0",
+  "description": "Syncs iPhone call history from BlueBubbles Server to the Command Center dashboard.",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.svg"
+  },
+  "icons": {
+    "48": "icon.svg",
+    "128": "icon.svg"
+  }
+}

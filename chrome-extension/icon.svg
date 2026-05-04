@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <rect width="48" height="48" rx="10" fill="#0E3470"/>
+  <!-- phone handset -->
+  <path d="M14 16c0-1.1.9-2 2-2h3.5l2 5-2.5 1.5a14 14 0 0 0 7.5 7.5L28 25.5l5 2V31a2 2 0 0 1-2 2C17.9 33 14 23.2 14 16z" fill="#FFCC33"/>
+  <!-- sync arrows -->
+  <path d="M32 10v3.5M32 13.5a5.5 5.5 0 0 1 0 11" stroke="#FFCC33" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <polyline points="34.5,22 32,24.5 29.5,22" stroke="#FFCC33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
