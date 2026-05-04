@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "RePrime Claude",
+  "version": "1.0.0",
+  "description": "Claude AI assistant for the RePrime Command Center — draft messages, summarize calls, get next-step recommendations.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "https://api.anthropic.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.svg"
+  },
+  "icons": {
+    "48": "icon.svg",
+    "128": "icon.svg"
+  }
+}

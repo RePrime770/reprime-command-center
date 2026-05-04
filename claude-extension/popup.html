@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>RePrime Claude</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 400px;
+      height: 560px;
+      display: flex;
+      flex-direction: column;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      background: #0E3470;
+      color: #F5EFD8;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .hdr {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 12px 14px 11px;
+      border-bottom: 2px solid #FFCC33;
+      flex-shrink: 0;
+    }
+    .hdr-icon { width: 26px; height: 26px; flex-shrink: 0; }
+    .hdr-title { font-size: 14px; font-weight: 700; color: #FFCC33; letter-spacing: 0.03em; }
+    .hdr-spacer { flex: 1; }
+    .hdr-badge {
+      background: rgba(255,204,51,0.12);
+      border: 1px solid rgba(255,204,51,0.3);
+      color: rgba(255,204,51,0.7);
+      border-radius: 999px;
+      padding: 2px 9px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+    .hdr-badge.active { background: rgba(255,204,51,0.2); color: #FFCC33; }
+
+    /* Toggle */
+    .toggle-wrap { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    .toggle-wrap input { display: none; }
+    .toggle-track {
+      width: 36px; height: 20px; border-radius: 999px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,204,51,0.25);
+      position: relative; transition: background 0.2s;
+    }
+    .toggle-wrap input:checked ~ .toggle-track { background: #FFCC33; border-color: #FFCC33; }
+    .toggle-thumb {
+      position: absolute; top: 2px; left: 2px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #F5EFD8; transition: transform 0.2s;
+    }
+    .toggle-wrap input:checked ~ .toggle-track .toggle-thumb {
+      transform: translateX(16px); background: #0E3470;
+    }
+
+    /* ── Shared ── */
+    .view { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .view-inner { padding: 16px; flex: 1; overflow-y: auto; }
+
+    .intro { color: rgba(245,239,216,0.65); font-size: 12px; line-height: 1.6; margin-bottom: 14px; }
+
+    button {
+      font-family: inherit; font-size: 12px; font-weight: 700;
+      letter-spacing: 0.05em; cursor: pointer; border: none;
+      border-radius: 6px; padding: 9px 14px; transition: opacity 0.15s;
+    }
+    button:disabled { opacity: 0.35; cursor: not-allowed; }
+    button:not(:disabled):hover { opacity: 0.82; }
+
+    .btn-primary { background: #FFCC33; color: #0E3470; width: 100%; margin-top: 14px; }
+    .btn-secondary {
+      background: rgba(255,204,51,0.1); color: #FFCC33;
+      border: 1px solid rgba(255,204,51,0.3);
+    }
+    .btn-ghost {
+      background: none; color: rgba(245,239,216,0.45); padding: 5px 0;
+      font-size: 11px; font-weight: 400; letter-spacing: 0; width: 100%;
+      text-align: center; margin-top: 6px;
+    }
+    .btn-ghost:hover { color: #F5EFD8; opacity: 1; }
+
+    .error-box {
+      background: rgba(255,80,80,0.1); border: 1px solid rgba(255,80,80,0.35);
+      border-radius: 6px; color: #FF9494; font-size: 11px;
+      padding: 8px 10px; margin-top: 10px; line-height: 1.5;
+    }
+
+    /* ── View 1: Checklist ── */
+    .check-list { display: flex; flex-direction: column; gap: 9px; }
+
+    .check-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      cursor: pointer; padding: 9px 11px; border-radius: 7px;
+      border: 1px solid rgba(255,204,51,0.15);
+      background: rgba(255,204,51,0.03);
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .check-item:has(input:checked) {
+      border-color: rgba(255,204,51,0.45);
+      background: rgba(255,204,51,0.08);
+    }
+    .check-item input { display: none; }
+    .chk-box {
+      width: 18px; height: 18px; flex-shrink: 0;
+      border: 2px solid rgba(255,204,51,0.4); border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px; transition: background 0.15s, border-color 0.15s;
+    }
+    .check-item:has(input:checked) .chk-box { background: #FFCC33; border-color: #FFCC33; }
+    .chk-tick { display: none; }
+    .check-item:has(input:checked) .chk-tick { display: block; }
+    .chk-label { font-size: 12px; line-height: 1.5; color: rgba(245,239,216,0.75); }
+    .check-item:has(input:checked) .chk-label { color: #F5EFD8; }
+
+    /* ── View 2: Setup ── */
+    .form-group { margin-bottom: 12px; }
+    .form-group > label {
+      display: block; font-size: 10px; font-weight: 700;
+      color: rgba(255,204,51,0.75); letter-spacing: 0.06em;
+      text-transform: uppercase; margin-bottom: 5px;
+    }
+    .hint { font-weight: 400; text-transform: none; color: rgba(245,239,216,0.4); letter-spacing: 0; }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%; background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,204,51,0.22); border-radius: 6px;
+      padding: 8px 10px; color: #F5EFD8; font-family: inherit;
+      font-size: 12px; outline: none; transition: border-color 0.15s;
+      resize: none;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus { border-color: #FFCC33; }
+    .form-group input::placeholder,
+    .form-group textarea::placeholder { color: rgba(245,239,216,0.28); }
+    .form-group select option { background: #0E3470; }
+
+    /* ── View 3: Chat ── */
+    .chat-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    .chat-messages {
+      flex: 1; overflow-y: auto; padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 10px;
+      scroll-behavior: smooth;
+    }
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-track { background: transparent; }
+    .chat-messages::-webkit-scrollbar-thumb { background: rgba(255,204,51,0.2); border-radius: 2px; }
+
+    .msg { display: flex; flex-direction: column; gap: 3px; max-width: 88%; }
+    .msg.user { align-self: flex-end; align-items: flex-end; }
+    .msg.assistant { align-self: flex-start; align-items: flex-start; }
+
+    .msg-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+      color: rgba(245,239,216,0.4); text-transform: uppercase;
+    }
+    .msg.user .msg-label { color: rgba(255,204,51,0.6); }
+
+    .msg-bubble {
+      padding: 9px 12px; border-radius: 10px;
+      font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+    }
+    .msg.user .msg-bubble {
+      background: rgba(255,204,51,0.15);
+      border: 1px solid rgba(255,204,51,0.3);
+      color: #F5EFD8; border-bottom-right-radius: 3px;
+    }
+    .msg.assistant .msg-bubble {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #F5EFD8; border-bottom-left-radius: 3px;
+    }
+    .msg.assistant.thinking .msg-bubble {
+      color: rgba(245,239,216,0.45);
+      font-style: italic;
+    }
+    .msg.error .msg-bubble {
+      background: rgba(255,80,80,0.1);
+      border-color: rgba(255,80,80,0.3);
+      color: #FF9494;
+    }
+
+    .chat-empty {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px; color: rgba(245,239,216,0.35); font-size: 12px; text-align: center;
+      padding: 0 24px;
+    }
+    .chat-empty svg { opacity: 0.3; }
+
+    /* Page context badge */
+    .page-badge {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,204,51,0.1); border: 1px solid rgba(255,204,51,0.3);
+      border-radius: 5px; padding: 4px 8px; font-size: 11px; color: #FFCC33;
+      margin: 0 14px 6px;
+    }
+    .page-badge button {
+      background: none; border: none; color: rgba(255,204,51,0.6);
+      padding: 0; font-size: 13px; line-height: 1; font-weight: 400;
+      letter-spacing: 0; width: auto; margin: 0; cursor: pointer;
+    }
+    .page-badge button:hover { color: #FFCC33; opacity: 1; }
+
+    /* Chat footer */
+    .chat-footer {
+      flex-shrink: 0; padding: 8px 10px 10px;
+      border-top: 1px solid rgba(255,204,51,0.15);
+      background: rgba(0,0,0,0.15);
+    }
+    .chat-input-row {
+      display: flex; align-items: flex-end; gap: 6px;
+    }
+    .chat-input-row textarea {
+      flex: 1; background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,204,51,0.22); border-radius: 8px;
+      padding: 8px 10px; color: #F5EFD8; font-family: inherit;
+      font-size: 12px; resize: none; outline: none; line-height: 1.5;
+      max-height: 96px; overflow-y: auto;
+      transition: border-color 0.15s;
+    }
+    .chat-input-row textarea:focus { border-color: #FFCC33; }
+    .chat-input-row textarea::placeholder { color: rgba(245,239,216,0.3); }
+
+    .btn-icon {
+      width: 34px; height: 34px; flex-shrink: 0; border-radius: 7px; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; letter-spacing: 0; font-weight: 400;
+    }
+    .btn-page { background: rgba(255,204,51,0.1); border: 1px solid rgba(255,204,51,0.25); color: #FFCC33; }
+    .btn-send { background: #FFCC33; color: #0E3470; }
+
+    .chat-footer-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 6px; padding: 0 2px;
+    }
+    .model-label { font-size: 10px; color: rgba(245,239,216,0.3); }
+    .btn-clear { background: none; border: none; font-size: 10px; color: rgba(245,239,216,0.3);
+      padding: 0; letter-spacing: 0; font-weight: 400; cursor: pointer; }
+    .btn-clear:hover { color: rgba(245,239,216,0.6); opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ── -->
+  <div class="hdr">
+    <svg class="hdr-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="10" width="30" height="22" rx="5" fill="#FFCC33"/>
+      <path d="M14 32 L11 39 L20 34" fill="#FFCC33"/>
+      <circle cx="18" cy="21" r="2.2" fill="#0E3470"/>
+      <circle cx="24" cy="21" r="2.2" fill="#0E3470"/>
+      <circle cx="30" cy="21" r="2.2" fill="#0E3470"/>
+    </svg>
+    <span class="hdr-title">RePrime Claude</span>
+    <span class="hdr-spacer"></span>
+    <span class="hdr-badge" id="hdr-badge">SETUP</span>
+    <label class="toggle-wrap" id="toggle-wrap" title="Enable / disable assistant" style="display:none">
+      <input type="checkbox" id="chk-enabled">
+      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+    </label>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       VIEW 1 — Pre-flight checklist
+  ══════════════════════════════════════════════════════ -->
+  <div id="v-check" class="view">
+    <div class="view-inner">
+      <p class="intro">Before you start, tick each item to confirm you're ready.</p>
+
+      <div class="check-list">
+
+        <label class="check-item">
+          <input type="checkbox" class="pre-check">
+          <span class="chk-box">
+            <svg class="chk-tick" width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0E3470" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="chk-label">I have an Anthropic API key</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" class="pre-check">
+          <span class="chk-box">
+            <svg class="chk-tick" width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0E3470" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="chk-label">I understand messages and any attached page text are sent to Anthropic's API</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" class="pre-check">
+          <span class="chk-box">
+            <svg class="chk-tick" width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0E3470" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="chk-label">I will not paste passwords, bank details, or SSNs into the chat</span>
+        </label>
+
+        <label class="check-item">
+          <input type="checkbox" class="pre-check">
+          <span class="chk-box">
+            <svg class="chk-tick" width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0E3470" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="chk-label">This key is for personal use only — not shared with team members</span>
+        </label>
+
+      </div>
+
+      <button id="btn-to-setup" class="btn-primary" disabled>Continue to Setup →</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       VIEW 2 — Setup
+  ══════════════════════════════════════════════════════ -->
+  <div id="v-setup" class="view" style="display:none">
+    <div class="view-inner">
+
+      <div class="form-group">
+        <label>Anthropic API Key</label>
+        <input id="f-key" type="password" placeholder="sk-ant-…" autocomplete="new-password" spellcheck="false">
+      </div>
+
+      <div class="form-group">
+        <label>Model <span class="hint">(leave default for best results)</span></label>
+        <select id="f-model">
+          <option value="claude-sonnet-4-6">claude-sonnet-4-6 — fast &amp; smart (recommended)</option>
+          <option value="claude-opus-4-7">claude-opus-4-7 — most capable, slower</option>
+          <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 — fastest, lightest</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>System Prompt <span class="hint">(customize or leave as-is)</span></label>
+        <textarea id="f-prompt" rows="6" spellcheck="false"></textarea>
+      </div>
+
+      <div id="setup-err" class="error-box" style="display:none"></div>
+
+      <button id="btn-save" class="btn-primary">Save &amp; Open Chat</button>
+      <button id="btn-back-check" class="btn-ghost">← Back to checklist</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       VIEW 3 — Chat
+  ══════════════════════════════════════════════════════ -->
+  <div id="v-chat" class="view chat-view" style="display:none">
+
+    <div id="chat-messages" class="chat-messages">
+      <div class="chat-empty" id="chat-empty">
+        <svg width="36" height="36" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+          <rect x="8" y="10" width="30" height="22" rx="5" fill="#FFCC33"/>
+          <path d="M14 32 L11 39 L20 34" fill="#FFCC33"/>
+          <circle cx="18" cy="21" r="2.2" fill="#0E3470"/>
+          <circle cx="24" cy="21" r="2.2" fill="#0E3470"/>
+          <circle cx="30" cy="21" r="2.2" fill="#0E3470"/>
+        </svg>
+        <span>Ask anything — draft a message,<br>summarize a call, get a next step.</span>
+      </div>
+    </div>
+
+    <div id="page-badge" class="page-badge" style="display:none">
+      <span>📄</span>
+      <span id="page-badge-text" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <button id="btn-remove-page" title="Remove page context">✕</button>
+    </div>
+
+    <div class="chat-footer">
+      <div class="chat-input-row">
+        <button id="btn-page" class="btn-icon btn-page" title="Attach current page as context">📄</button>
+        <textarea id="chat-input" placeholder="Message Claude…" rows="1"></textarea>
+        <button id="btn-send" class="btn-icon btn-send" title="Send (Enter)">↑</button>
+      </div>
+      <div class="chat-footer-meta">
+        <span class="model-label" id="model-label"></span>
+        <button class="btn-clear" id="btn-clear">Clear chat</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <rect width="48" height="48" rx="10" fill="#0E3470"/>
+  <!-- Speech bubble -->
+  <rect x="8" y="10" width="30" height="22" rx="5" fill="#FFCC33"/>
+  <path d="M14 32 L11 39 L20 34" fill="#FFCC33"/>
+  <!-- Sparkle / stars inside bubble -->
+  <circle cx="18" cy="21" r="2.2" fill="#0E3470"/>
+  <circle cx="24" cy="21" r="2.2" fill="#0E3470"/>
+  <circle cx="30" cy="21" r="2.2" fill="#0E3470"/>
+</svg>
