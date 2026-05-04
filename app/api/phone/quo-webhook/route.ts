@@ -23,21 +23,54 @@ async function verifySignature(rawBody: string, header: string, secret: string):
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function our305(phone: string | undefined | null): boolean {
+// 305 (Quo target) and 563 (current Quo line that forwards w/ 305 caller ID
+// during the GV→Quo port). Treat both as the same logical line: panel='305'.
+const OUR_305_DIGITS = '3057784861'
+const OUR_563_DIGITS = '5637946221'
+
+function isOursOnly(phone: string | undefined | null): boolean {
   if (!phone) return false
-  return phone.replace(/\D/g, '').endsWith('3057784861')
+  const d = phone.replace(/\D/g, '')
+  return d.endsWith(OUR_305_DIGITS) || d.endsWith(OUR_563_DIGITS)
 }
 
 function contactPhone(from: string, to: string): string {
-  return our305(from) ? to : from
+  return isOursOnly(from) ? to : from
+}
+
+/**
+ * Read all webhook signing secrets — supports both legacy single-key and the
+ * new multi-key mode (each Quo webhook has its own HMAC key).
+ *
+ * Order:
+ *   - QUO_WEBHOOK_SECRETS (comma-separated) — preferred
+ *   - QUO_WEBHOOK_SECRET (legacy single value)
+ */
+function getSigningSecrets(): string[] {
+  const multi = process.env.QUO_WEBHOOK_SECRETS
+  if (multi) {
+    return multi
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  }
+  const single = process.env.QUO_WEBHOOK_SECRET
+  return single ? [single] : []
+}
+
+async function verifyAgainstAny(rawBody: string, header: string, secrets: string[]): Promise<boolean> {
+  for (const s of secrets) {
+    if (await verifySignature(rawBody, header, s)) return true
+  }
+  return false
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  const secret = process.env.QUO_WEBHOOK_SECRET
-  if (!secret) {
-    console.error('[quo-webhook] QUO_WEBHOOK_SECRET not set')
+  const secrets = getSigningSecrets()
+  if (secrets.length === 0) {
+    console.error('[quo-webhook] No QUO_WEBHOOK_SECRETS or QUO_WEBHOOK_SECRET configured')
     return NextResponse.json({ error: 'misconfigured' }, { status: 500 })
   }
 
@@ -45,9 +78,9 @@ export async function POST(request: NextRequest) {
   const sig = request.headers.get('openphone-signature') ?? ''
 
   if (sig) {
-    const valid = await verifySignature(rawBody, sig, secret)
+    const valid = await verifyAgainstAny(rawBody, sig, secrets)
     if (!valid) {
-      console.warn('[quo-webhook] signature mismatch')
+      console.warn('[quo-webhook] signature mismatch (tried', secrets.length, 'secret(s))')
       return NextResponse.json({ error: 'forbidden' }, { status: 403 })
     }
   }
@@ -91,8 +124,9 @@ export async function POST(request: NextRequest) {
     console.log('[quo-webhook] call.completed', { from, to, duration: obj.duration })
   }
 
-  // ── recording.completed ────────────────────────────────────────────────────
-  if (type === 'recording.completed') {
+  // ── recording.completed / call.recording.completed ────────────────────────
+  // Quo v2 webhook uses "call.recording.completed"; v1 used "recording.completed".
+  if (type === 'recording.completed' || type === 'call.recording.completed') {
     const callId = obj.callId as string
     const url = obj.url as string
     const { error } = await service
@@ -103,8 +137,10 @@ export async function POST(request: NextRequest) {
     console.log('[quo-webhook] recording.completed for call', callId)
   }
 
-  // ── message.received / message.sent ───────────────────────────────────────
-  if (type === 'message.received' || type === 'message.sent') {
+  // ── message.received / message.sent / message.delivered ─────────────────
+  // Quo's outbound event is named "message.delivered" in their v2 webhook
+  // schema; the v1 alias "message.sent" is preserved for backward compat.
+  if (type === 'message.received' || type === 'message.sent' || type === 'message.delivered') {
     const from = normalizePhone(obj.from as string) || (obj.from as string)
     const to = normalizePhone(obj.to as string) || (obj.to as string)
     const contact = normalizePhone(contactPhone(obj.from as string, obj.to as string))
@@ -142,7 +178,7 @@ export async function POST(request: NextRequest) {
       body,
       timelines_uid: `quo:${msgId}`,
       sent_at: createdAt,
-      status: type === 'message.sent' ? 'Sent' : null,
+      status: type === 'message.sent' || type === 'message.delivered' ? 'Sent' : null,
       from_phone: direction === 'in' ? from : to,
     }
     const { error: msgErr } = await service
