@@ -244,3 +244,114 @@ All scripts use `ssh2` over Node, hardcoded SSH user `Gideon` and password `1b0R
 The HostMyApple welcome email gave SSH password `1b0R68yx`. Gideon later changed his Mac login password (the password he types at the login screen / when authorizing System Settings prompts) to `Dcy@7700`. **Both work for SSH** in our testing — meaning the SSH server was either accepting both, or the macOS password change hadn't propagated to SSH yet. Memory entry §14 records the *user-facing* password as `Dcy@7700`. The `bb-*.mjs` scripts at repo root use `1b0R68yx` (the SSH-original) and have been working reliably. If SSH starts failing, swap the scripts to `Dcy@7700`.
 
 End of late-session addendum.
+
+---
+
+## 10. Chat A audit absorption (May 4, post-evening)
+
+A third Claude session ("Chat A") fed back a forensic compilation of work she did pre-session and an external service-stack audit run by yet another Claude operating as a Chrome extension. The architect chat (this one) absorbed her data and made the decisions below. Three Claude sessions are running parallel; only this chat decides scope.
+
+### 10.1 Pre-existing test records in the `invitations` table
+- `3a86379b-c7fb-498a-8f57-d37f800cd372` — "Gideon" (older test)
+- `00000000-0000-0000-0000-000000000001` — "Abraham Cohen" (Chat A test, expires 2026-05-30). Live URL: `https://project-7e87w.vercel.app/invite/00000000-0000-0000-0000-000000000001`
+
+The `invitations` schema additions (`view_count`, `first_opened_at`, `last_opened_at`) were run and verified earlier in Chat A's work and are confirmed live. Open-tracking is functional via `app/invite/[token]/page.tsx` (non-blocking `void supabase.update()` on each valid open) and surfaces in `PipedriveCard.tsx` "Terminal Invite" section. Use this as the model when wiring real WhatsApp/Email/Call timeline data into the InvestorProfile.
+
+### 10.2 Service stack — code-verified service usage
+
+Confirmed in code:
+- Anthropic API (`claude-haiku-4-5` + `claude-opus-4-6`)
+- OpenAI Whisper only (no GPT)
+- ElevenLabs TTS, voice "Matilda"
+- Pipedrive (contact lookup + custom fields + activities)
+- Timelines.ai (sole point of failure for both WhatsApp lines)
+- Supabase (project `yrnujfhzmoasodawqfri`)
+- Upstash Redis (caching + PagerDuty queue)
+- SendGrid (transactional email)
+- Zoom (Server-to-Server OAuth)
+- Google APIs (Gmail + Calendar)
+- PagerDuty (1 service: Booking Reminders)
+- Vercel (host)
+
+Confirmed NOT used:
+- **Twilio** — env vars exist, zero code calls. Phone numbers route through Timelines.ai (WhatsApp) and Quo (305 SMS), never Twilio.
+
+### 10.3 Subscription run-rate and renewal calendar
+
+**Confirmed monthly run-rate ~$534/mo (~$6,408/yr).** Source: Chat A's external audit (some line items not independently verified).
+
+| Date | Service | Architect call |
+|---|---|---|
+| **2026-05-05 (TOMORROW)** | Pipedrive trial → Pro $79/mo (46 real contacts at risk) | **PAY $79.** Pipedrive is the spine of the dashboard — investor tagging, contact resolution, custom fields, profile data, every track depends on it. Switching cost is a week minimum. Don't export. Re-evaluate Essential $14 vs Pro $79 within 30 days based on actual feature usage. |
+| 2026-05-08 | Claude.ai Max $200 | **Downgrade to Pro $20** unless daily heavy use on `claude.ai` (separate from Anthropic API which is billed via Console). Saves $180/mo. |
+| 2026-05-12 | PagerDuty trial | **Free tier.** One service, low volume. Saves $25/mo. |
+| 2026-05-13 | ElevenLabs Pro $99 | Verify monthly TTS character count first. If <30k chars/mo → **Creator $22**. Saves up to $77/mo. |
+| 2026-05-23 | Vercel Pro $20 | **Renew.** It's the host. |
+| 2026-06-26 | SendGrid trial | **Free Forever** (light volume, well under 100/day). Saves $20/mo. |
+
+**Cleanup decisions (do once, save recurring spend):**
+- **Twilio** — verify the bill. If $0 / no usage, leave alone. If billing, **cancel** (zero code usage)
+- **HubSpot orphan** (`g@floridastatetrust.com`) — **delete.** No data, no integration
+- **Slack personal workspace** — leave idle (free)
+- **Google Cloud "Lovable" project** — **delete** (Google flagged as orphan)
+- **Perplexity Max $200** — **downgrade to Pro $20** unless daily heavy use. Saves $180/mo
+
+**Total potential savings if all execute: ~$400-500/mo (~$5-6k/yr).**
+
+### 10.4 Security flag — CRITICAL
+
+**GitHub 2FA is OFF.** Source code, API keys (in `..\.env`), deployment access. Single largest security risk in the audit. **Turn on now, 5 minutes.** Use Google Authenticator or 1Password. Then enable 2FA on Vercel, Supabase, Anthropic Console, OpenAI, Pipedrive, Google Workspace if not already.
+
+### 10.5 Email identity layout
+
+- `g@reprime.com` — primary inbox (Pipedrive, Supabase, Zoom, PagerDuty)
+- `g@floridastatetrust.com` — Google Workspace org owner, Vercel owner, Timelines.ai owner (HubSpot, Slack, SendGrid, ElevenLabs, Anthropic Console, OpenAI, Claude.ai, Perplexity, Vercel, Google Cloud, Timelines.ai, Dropbox, Box)
+- `g@reprime-terminal.com` — alias, mail forwards to `g@reprime.com` (SendGrid sender domain-authenticated here)
+
+### 10.6 Domain status
+
+| Domain | Registrar | Expires | Role |
+|---|---|---|---|
+| `reprime.com` | GoDaddy | 2028-03-25 | Marketing site |
+| `reprime-terminal.com` | Name.com | 2027-04-29 | API host (`/api/*` pass-through; non-API paths redirect to `reprime.com` per `vercel.json`) |
+| `reprimeterminal.com` | Squarespace | 2027-02-04 | Verified in Vercel; DNS in locked-out account |
+
+Apparent contradiction in earlier docs ("`reprime-terminal.com` redirects to `reprime.com`" vs "it's the project domain") is resolved: both are true via the `/((?!api/).*)` redirect rule. Don't change the rule — webhooks depend on it.
+
+### 10.7 Pipedrive custom field keys (Person)
+
+| Field | Hashed key (NOT secret) |
+|---|---|
+| TAG | `d57ae324f61ddb2b922fb2e212f0723baba92448` |
+| NOTES_FROM_DASHBOARD | `67745cf460dd9f8423a11da2b2fc3323130fef2c` |
+| PREFERRED_CONTACT_METHOD | `b1844d06b9efa0f554dc1e5fb4aeee55c7beca7d` (WhatsApp 27, Email 28, Phone 29, Zoom 30) |
+
+To activate the Investors panel and exercise the InvestorProfile slide-in, set TAG to `investor` on a Pipedrive contact.
+
+### 10.8 7-phase service audit playbook (in flight — external to dashboard)
+
+External Chrome extension AI is mid-execution on:
+1. Security: 2FA on every account
+2. Audit 4 missing services: Twilio, Upstash, Google Workspace, 1Password
+3. Tier verification (verdicts only)
+4. Zoom recordings + transcripts + AI Companion
+5. Orphan cleanup (per-item YES required from Gideon)
+6. Renewal calendar in Google Calendar
+7. Save final consolidated audit to `KEYS.md`
+
+Do NOT run her playbook from the build chat. She is the executor for that workflow only. Architect decisions in §10.3 / §10.4 above are the authoritative outputs.
+
+### 10.9 Open data uncertainties (Gideon must answer)
+
+Not in the codebase. Required to finalize §10.3 decisions:
+1. **Twilio billing status** — verify zero charges before cancellation
+2. **Claude.ai daily personal use** on `claude.ai` (not API)
+3. **Perplexity daily personal use**
+4. **ElevenLabs monthly TTS character count**
+5. **Google Workspace billing details** — never audited
+6. **1Password account status** — never audited
+7. **Timelines.ai actual plan/limits** — flagged as "at limit"; verify
+
+---
+
+End of Chat A absorption.
