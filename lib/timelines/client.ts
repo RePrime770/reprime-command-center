@@ -22,10 +22,27 @@ type TimelinesEnvelope<T> = {
   data?: T
 }
 
+// Per-page fetch deadline so one hung page doesn't kill the whole route.
+// Timelines occasionally takes 20s+ on cold paths — bail at 7s and let the
+// caller fall back to DB cache (same path as 403/429 handling).
+const PER_PAGE_TIMEOUT_MS = 7000
+
 export async function getChats(panel: Panel, page = 1): Promise<TimelinesChat[]> {
   const accountId = PANEL_ACCOUNT_MAP[panel]
   const url = `${BASE_URL}/chats?per_page=50&page=${page}&whatsapp_account_phone=${encodeURIComponent(accountId)}`
-  const res = await fetch(url, { headers: authHeaders(), cache: 'no-store' })
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), PER_PAGE_TIMEOUT_MS)
+  let res: Response
+  try {
+    res = await fetch(url, { headers: authHeaders(), cache: 'no-store', signal: ctrl.signal })
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') {
+      throw new Error(`Timelines getChats timeout after ${PER_PAGE_TIMEOUT_MS}ms (page ${page})`)
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => '')
     console.error('[timelines.getChats] FAILED', {

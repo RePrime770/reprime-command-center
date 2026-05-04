@@ -17,6 +17,10 @@ import {
 import type { Panel, TimelinesChat, DashboardThread } from '@/lib/timelines/types'
 
 export const dynamic = 'force-dynamic'
+// Pipedrive enrichment + Timelines paging can stack to >10s. Default Vercel
+// fn timeout is 10s on hobby; 60 is the Pro ceiling. Without this the function
+// gets killed mid-flight and the UI shows "Error loading threads. Retry".
+export const maxDuration = 60
 
 const PIPEDRIVE_CACHE_TTL_SECONDS = 3600
 
@@ -83,9 +87,10 @@ export async function GET(request: NextRequest) {
       }
     } catch (timelinesErr: unknown) {
       const msg = (timelinesErr as Error).message ?? ''
-      // 403 = quota exhausted; 429 = rate limited — both fall back to DB cache
-      if (msg.includes('403') || msg.includes('429')) {
-        console.warn('[/api/whatsapp/threads] Timelines rate/quota limit — falling back to DB cache', { panel, msg: msg.slice(0, 200) })
+      // 403 = quota exhausted; 429 = rate limited; timeout = upstream slow.
+      // All three fall back to DB cache so the UI keeps working.
+      if (msg.includes('403') || msg.includes('429') || msg.includes('timeout')) {
+        console.warn('[/api/whatsapp/threads] Timelines unavailable — falling back to DB cache', { panel, msg: msg.slice(0, 200) })
         timelinesSkipped = true
       } else {
         throw timelinesErr
