@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <rect width="48" height="48" rx="10" fill="#0E3470"/>
+  <!-- Checkmark circle -->
+  <circle cx="24" cy="24" r="14" fill="none" stroke="#FFCC33" stroke-width="3"/>
+  <polyline points="16,24 21,30 32,18" stroke="#FFCC33" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

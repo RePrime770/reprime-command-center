@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "RePrime Setup",
+  "version": "1.0.0",
+  "description": "One-click setup for RepRime phone infrastructure — runs Supabase migration, sets Vercel env vars, registers Quo webhook.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://api.supabase.com/*",
+    "https://api.vercel.com/*",
+    "https://api.openphone.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.svg"
+  }
+}

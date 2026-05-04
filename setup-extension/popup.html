@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>RePrime Setup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 600px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      background: #0E3470;
+      color: #F5EFD8;
+      line-height: 1.5;
+    }
+
+    /* ── Header ── */
+    .hdr {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 20px 14px;
+      border-bottom: 2px solid #FFCC33;
+    }
+    .hdr svg { flex-shrink: 0; }
+    .hdr-title { font-size: 17px; font-weight: 700; color: #FFCC33; letter-spacing: 0.02em; }
+    .hdr-sub { font-size: 12px; color: rgba(245,239,216,0.55); }
+
+    /* ── Shared ── */
+    .view { padding: 20px; }
+
+    button {
+      font-family: inherit; cursor: pointer; border: none; border-radius: 8px;
+      font-weight: 700; transition: opacity 0.15s;
+    }
+    button:disabled { opacity: 0.35; cursor: not-allowed; }
+    button:not(:disabled):hover { opacity: 0.82; }
+
+    .btn-big {
+      width: 100%; padding: 14px; font-size: 16px;
+      background: #FFCC33; color: #0E3470;
+      margin-top: 20px; letter-spacing: 0.04em;
+    }
+    .btn-copy {
+      padding: 5px 12px; font-size: 12px;
+      background: rgba(255,204,51,0.15); color: #FFCC33;
+      border: 1px solid rgba(255,204,51,0.35);
+    }
+
+    /* ── Credential fields ── */
+    .field { margin-bottom: 18px; }
+    .field-label {
+      display: block; font-size: 15px; font-weight: 700;
+      color: #FFCC33; margin-bottom: 6px;
+    }
+    .field-hint {
+      font-size: 12px; color: rgba(245,239,216,0.5);
+      margin-bottom: 7px; display: block;
+    }
+    .field-hint a {
+      color: rgba(255,204,51,0.7); text-decoration: underline; cursor: pointer;
+    }
+    .field input {
+      width: 100%; padding: 11px 14px; font-size: 15px; font-family: inherit;
+      background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,204,51,0.25);
+      border-radius: 8px; color: #F5EFD8; outline: none;
+      transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: #FFCC33; }
+    .field input::placeholder { color: rgba(245,239,216,0.28); font-size: 13px; }
+
+    .error-box {
+      background: rgba(255,80,80,0.1); border: 1px solid rgba(255,80,80,0.35);
+      border-radius: 8px; color: #FF9494; font-size: 13px;
+      padding: 10px 14px; margin-top: 14px;
+    }
+
+    /* ── Progress ── */
+    .steps { display: flex; flex-direction: column; gap: 0; }
+    .step {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 14px 0; border-bottom: 1px solid rgba(255,204,51,0.1);
+    }
+    .step:last-child { border-bottom: none; }
+
+    .step-icon {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; margin-top: 1px;
+    }
+    .step-icon.wait  { background: rgba(255,255,255,0.06); color: rgba(245,239,216,0.3); }
+    .step-icon.run   { background: rgba(255,204,51,0.15); color: #FFCC33; animation: pulse 1s infinite; }
+    .step-icon.ok    { background: rgba(91,229,132,0.15); color: #5BE584; }
+    .step-icon.fail  { background: rgba(255,80,80,0.12); color: #FF7474; }
+    .step-icon.skip  { background: rgba(255,255,255,0.04); color: rgba(245,239,216,0.25); }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .step-body { flex: 1; min-width: 0; }
+    .step-name { font-size: 15px; font-weight: 600; }
+    .step-detail { font-size: 12px; color: rgba(245,239,216,0.5); margin-top: 2px; word-break: break-all; }
+    .step-detail.err { color: #FF9494; }
+
+    /* ── Results ── */
+    .result-section { margin-bottom: 18px; }
+    .result-label {
+      font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: rgba(255,204,51,0.7); margin-bottom: 8px;
+    }
+    .result-box {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,204,51,0.2);
+      border-radius: 8px; padding: 12px 14px;
+    }
+    .secret-row {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+    }
+    .secret-row:last-child { margin-bottom: 0; }
+    .secret-key { font-size: 12px; color: rgba(245,239,216,0.55); flex-shrink: 0; width: 220px; }
+    .secret-val {
+      flex: 1; font-size: 12px; font-family: monospace;
+      color: #FFCC33; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .final-note {
+      background: rgba(91,229,132,0.08); border: 1px solid rgba(91,229,132,0.25);
+      border-radius: 8px; padding: 14px; font-size: 13px; color: rgba(245,239,216,0.8);
+      line-height: 1.7; margin-top: 14px;
+    }
+    .final-note strong { color: #F5EFD8; }
+
+    .manual-note {
+      background: rgba(255,204,51,0.07); border: 1px solid rgba(255,204,51,0.2);
+      border-radius: 8px; padding: 12px 14px; font-size: 13px;
+      color: rgba(245,239,216,0.75); line-height: 1.7; margin-top: 10px;
+    }
+    .manual-note strong { color: #FFCC33; }
+    .url-box {
+      background: rgba(0,0,0,0.2); border-radius: 5px; padding: 6px 10px;
+      font-size: 12px; font-family: monospace; color: #FFCC33;
+      word-break: break-all; margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="hdr">
+    <svg width="32" height="32" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="24" r="14" fill="none" stroke="#FFCC33" stroke-width="3"/>
+      <polyline points="16,24 21,30 32,18" stroke="#FFCC33" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+    <div>
+      <div class="hdr-title">RePrime Setup</div>
+      <div class="hdr-sub">One click — sets up Supabase, Vercel, and Quo automatically</div>
+    </div>
+  </div>
+
+  <!-- ══ VIEW 1: Credentials ══ -->
+  <div id="v-creds" class="view">
+
+    <div class="field">
+      <label class="field-label">1 — Supabase Access Token</label>
+      <span class="field-hint">
+        Get it at:
+        <a onclick="chrome.tabs.create({url:'https://app.supabase.com/account/tokens'})">
+          app.supabase.com → Account → Access Tokens → Generate new token
+        </a>
+      </span>
+      <input id="f-supa" type="password" placeholder="sbp_…" spellcheck="false" autocomplete="new-password">
+    </div>
+
+    <div class="field">
+      <label class="field-label">2 — Vercel API Token</label>
+      <span class="field-hint">
+        Get it at:
+        <a onclick="chrome.tabs.create({url:'https://vercel.com/account/tokens'})">
+          vercel.com/account/tokens → Create Token
+        </a>
+      </span>
+      <input id="f-vercel" type="password" placeholder="paste token here" spellcheck="false" autocomplete="new-password">
+    </div>
+
+    <div class="field">
+      <label class="field-label">3 — Quo (OpenPhone) API Key</label>
+      <span class="field-hint">
+        Get it at:
+        <a onclick="chrome.tabs.create({url:'https://app.openphone.com/settings/api'})">
+          app.openphone.com → Settings → API → Create key
+        </a>
+      </span>
+      <input id="f-quo" type="password" placeholder="paste API key here" spellcheck="false" autocomplete="new-password">
+    </div>
+
+    <div id="creds-err" class="error-box" style="display:none"></div>
+
+    <button id="btn-run" class="btn-big">Run Setup — Do Everything Automatically →</button>
+  </div>
+
+  <!-- ══ VIEW 2: Progress ══ -->
+  <div id="v-progress" class="view" style="display:none">
+    <div class="steps">
+
+      <div class="step" id="s-supa">
+        <div class="step-icon wait" id="s-supa-icon">1</div>
+        <div class="step-body">
+          <div class="step-name">Create phone_calls table in Supabase</div>
+          <div class="step-detail" id="s-supa-detail">Waiting…</div>
+        </div>
+      </div>
+
+      <div class="step" id="s-webhook">
+        <div class="step-icon wait" id="s-webhook-icon">2</div>
+        <div class="step-body">
+          <div class="step-name">Register Quo webhook</div>
+          <div class="step-detail" id="s-webhook-detail">Waiting…</div>
+        </div>
+      </div>
+
+      <div class="step" id="s-v1">
+        <div class="step-icon wait" id="s-v1-icon">3</div>
+        <div class="step-body">
+          <div class="step-name">Set QUO_API_KEY in Vercel</div>
+          <div class="step-detail" id="s-v1-detail">Waiting…</div>
+        </div>
+      </div>
+
+      <div class="step" id="s-v2">
+        <div class="step-icon wait" id="s-v2-icon">4</div>
+        <div class="step-body">
+          <div class="step-name">Set QUO_WEBHOOK_SECRET in Vercel</div>
+          <div class="step-detail" id="s-v2-detail">Waiting…</div>
+        </div>
+      </div>
+
+      <div class="step" id="s-v3">
+        <div class="step-icon wait" id="s-v3-icon">5</div>
+        <div class="step-body">
+          <div class="step-name">Set BLUEBUBBLES_WEBHOOK_SECRET in Vercel</div>
+          <div class="step-detail" id="s-v3-detail">Waiting…</div>
+        </div>
+      </div>
+
+      <div class="step" id="s-v4">
+        <div class="step-icon wait" id="s-v4-icon">6</div>
+        <div class="step-body">
+          <div class="step-name">Set BB_CALL_SECRET in Vercel</div>
+          <div class="step-detail" id="s-v4-detail">Waiting…</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ VIEW 3: Done ══ -->
+  <div id="v-done" class="view" style="display:none">
+
+    <div class="result-section">
+      <div class="result-label">Your generated secrets — copy these</div>
+      <div class="result-box">
+        <div class="secret-row">
+          <span class="secret-key">BLUEBUBBLES_WEBHOOK_SECRET</span>
+          <span class="secret-val" id="r-bb-secret">—</span>
+          <button class="btn-copy" onclick="copyVal('r-bb-secret', this)">Copy</button>
+        </div>
+        <div class="secret-row">
+          <span class="secret-key">BB_CALL_SECRET</span>
+          <span class="secret-val" id="r-call-secret">—</span>
+          <button class="btn-copy" onclick="copyVal('r-call-secret', this)">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="webhook-manual" class="manual-note" style="display:none">
+      <strong>One manual step left — register the Quo webhook yourself:</strong><br>
+      Go to <a style="color:#FFCC33" onclick="chrome.tabs.create({url:'https://app.openphone.com/settings/webhooks'})">app.openphone.com → Settings → Webhooks</a>
+      and add this URL:<br>
+      <div class="url-box">https://project-7e87w.vercel.app/api/phone/quo-webhook</div>
+      Events: <strong>call.completed, recording.completed, message.received, message.sent</strong><br><br>
+      Then copy the signing secret Quo gives you and paste it as <strong>QUO_WEBHOOK_SECRET</strong> in
+      <a style="color:#FFCC33" onclick="chrome.tabs.create({url:'https://vercel.com/g-8390s-projects/reprime-command-center/settings/environment-variables'})">Vercel env vars</a>.
+    </div>
+
+    <div class="final-note">
+      <strong>Last step — BlueBubbles Server (takes 1 minute):</strong><br>
+      In BlueBubbles Server → Settings → Webhooks → Add:<br>
+      URL: <strong>https://project-7e87w.vercel.app/api/phone/bb-webhook</strong><br>
+      Header name: <strong>x-bb-secret</strong><br>
+      Header value: <em>copy BLUEBUBBLES_WEBHOOK_SECRET above</em>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
