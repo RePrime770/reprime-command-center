@@ -7,6 +7,8 @@ import SpeakerButton from '@/components/chat/SpeakerButton'
 type Props = {
   open: boolean
   onClose: () => void
+  /** Optional thread-click handler — caller decides how to navigate. */
+  onThreadClick?: (thread: BriefingThread) => void
 }
 
 interface BriefingMeeting {
@@ -108,7 +110,7 @@ function formatRelative(iso: string | null): string {
   }
 }
 
-export default function BriefingModal({ open, onClose }: Props) {
+export default function BriefingModal({ open, onClose, onThreadClick }: Props) {
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -223,6 +225,7 @@ export default function BriefingModal({ open, onClose }: Props) {
                   {data.recent_investors.map((t) => (
                     <Row
                       key={t.id}
+                      onClick={onThreadClick ? () => { onThreadClick(t); onClose() } : undefined}
                       left={
                         <div>
                           <div style={{ color: TEXT, fontSize: 13, fontWeight: 600 }}>
@@ -251,6 +254,7 @@ export default function BriefingModal({ open, onClose }: Props) {
                   {data.pending_followups.map((t) => (
                     <Row
                       key={t.id}
+                      onClick={onThreadClick ? () => { onThreadClick(t); onClose() } : undefined}
                       left={
                         <div>
                           <div style={{ color: TEXT, fontSize: 13, fontWeight: 600 }}>
@@ -336,9 +340,37 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function Row({ left, right }: { left: React.ReactNode; right: React.ReactNode }) {
+function Row({ left, right, onClick }: { left: React.ReactNode; right: React.ReactNode; onClick?: () => void }) {
+  const baseStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '8px 6px',
+    borderBottom: `1px solid ${GOLD}11`,
+    gap: 12,
+    minWidth: 0,
+    cursor: onClick ? 'pointer' : 'default',
+    borderRadius: onClick ? 4 : 0,
+    transition: 'background 0.15s',
+  }
+  if (!onClick) {
+    return (
+      <div style={baseStyle}>
+        <div style={{ flex: 1, minWidth: 0 }}>{left}</div>
+        <div style={{ flexShrink: 0 }}>{right}</div>
+      </div>
+    )
+  }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${GOLD}11`, gap: 12, minWidth: 0 }}>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = `${GOLD}10` }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+      style={baseStyle}
+    >
       <div style={{ flex: 1, minWidth: 0 }}>{left}</div>
       <div style={{ flexShrink: 0 }}>{right}</div>
     </div>

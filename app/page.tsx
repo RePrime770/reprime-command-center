@@ -664,7 +664,18 @@ export default function Dashboard() {
       />
 
       <QuickEmailModal open={showEmail} onClose={() => setShowEmail(false)} />
-      <BriefingModal open={showBriefing} onClose={() => setShowBriefing(false)} />
+      <BriefingModal
+        open={showBriefing}
+        onClose={() => setShowBriefing(false)}
+        onThreadClick={(thread) => {
+          if (thread.panel === '305' || thread.panel === '718') {
+            setSelections((prev) => ({ ...prev, [thread.panel as Panel]: thread as DashboardThread }))
+            setActiveThread(thread as DashboardThread)
+          } else {
+            setActiveThread(thread as DashboardThread)
+          }
+        }}
+      />
       <QuickCallModal open={showCall} onClose={() => setShowCall(false)} />
 
       {showTerminal && (
