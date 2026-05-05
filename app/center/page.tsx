@@ -9,9 +9,11 @@ import InboxColumn from '@/components/center/columns/InboxColumn'
 import PipelineColumn from '@/components/center/columns/PipelineColumn'
 import BucketColumn from '@/components/center/columns/BucketColumn'
 import BucketItemDetail from '@/components/center/BucketItemDetail'
+import InvestorProfileWindow from '@/components/center/InvestorProfileWindow'
 import SecretaryWindow from '@/components/center/windows/SecretaryWindow'
 import WindowManager from '@/components/center/windows/WindowManager'
 import WindowTaskbar from '@/components/center/windows/WindowTaskbar'
+import type { InvestorProfileData } from '@/components/panels/InvestorProfile'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,6 +68,15 @@ export default function CenterPage() {
           'bucket-item': (props) => (
             <BucketItemDetail
               {...(props as { itemId?: string; title?: string })}
+            />
+          ),
+          'investor-profile': (props) => (
+            <InvestorProfileWindow
+              {...(props as {
+                pipedriveContactId?: number
+                name?: string
+                fallbackData?: InvestorProfileData
+              })}
             />
           ),
           secretary: () => <SecretaryWindow />,
