@@ -13,6 +13,7 @@ import QuickEmailModal from '@/components/email/QuickEmailModal'
 import BriefingModal from '@/components/briefing/BriefingModal'
 import PipedriveCard from '@/components/sidebar/PipedriveCard'
 import TodayPanel from '@/components/sidebar/TodayPanel'
+import MeetingNowBanner from '@/components/sidebar/MeetingNowBanner'
 import NotesPanel from '@/components/sidebar/NotesPanel'
 import InvestorChatPanel from '@/components/panels/InvestorChatPanel'
 import BookingsPanel from '@/components/bookings/BookingsPanel'
@@ -338,6 +339,7 @@ export default function Dashboard() {
 
   return (
     <>
+      <MeetingNowBanner />
       <TodayPanel />
 
       {/* ── Top control bar ────────────────────────────────────────────────── */}
