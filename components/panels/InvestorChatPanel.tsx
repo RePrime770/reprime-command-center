@@ -48,12 +48,17 @@ function truncate(s: string | null, n: number): string {
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
+type TierFilter = 'all' | 'A' | 'B' | 'C' | 'D'
+type RoleFilter = 'both' | 'principal' | 'connector'
+
 export default function InvestorChatPanel() {
   const queryClient = useQueryClient()
   const supabase = useMemo(() => createClient(), [])
   const [selected, setSelected] = useState<DashboardThread | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [tierFilter, setTierFilter] = useState<TierFilter>('all')
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('both')
   const prevSelectedId = useRef<string | null>(null)
 
   // ── Thread list ────────────────────────────────────────────────────────────
@@ -140,9 +145,31 @@ export default function InvestorChatPanel() {
     [queryClient, selected]
   )
 
-  // Filtered thread list
+  // Per-tier counts (computed across all data, not the filtered subset, so
+  // chip labels stay stable as the user toggles filters)
+  const counts = useMemo(() => {
+    const all = threadsData || []
+    const matchRole = (t: DashboardThread) =>
+      roleFilter === 'both' || t.investor_role === roleFilter
+    return {
+      total: all.filter(matchRole).length,
+      A: all.filter((t) => t.investor_tier === 'A' && matchRole(t)).length,
+      B: all.filter((t) => t.investor_tier === 'B' && matchRole(t)).length,
+      C: all.filter((t) => t.investor_tier === 'C' && matchRole(t)).length,
+      D: all.filter((t) => t.investor_tier === 'D' && matchRole(t)).length,
+      untiered: all.filter((t) => !t.investor_tier && matchRole(t)).length,
+    }
+  }, [threadsData, roleFilter])
+
+  // Filtered thread list (search + tier + role)
   const threads = useMemo<DashboardThread[]>(() => {
     let list = threadsData || []
+    if (tierFilter !== 'all') {
+      list = list.filter((t) => t.investor_tier === tierFilter)
+    }
+    if (roleFilter !== 'both') {
+      list = list.filter((t) => t.investor_role === roleFilter)
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter(
@@ -152,7 +179,7 @@ export default function InvestorChatPanel() {
       )
     }
     return list
-  }, [threadsData, search])
+  }, [threadsData, search, tierFilter, roleFilter])
 
   return (
     <div
@@ -208,6 +235,78 @@ export default function InvestorChatPanel() {
             minHeight: 0,
           }}
         >
+          {/* Tier filter chips */}
+          <div style={{ padding: '0.6rem 0.75rem 0.4rem', borderBottom: `1px solid ${BORDER}`, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {(['all', 'A', 'B', 'C', 'D'] as TierFilter[]).map((tier) => {
+                const active = tierFilter === tier
+                const count = tier === 'all' ? counts.total : counts[tier]
+                const label = tier === 'all' ? 'All' : tier
+                return (
+                  <button
+                    key={tier}
+                    onClick={() => setTierFilter(tier)}
+                    style={{
+                      background: active ? GOLD : 'transparent',
+                      color: active ? NAVY : GOLD,
+                      border: `1px solid ${active ? GOLD : BORDER}`,
+                      borderRadius: 14,
+                      padding: '3px 10px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                    title={`${label} tier — ${count} investor${count === 1 ? '' : 's'}${roleFilter !== 'both' ? ` (${roleFilter}s only)` : ''}`}
+                  >
+                    <span>{label}</span>
+                    <span style={{
+                      background: active ? 'rgba(14,52,112,0.15)' : 'rgba(255,204,51,0.18)',
+                      color: active ? NAVY : GOLD,
+                      borderRadius: 8,
+                      padding: '0 6px',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      minWidth: 16,
+                      textAlign: 'center',
+                    }}>{count}</span>
+                  </button>
+                )
+              })}
+            </div>
+            {/* Role toggle */}
+            <div style={{ display: 'flex', gap: 4, background: SURFACE, borderRadius: 999, padding: 2, alignSelf: 'flex-start' }}>
+              {(['both', 'principal', 'connector'] as RoleFilter[]).map((role) => {
+                const active = roleFilter === role
+                return (
+                  <button
+                    key={role}
+                    onClick={() => setRoleFilter(role)}
+                    style={{
+                      background: active ? GOLD : 'transparent',
+                      color: active ? NAVY : MUTED,
+                      border: 'none',
+                      borderRadius: 999,
+                      padding: '3px 10px',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: '0.06em',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {role === 'both' ? 'Both' : role === 'principal' ? 'Principal' : 'Connector'}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           {/* Search */}
           <div style={{ padding: '0.6rem 0.75rem', borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
             <input
