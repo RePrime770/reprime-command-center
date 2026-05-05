@@ -608,9 +608,9 @@ export default function NotesPanel() {
                       placeholder="Title"
                       style={{
                         width: '100%',
-                        background: 'rgba(14, 52, 112, 0.85)',
+                        background: 'rgba(255, 204, 51, 0.05)',
                         color: 'var(--rp-white)',
-                        border: '1px solid var(--rp-border)',
+                        border: '1px solid rgba(255, 204, 51, 0.35)',
                         borderRadius: 4,
                         padding: '0.5rem',
                         fontSize: 13,
@@ -618,6 +618,15 @@ export default function NotesPanel() {
                         marginBottom: 8,
                         boxSizing: 'border-box',
                         fontFamily: 'inherit',
+                        outline: 'none',
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = '#FFCC33'
+                        e.currentTarget.style.background = 'rgba(255, 204, 51, 0.08)'
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(255, 204, 51, 0.35)'
+                        e.currentTarget.style.background = 'rgba(255, 204, 51, 0.05)'
                       }}
                     />
                     <textarea
@@ -627,9 +636,9 @@ export default function NotesPanel() {
                       rows={20}
                       style={{
                         width: '100%',
-                        background: 'rgba(14, 52, 112, 0.85)',
+                        background: 'rgba(255, 204, 51, 0.05)',
                         color: 'var(--rp-white)',
-                        border: '1px solid var(--rp-border)',
+                        border: '1px solid rgba(255, 204, 51, 0.35)',
                         borderRadius: 4,
                         padding: '0.5rem',
                         fontSize: 12,
@@ -637,6 +646,15 @@ export default function NotesPanel() {
                         resize: 'vertical',
                         boxSizing: 'border-box',
                         minHeight: 240,
+                        outline: 'none',
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = '#FFCC33'
+                        e.currentTarget.style.background = 'rgba(255, 204, 51, 0.08)'
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(255, 204, 51, 0.35)'
+                        e.currentTarget.style.background = 'rgba(255, 204, 51, 0.05)'
                       }}
                     />
                   </>
