@@ -31,6 +31,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
+  // Roster lock 2026-05-05 / Wave 1 Track F:
+  // Send-as is restricted to Gideon (`g@reprime.com`) in v1. The IdentityPicker
+  // exposes 5 other team members as view-only; if any of them somehow reach
+  // this endpoint, reject with 403 before SendGrid is touched. Default to
+  // Gideon when the header is absent so legacy clients keep working.
+  const activeIdentity = (
+    request.headers.get('x-active-identity') || ALLOWED_EMAIL
+  )
+    .trim()
+    .toLowerCase()
+  console.log(`[email/send] X-Active-Identity=${activeIdentity}`)
+  if (activeIdentity !== ALLOWED_EMAIL) {
+    return NextResponse.json(
+      { error: 'send-as locked to g@reprime.com in v1' },
+      { status: 403 }
+    )
+  }
+
   let body: SendBody
   try { body = (await request.json()) as SendBody }
   catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
