@@ -6,6 +6,7 @@ import { PANEL_ACCOUNT_MAP } from '@/lib/timelines/client'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
 import { getMediaType, parseTimelinesTimestamp } from '@/lib/timelines/parse'
 import type { Panel, TimelinesChat, TimelinesMessage } from '@/lib/timelines/types'
+import { markAskReplied } from '@/lib/secretary/outbound-asks'
 
 export const dynamic = 'force-dynamic'
 
@@ -444,6 +445,19 @@ export async function POST(request: Request) {
   if (!message.from_me && !chat.is_group && message.text) {
     void classifyAndFlag(service, thread.id, message.text, chat.name || null).catch(
       (err) => console.error('[webhook] classify non-fatal', (err as Error).message)
+    )
+  }
+
+  // ── Secretary: close any open outbound ask waiting on this contact ──────────
+  // Inbound only; group messages don't close 1:1 asks. Match the most recent
+  // open whatsapp ask to the same phone within 7 days. Non-fatal.
+  if (!message.from_me && !chat.is_group) {
+    void markAskReplied({
+      channel: 'whatsapp',
+      recipientIdentifier: phone,
+      responseMessageId: message.uid || null,
+    }).catch((err) =>
+      console.error('[webhook] secretary markAskReplied non-fatal', (err as Error).message)
     )
   }
 
