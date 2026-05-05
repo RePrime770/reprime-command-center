@@ -25,6 +25,24 @@ Last updated 2026-05-05.
 - Email: dg@cre-pro.com
 - Phone: +1-305-570-9935 (Google Voice — logged in)
 
+## RePrime team (canonical email column @reprime.com)
+Per Gideon 2026-05-05. These are the seven RePrime identities the Command Center
+must support for "send-as" routing, Crew-column display, and onboarding hooks.
+
+| Name                       | Email                          | Notes                                  |
+| -------------------------- | ------------------------------ | -------------------------------------- |
+| Gideon Menachem Gratsiani  | g@reprime.com                  | Principal — primary inbox              |
+| Gideon (Terminal alias)    | g@reprime-terminal.com         | Alias — outbound From, Reply-To = primary |
+| Shirel Ben-Haroush          | shirel@reprime.com             | SVP / Partner; sister-in-law           |
+| Steve Philipp              | steve@reprime.com              | AI / email automation lead             |
+| Adir Yonasi                | adir@reprime.com               | VP Investor Relations — investor-side only, never on broker-facing |
+| Yaron Sitbon               | yaron@reprime.com              | Israel Division (BDO, ex-IDF Colonel)  |
+| Chaim Abrahams             | chaim@reprime.com              | Co-Founder                             |
+
+This is the complete @reprime.com directory as of 2026-05-05. Amelia (amelia@reprime.com)
+and Dovber (dg@cre-pro.com — note: cre-pro, not reprime) are listed in their own sections
+above because their phone identities matter to send-as routing.
+
 ## Implications for Command Center
 - Three Google Voice numbers are logged into the same browser profile. Outbound calls/texts can be initiated from any of them. The Command Center should expose a "send as" picker for outreach — default to Gideon, but allow Amelia/Dovber identity for delegated work.
 - All three identities can act on Gideon's behalf inside the Command Center if granted permission. The protocol (per Gideon's recent note) is: anyone working for him must log into the office (Kumospace + V2 Cloud) before doing work — always-connected presence.
