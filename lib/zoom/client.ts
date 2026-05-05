@@ -99,6 +99,22 @@ export function getMeeting(meetingId: number | string): Promise<ZoomMeeting> {
   return zoomRequest<ZoomMeeting>(`/meetings/${encodeURIComponent(String(meetingId))}`)
 }
 
+export function patchMeeting(
+  meetingId: number | string,
+  body: Partial<{
+    topic: string
+    start_time: string
+    duration: number
+    timezone: string
+    agenda: string
+  }>
+): Promise<void> {
+  return zoomRequest<void>(`/meetings/${encodeURIComponent(String(meetingId))}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
 export function deleteMeeting(meetingId: number | string): Promise<void> {
   return zoomRequest<void>(`/meetings/${encodeURIComponent(String(meetingId))}`, {
     method: 'DELETE',

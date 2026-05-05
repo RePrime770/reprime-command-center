@@ -1,4 +1,4 @@
-import { google } from 'googleapis'
+import { google, type calendar_v3 } from 'googleapis'
 
 function getAuthClient() {
   const auth = new google.auth.OAuth2(
@@ -34,6 +34,32 @@ export async function getTodayEvents() {
       attendees: event.attendees?.map(a => a.email!).filter(Boolean) || [],
     }
   }) || []
+}
+
+export async function updateCalendarEvent(eventId: string, opts: {
+  summary?: string
+  description?: string
+  startTime?: string
+  endTime?: string
+  attendees?: string[]
+  zoomLink?: string
+  location?: string
+}) {
+  const calendar = google.calendar({ version: 'v3', auth: getAuthClient() })
+  const requestBody: calendar_v3.Schema$Event = {}
+  if (opts.summary !== undefined) requestBody.summary = opts.summary
+  if (opts.description !== undefined) requestBody.description = opts.description
+  if (opts.location !== undefined) requestBody.location = opts.location
+  if (opts.startTime) requestBody.start = { dateTime: opts.startTime, timeZone: 'America/Chicago' }
+  if (opts.endTime) requestBody.end = { dateTime: opts.endTime, timeZone: 'America/Chicago' }
+  if (opts.attendees) requestBody.attendees = opts.attendees.map(email => ({ email }))
+  const res = await calendar.events.patch({
+    calendarId: 'primary',
+    eventId,
+    requestBody,
+    sendUpdates: 'all',
+  })
+  return res.data.id
 }
 
 export async function createCalendarEvent(opts: {
