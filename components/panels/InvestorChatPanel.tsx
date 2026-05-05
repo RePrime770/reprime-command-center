@@ -393,24 +393,51 @@ export default function InvestorChatPanel() {
                     fontFamily: 'inherit',
                   }}
                 >
-                  {/* Avatar */}
+                  {/* Avatar — channel-colored circle with channel label */}
                   <div
                     style={{
                       width: 36,
                       height: 36,
                       borderRadius: '50%',
-                      background: isSelected ? GOLD : hasUnread ? '#ef4444' : 'rgba(255, 204, 51,0.2)',
+                      background: isSelected
+                        ? GOLD
+                        : hasUnread
+                        ? '#ef4444'
+                        : t.channel_type === 'whatsapp'
+                        ? '#25D366'
+                        : t.channel_type === 'imessage'
+                        ? '#0A84FF'
+                        : t.channel_type === 'sms'
+                        ? '#FF9500'
+                        : 'rgba(255, 204, 51, 0.2)',
                       color: isSelected ? NAVY : '#fff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: 13,
-                      fontWeight: 700,
+                      fontSize: t.channel_type === 'sms' ? 11 : 12,
+                      fontWeight: 800,
                       flexShrink: 0,
+                      letterSpacing: '0.04em',
                       border: `1px solid ${hasUnread ? 'rgba(239,68,68,0.5)' : BORDER}`,
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
                     }}
+                    title={
+                      t.channel_type === 'whatsapp'
+                        ? 'WhatsApp'
+                        : t.channel_type === 'imessage'
+                        ? 'iMessage (via cloud Mac)'
+                        : t.channel_type === 'sms'
+                        ? 'SMS / text message'
+                        : t.channel_type
+                    }
                   >
-                    {initials(t.contact_name, t.phone)}
+                    {t.channel_type === 'whatsapp'
+                      ? 'WA'
+                      : t.channel_type === 'imessage'
+                      ? 'iM'
+                      : t.channel_type === 'sms'
+                      ? 'SMS'
+                      : initials(t.contact_name, t.phone)}
                   </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
