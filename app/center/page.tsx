@@ -3,6 +3,8 @@ import Column from '@/components/center/Column'
 import TopStrip from '@/components/center/TopStrip'
 import VoiceShellFooter from '@/components/center/VoiceShellFooter'
 import PipelineColumn from '@/components/center/columns/PipelineColumn'
+import WindowManager from '@/components/center/windows/WindowManager'
+import WindowTaskbar from '@/components/center/windows/WindowTaskbar'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,7 +40,9 @@ export default function CenterPage() {
         </Canvas>
       </main>
 
+      <WindowTaskbar />
       <VoiceShellFooter />
+      <WindowManager />
     </>
   )
 }
