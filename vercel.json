@@ -17,6 +17,10 @@
     {
       "path": "/api/cron/dispatch-alerts",
       "schedule": "*/1 * * * *"
+    },
+    {
+      "path": "/api/secretary/poll-overdue",
+      "schedule": "0 * * * *"
     }
   ]
 }

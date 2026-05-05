@@ -4,6 +4,7 @@ import { getAllChats, getMessages, sendMessage, PANEL_ACCOUNT_MAP } from '@/lib/
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
 import { getMediaType, parseTimelinesTimestamp } from '@/lib/timelines/parse'
 import type { DashboardMessage, Panel, TimelinesMessage } from '@/lib/timelines/types'
+import { recordOutboundAsk } from '@/lib/secretary/outbound-asks'
 
 export const dynamic = 'force-dynamic'
 
@@ -315,6 +316,17 @@ export async function POST(request: NextRequest) {
       last_message_preview: preview,
     })
     .eq('id', threadId)
+
+  // Secretary: record outbound ask once Timelines confirms send. Window=24h.
+  // Recipient identifier is the normalized E.164 we sent to; the inbound
+  // webhook resolves replies via the same phone match. Non-fatal.
+  await recordOutboundAsk({
+    recipientIdentifier: recipientPhone,
+    channel: 'whatsapp',
+    body: text || attachmentFilename || null,
+    relatedThreadId: threadId,
+    sentAt: new Date(sentAtIso),
+  })
 
   const result: DashboardMessage = {
     id: updated.id,

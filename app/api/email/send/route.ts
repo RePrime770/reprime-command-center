@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/sendgrid/client'
+import { recordOutboundAsk } from '@/lib/secretary/outbound-asks'
 
 export const dynamic = 'force-dynamic'
 
@@ -97,6 +98,20 @@ export async function POST(request: NextRequest) {
       { status: 502 }
     )
   }
+
+  // Secretary: record one outbound ask per primary recipient. Email window=48h.
+  // CC/BCC excluded — the ask is "to" the primary thread. Non-fatal.
+  const askBody = subject ? `${subject}\n\n${text || ''}`.trim() : text || undefined
+  await Promise.all(
+    to.map((recipient) =>
+      recordOutboundAsk({
+        senderIdentity: activeIdentity,
+        recipientIdentifier: recipient,
+        channel: 'email',
+        body: askBody,
+      })
+    )
+  )
 
   return NextResponse.json({
     ok: true,
