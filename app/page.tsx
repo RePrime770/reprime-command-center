@@ -11,6 +11,7 @@ import SearchModal from '@/components/chat/SearchModal'
 import TopBarConcierge from '@/components/chat/TopBarConcierge'
 import QuickEmailModal from '@/components/email/QuickEmailModal'
 import BriefingModal from '@/components/briefing/BriefingModal'
+import QuickCallModal from '@/components/phone/QuickCallModal'
 import PipedriveCard from '@/components/sidebar/PipedriveCard'
 import TodayPanel from '@/components/sidebar/TodayPanel'
 import MeetingNowBanner from '@/components/sidebar/MeetingNowBanner'
@@ -306,6 +307,7 @@ export default function Dashboard() {
   const [showSearch, setShowSearch] = useState(false)
   const [showEmail, setShowEmail] = useState(false)
   const [showBriefing, setShowBriefing] = useState(false)
+  const [showCall, setShowCall] = useState(false)
 
   const select = useCallback(
     (panel: Panel) => (thread: DashboardThread | null) => {
@@ -331,6 +333,10 @@ export default function Dashboard() {
       } else if (e.key === 'b') {
         e.preventDefault()
         setShowBriefing(true)
+      } else if (e.key === 'd') {
+        // Cmd+D / Ctrl+D — Dial. (Ctrl+D's default in some contexts is bookmark; preventing.)
+        e.preventDefault()
+        setShowCall(true)
       }
     }
     window.addEventListener('keydown', handler)
@@ -460,6 +466,38 @@ export default function Dashboard() {
           }}
         >
           🤝 Meeting Request
+        </button>
+
+        {/* Quick Call button — phone picker → system tel: (Quo on this Mac) */}
+        <button
+          type="button"
+          onClick={() => setShowCall(true)}
+          title="Quick call (Ctrl+D) — dials via your system phone handler (Quo on this Mac)"
+          style={{
+            background: 'rgba(255, 204, 51, 0.04)',
+            color: 'rgba(255, 204, 51, 0.92)',
+            border: '1px solid rgba(255, 204, 51, 0.55)',
+            borderRadius: 999,
+            padding: '0.55rem 1.15rem',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            letterSpacing: '0.02em',
+            flexShrink: 0,
+            transition: 'background 0.15s, box-shadow 0.15s',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 204, 51, 0.10)'
+            e.currentTarget.style.boxShadow = '0 2px 12px rgba(255, 204, 51, 0.18)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 204, 51, 0.04)'
+            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.18)'
+          }}
+        >
+          📞 Call
         </button>
 
         {/* Briefing button — opens Morning Briefing modal */}
@@ -627,6 +665,7 @@ export default function Dashboard() {
 
       <QuickEmailModal open={showEmail} onClose={() => setShowEmail(false)} />
       <BriefingModal open={showBriefing} onClose={() => setShowBriefing(false)} />
+      <QuickCallModal open={showCall} onClose={() => setShowCall(false)} />
 
       {showTerminal && (
         <div
