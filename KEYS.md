@@ -1,6 +1,6 @@
 # RePrime Command Center — Reference Index
 
-Last updated: 2026-04-29 16:50 CT
+Last updated: 2026-05-04 (overnight build session)
 
 ## Live URLs
 - Dashboard (production): https://project-7e87w.vercel.app
@@ -69,6 +69,31 @@ Person custom fields (Pipedrive API hashed keys, NOT secrets, safe to commit):
 - OpenAI key "Yosef App v2"
 - Google Cloud project yosef-app
 - Yosef's Upstash database
+
+## Top-bar quick actions (May 3-4 overnight build)
+- 📞 Call (Ctrl+D) — phone picker → tel:+E.164 → routes through Quo on Mac
+- ☀ Briefing (Ctrl+B) — Morning Briefing modal with TTS Listen
+- 🔍 Search (Ctrl+K) — global search across 305, 718, Investors
+- 📧 Email (Ctrl+E) — compose via SendGrid (g@reprime-terminal.com)
+- 📝 Note (Ctrl+J) — opens Notes flap
+- ? — keyboard shortcut help overlay
+
+## API endpoints (selected)
+- POST /api/email/send — generic SendGrid wrapper (to/cc/bcc)
+- GET  /api/briefing/today — meetings + unread + recent investors + expiring invitations
+- GET  /api/messages/failed-recent — Failed/QuotaExceeded in last 30 min
+- POST /api/invitations/{token}/reschedule — patches Zoom + Calendar + sends updated ICS
+- POST /api/contacts/block — cross-channel block (Pipedrive ID + phone + email match)
+- GET  /api/invitations/{token}/calendar.ics — RFC 5545 ICS for Apple/Outlook
+- POST /api/bookings/confirm — original confirm flow (creates Zoom + Calendar)
+- GET  /api/calendar/today — today's Google Calendar events (cached 5 min)
+- POST /api/voice/speak — ElevenLabs TTS (en/he autodetected)
+
+## Top-of-page banners (auto-show)
+- FailedDeliveryBanner — red, 30-min Failed/Quota window, dismissible per-msg
+- MeetingNowBanner — green pulse, T-1 to T+10 min, "Join Zoom →" CTA
+- TodayPanel — meetings strip with reminder toggles + Late/Cancel concierge
+- BriefingModal auto-opens once per day (localStorage 'briefing-last-shown-date')
 
 ## Session anchors
 - Build start: April 29, 2026
