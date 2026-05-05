@@ -393,7 +393,7 @@ export default function InvestorChatPanel() {
                     fontFamily: 'inherit',
                   }}
                 >
-                  {/* Avatar — channel-colored circle with channel label */}
+                  {/* Avatar — channel-colored circle with line label so 305 vs 718 are distinct */}
                   <div
                     style={{
                       width: 36,
@@ -403,8 +403,10 @@ export default function InvestorChatPanel() {
                         ? GOLD
                         : hasUnread
                         ? '#ef4444'
+                        : t.channel_type === 'whatsapp' && t.panel === '305'
+                        ? '#F0B400' // WhatsApp 305 — amber (RePrime, spam-prone)
                         : t.channel_type === 'whatsapp'
-                        ? '#25D366'
+                        ? '#25D366' // WhatsApp 718 — green (personal)
                         : t.channel_type === 'imessage'
                         ? '#0A84FF'
                         : t.channel_type === 'sms'
@@ -422,8 +424,10 @@ export default function InvestorChatPanel() {
                       boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
                     }}
                     title={
-                      t.channel_type === 'whatsapp'
-                        ? 'WhatsApp'
+                      t.channel_type === 'whatsapp' && t.panel === '305'
+                        ? 'WhatsApp 305 (RePrime)'
+                        : t.channel_type === 'whatsapp'
+                        ? 'WhatsApp 718 (personal)'
                         : t.channel_type === 'imessage'
                         ? 'iMessage (via cloud Mac)'
                         : t.channel_type === 'sms'
@@ -431,8 +435,10 @@ export default function InvestorChatPanel() {
                         : t.channel_type
                     }
                   >
-                    {t.channel_type === 'whatsapp'
-                      ? 'WA'
+                    {t.channel_type === 'whatsapp' && t.panel === '305'
+                      ? '305'
+                      : t.channel_type === 'whatsapp'
+                      ? '718'
                       : t.channel_type === 'imessage'
                       ? 'iM'
                       : t.channel_type === 'sms'

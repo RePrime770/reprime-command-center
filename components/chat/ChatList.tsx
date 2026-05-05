@@ -259,8 +259,10 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
                   borderRadius: '50%',
                   background: hasUnread
                     ? '#ef4444'
+                    : t.channel_type === 'whatsapp' && t.panel === '305'
+                    ? '#F0B400' // WhatsApp 305 — warm amber (RePrime corporate, spam-prone)
                     : t.channel_type === 'whatsapp'
-                    ? '#25D366' // WhatsApp brand green
+                    ? '#25D366' // WhatsApp 718 — brand green (personal)
                     : t.channel_type === 'imessage'
                     ? '#0A84FF' // Apple iMessage blue
                     : t.channel_type === 'sms'
@@ -277,8 +279,10 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
                   boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
                 }}
                 title={
-                  t.channel_type === 'whatsapp'
-                    ? 'WhatsApp'
+                  t.channel_type === 'whatsapp' && t.panel === '305'
+                    ? 'WhatsApp 305 (RePrime)'
+                    : t.channel_type === 'whatsapp'
+                    ? 'WhatsApp 718 (personal)'
                     : t.channel_type === 'imessage'
                     ? 'iMessage (via cloud Mac)'
                     : t.channel_type === 'sms'
@@ -286,8 +290,10 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
                     : t.channel_type
                 }
               >
-                {t.channel_type === 'whatsapp'
-                  ? 'WA'
+                {t.channel_type === 'whatsapp' && t.panel === '305'
+                  ? '305'
+                  : t.channel_type === 'whatsapp'
+                  ? '718'
                   : t.channel_type === 'imessage'
                   ? 'iM'
                   : t.channel_type === 'sms'

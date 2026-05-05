@@ -317,14 +317,67 @@ export default function Dashboard() {
         style={{
           display: 'flex',
           alignItems: 'center',
-          padding: '0.28rem 0.9rem',
-          background: '#080F24',
-          borderBottom: '1px solid rgba(255, 204, 51,0.18)',
+          padding: '0.4rem 0.9rem',
+          background: 'linear-gradient(180deg, #0E3470 0%, #080F24 100%)',
+          borderBottom: '1px solid rgba(255, 204, 51, 0.22)',
           gap: 10,
           flexShrink: 0,
           overflowX: 'auto',
         }}
       >
+        {/* Terminal wordmark — single source brand mark from _terminal-design-reference */}
+        <a
+          href="/"
+          title="RePrime Terminal"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            textDecoration: 'none',
+            flexShrink: 0,
+            paddingRight: 14,
+            borderRight: '1px solid rgba(255, 204, 51, 0.20)',
+            marginRight: 4,
+          }}
+        >
+          <svg viewBox="0 0 800 320" height={36} role="img" aria-label="Terminal by RePrime">
+            <defs>
+              <linearGradient id="topbar-rule" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#FFCC33" stopOpacity="0" />
+                <stop offset="6%" stopColor="#FFCC33" stopOpacity="1" />
+                <stop offset="94%" stopColor="#FFCC33" stopOpacity="1" />
+                <stop offset="100%" stopColor="#FFCC33" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <rect x="90" y="86" width="620" height="2" fill="url(#topbar-rule)" />
+            <text
+              x="400"
+              y="196"
+              textAnchor="middle"
+              fontFamily="'Cinzel', 'Trajan Pro', Georgia, serif"
+              fontWeight={600}
+              fontSize={100}
+              letterSpacing={12}
+              fill="#FFCC33"
+            >
+              TERMINAL
+            </text>
+            <rect x="90" y="220" width="620" height="2" fill="url(#topbar-rule)" />
+            <text
+              x="400"
+              y="262"
+              textAnchor="middle"
+              fontFamily="'EB Garamond', Garamond, Georgia, serif"
+              fontStyle="italic"
+              fontSize={27}
+              letterSpacing={1.4}
+              fill="#FFCC33"
+              opacity={0.9}
+            >
+              by RePrime
+            </text>
+          </svg>
+        </a>
+
         {/* Utility buttons */}
         <ImportNamesButton />
         <button
