@@ -220,7 +220,7 @@ export async function GET(request: NextRequest) {
     const redis = getRedis()
     type EnrichmentPatch = {
       id: string
-      pipedrive_contact_id: number
+      pipedrive_contact_id: number | null
       contact_name: string
     }
     const patches: EnrichmentPatch[] = []
@@ -285,17 +285,37 @@ export async function GET(request: NextRequest) {
         }
 
         const person = payload.person
-        if (!person) return
-        pipedriveMatches++
-
         const threadId = phoneToThreadId.get(phone)
         if (!threadId) return
 
-        patches.push({
-          id: threadId,
-          pipedrive_contact_id: person.id,
-          contact_name: person.name,
-        })
+        if (person) {
+          pipedriveMatches++
+          patches.push({
+            id: threadId,
+            pipedrive_contact_id: person.id,
+            contact_name: person.name,
+          })
+          return
+        }
+
+        // No Pipedrive match — fall back to contact_directory phonebook
+        // (the 939 NonInvestors_Final rows ingested from the xlsx).
+        try {
+          const { lookupByPhone } = await import('@/lib/contact-directory/client')
+          const callerId = await lookupByPhone(phone)
+          if (callerId?.canonical_name) {
+            patches.push({
+              id: threadId,
+              pipedrive_contact_id: null, // matched via phonebook, no Pipedrive Person
+              contact_name: callerId.canonical_name,
+            })
+          }
+        } catch (err) {
+          console.warn('[/api/whatsapp/threads] phonebook lookup failed', {
+            phone,
+            message: (err as Error).message,
+          })
+        }
       })
     )
 
@@ -314,15 +334,18 @@ export async function GET(request: NextRequest) {
 
     if (patches.length > 0) {
       const updateResults = await Promise.all(
-        patches.map((p) =>
-          service
+        patches.map((p) => {
+          // Only patch pipedrive_contact_id when the enrichment came from
+          // a real Pipedrive match — phonebook hits leave it null.
+          const update: Record<string, unknown> = { contact_name: p.contact_name }
+          if (p.pipedrive_contact_id !== null) {
+            update.pipedrive_contact_id = p.pipedrive_contact_id
+          }
+          return service
             .from('whatsapp_threads')
-            .update({
-              contact_name: p.contact_name,
-              pipedrive_contact_id: p.pipedrive_contact_id,
-            })
+            .update(update)
             .eq('id', p.id)
-        )
+        })
       )
       const updateErrorCount = updateResults.filter((r) => r.error).length
       if (updateErrorCount > 0) {
