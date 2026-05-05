@@ -87,18 +87,16 @@ Four columns at 1280px each = 5120px total. CSS grid `grid-template-columns: rep
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.4 Identity model
+### 2.4 Identity model — UPDATED 2026-05-05 (roster lock)
 
-Four identities can act through the Command Center; each has its own outbound channel mapping:
+Roster lock 2026-05-05: only Gideon + 5 team members (Shirel, Steve, Adir, Yaron, Chaim). Amelia and Dovber are off the roster — see `team-roster.md`. The identity picker collapses to a single send-as identity (Gideon) for now.
 
-| Identity | Email From            | Outbound SMS line       | Notes                               |
-| -------- | --------------------- | ----------------------- | ----------------------------------- |
-| Gideon   | g@reprime-terminal.com | +1-305-778-4861 (Quo)   | Default                             |
-| Amelia   | amelia@reprime.com    | +1-917-779-9770 (GV)    | EA delegations                      |
-| Dovber   | dg@cre-pro.com        | +1-305-570-9935 (GV)    | Family / development tasks          |
-| RePrime team | per-user @reprime.com | (no SMS by default) | Read-only Crew view                 |
+| Identity         | Email From               | Outbound SMS line                      | Notes                                          |
+| ---------------- | ------------------------ | -------------------------------------- | ---------------------------------------------- |
+| **Gideon** (only)| `g@reprime-terminal.com` | `+1-305-778-4861` (Quo) and 718 iMessage | Default and only active send-as today          |
+| 5 team members   | per-user `@reprime.com`  | (no SMS routing today)                 | Read-only Crew column display + can receive delegated bucket items |
 
-A persistent `IdentityPicker` in the top strip switches the active identity. Outbound calls/emails use the active identity. Send-as is logged so we can audit who sent what.
+The persistent `IdentityPicker` component in the top strip is built but in v1 only renders Gideon as selectable. The dropdown affordance stays so v2 can re-introduce send-as for any of the 5 team members once they each register a phone identity. Send-as is logged regardless so future audit reads are intact.
 
 ---
 
@@ -299,7 +297,9 @@ create index idx_email_account_score on public.email_scores (account_email, scor
 
 ### Track D — Crew Column (`feat/center-crew`)
 
-**Goal:** show the eight teammates (Gideon, Amelia, Dovber, Shirel, Steve, Adir, Yaron, Chaim), their current Kumospace presence (later phase), and a "delegate" action that creates a bucket item assigned to them.
+**Goal:** show the six people on the roster (Gideon as principal + 5 team members: Shirel, Steve, Adir, Yaron, Chaim), their current Kumospace presence (later phase), and a "delegate" action that creates a bucket item assigned to them.
+
+**Roster lock 2026-05-05:** Amelia and Dovber are OFF the roster. Do NOT seed them into `crew_members`. See `team-roster.md` for canonical list.
 
 **DB migration (`supabase/migrations/2026-05-05-crew.sql`):**
 ```sql
@@ -314,15 +314,14 @@ create table public.crew_members (
   created_at timestamptz not null default now()
 );
 
+-- Roster lock 2026-05-05: only Gideon + 5 team members. No Amelia, no Dovber.
 insert into public.crew_members (email, display_name, role, identity_for_send_as) values
-  ('g@reprime.com',         'Gideon Gratsiani',  'Principal',         true),
-  ('amelia@reprime.com',    'Amelia McMurray',   'Executive Assistant', true),
-  ('dg@cre-pro.com',        'Dovber Gratsiani',  'Development',       true),
-  ('shirel@reprime.com',    'Shirel Ben-Haroush','SVP / Partner',     false),
-  ('steve@reprime.com',     'Steve Philipp',     'AI / Email Automation', false),
-  ('adir@reprime.com',      'Adir Yonasi',       'VP Investor Relations', false),
-  ('yaron@reprime.com',     'Yaron Sitbon',      'Israel Division',   false),
-  ('chaim@reprime.com',     'Chaim Abrahams',    'Co-Founder',        false)
+  ('g@reprime.com',      'Gideon Gratsiani',   'Principal',                 true),
+  ('shirel@reprime.com', 'Shirel Ben-Haroush', 'SVP / Partner',             false),
+  ('steve@reprime.com',  'Steve Philipp',      'AI / Email Automation',     false),
+  ('adir@reprime.com',   'Adir Yonasi',        'VP Investor Relations',     false),
+  ('yaron@reprime.com',  'Yaron Sitbon',       'Israel Division',           false),
+  ('chaim@reprime.com',  'Chaim Abrahams',     'Co-Founder',                false)
 on conflict (email) do nothing;
 ```
 
