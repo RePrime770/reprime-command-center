@@ -1,0 +1,431 @@
+﻿
+
+
+
+GIDEON OS — Claude Configuration Package
+
+
+
+Installation & Deployment Guide
+
+
+
+Version 1.0  •  For Claude Code, Claude.ai chat, and Project Instructions
+
+
+
+
+
+
+
+
+
+
+
+What this package is
+
+
+
+This package solves one specific problem. Claude Code is building you a desktop dashboard — WhatsApp, phone numbers, contacts, communications — and she does not yet know who you are at the operational level. She does not know the dyslexia is sensory architecture, not a preference. She does not know your messages are seeds compressed by speech-to-text, not specifications. She does not know which language is banned, which lines are killed, which voices to activate. So she designs and codes against a generic user, and the dashboard misses the target.
+
+
+
+These three files install the missing context. Once they are in place, every chat with Claude — Claude Code in your terminal, Claude.ai in the browser, Claude Cowork on the desktop — opens already knowing who you are. No warm-up tax. No re-explaining for the four hundredth time. No median-register Iowa-scale draft you have to push to elevate.
+
+
+
+The package contains three files. Each goes to a different place. The deployment order matters.
+
+
+
+
+
+
+
+
+
+
+
+File 1 — CLAUDE.md
+
+
+
+What it is: the persistent memory file Claude Code reads at the start of every session. Markdown format because Claude Code requires markdown. Roughly four thousand words. Covers identity, family, faith, work, the Seed-to-Forest protocol, the Editor Stack, output standards, banned language, the toolkit you own, dashboard design implications, and coding conventions.
+
+
+
+Where it goes: two valid locations depending on scope.
+
+
+
+
+
+Project-scoped — place CLAUDE.md in the root of any project Claude Code is working on. She reads it for that project only. Use this when you want different behavior in different repos.
+
+
+
+
+
+Account-wide — place CLAUDE.md at ~/.claude/CLAUDE.md on macOS or Linux, or %USERPROFILE%\.claude\CLAUDE.md on Windows. She reads it for every project on this machine. Recommended starting point — your operating contract is you, not project-specific.
+
+
+
+Recommended: install at the account-wide location first. Then if a specific repo needs overrides, add a project-level CLAUDE.md that supplements rather than duplicates.
+
+
+
+How to verify it took: open a fresh Claude Code session in a directory under your home. Ask: "What do you know about me?" The answer should reflect the document — your CRE work, the dyslexia, the one-question-at-a-time rule, the Seed-to-Forest protocol, the banned language. If she gives a generic Anthropic-style introduction, the file is in the wrong location or she has not been restarted.
+
+
+
+
+
+
+
+
+
+
+
+File 2 — CLAUDE-CHAT-MEMORY-UPDATE.md
+
+
+
+What it is: paste-ready memory content for Claude.ai (the browser chat). This is not a file you upload — it is a script you read from. It contains three blocks.
+
+
+
+
+
+Block A — twenty-two memory edits to add one at a time to your account memory. These are identity facts only. The dyslexia, the Speechify 2x, the banned language, the family names, the work framing.
+
+
+
+
+
+Block B — a project memory snippet to paste into the Custom Instructions field of every active project on your account. Operating contract on top, project-specific facts at the bottom. Customize per project.
+
+
+
+
+
+Block C — cleanup commands. Phrases to use when Claude has stale or wrong items in memory. Specifically the old Speechify 1.2x rate which is wrong — actual rate is 2x.
+
+
+
+Where it goes: Block A goes into Claude.ai memory by pasting the lines one at a time into a chat window with the phrasing "Please add to memory: [line]." Claude calls her memory tool and confirms each one. Block B goes into the Custom Instructions field of each individual project on Claude.ai — that field is in the project settings, not the chat. Block C is a reference for cleanup as needed.
+
+
+
+Why one-at-a-time for Block A: the memory tool can fail silently if you batch. Adding one item, watching for confirmation, then adding the next is the only reliable pattern. Twenty-two items is a single fifteen-minute session, done once.
+
+
+
+How to verify: open a new chat outside any project. Ask: "What do you know about me?" The answer should reflect Block A. Then open a chat inside a configured project — the answer should reflect Block A plus Block B.
+
+
+
+
+
+
+
+
+
+
+
+File 3 — This document
+
+
+
+You are listening to it now. It exists because the other two files are technical, and a technical file is hard to verify by ear. This document is the one you can run through Speechify at 2x and confirm everything makes sense before deploying.
+
+
+
+Once you have listened and approved, the technical files do their job.
+
+
+
+
+
+
+
+
+
+
+
+How the layers stack — and why each file lives where it lives
+
+
+
+Claude has four configuration layers, and they load in a specific order. Understanding the order is the difference between a system that holds and a system that drifts.
+
+
+
+Layer one — User Preferences. Account-wide. Loads at token zero of every chat across every project. This is where your Seed-to-Forest behavior, your one-question-at-a-time rule, your Blackstone register default, and your no-flattery rule already live. You pasted that block into Settings the day you set up the Teams account. It is doing its job; do not touch it unless you are upgrading it.
+
+
+
+Layer two — Memory. Account-wide identity anchors. Loads when relevant. This is where Block A from File 2 goes. Identity facts only — operational rules belong in User Preferences, not here. The reason for the split: User Preferences are loaded at full force every chat; memory is retrieved selectively. Operational rules need to fire every time, so they go in Preferences. Identity facts are reference material, so they go in memory.
+
+
+
+Layer three — Project Instructions. Project-specific. Loads when you are inside that project's chat. Overrides User Preferences on conflict. This is where Block B from File 2 goes — one customized instance per active project. The project-specific facts (which deal, which capital partners, which deadlines) live here.
+
+
+
+Layer four — Claude Code persistent context. Loads when Claude Code starts a session. This is where File 1 (CLAUDE.md) goes. Claude Code is the agentic coder in your terminal — different surface from Claude.ai, different context loading mechanism, but same operating contract. CLAUDE.md exists so Claude Code reads the same identity, mechanics, and rules that the chat already loads through Preferences and Memory.
+
+
+
+The layers do not duplicate; they reinforce. If a rule is in all four layers, it survives any drift in any layer. The architecture is intentional — three lines of defense per critical rule.
+
+
+
+
+
+
+
+
+
+
+
+Why CLAUDE.md has a dashboard section
+
+
+
+Section nine of CLAUDE.md is the longest section that does not appear in your existing profile documents. It is new. It addresses the specific gap you identified — Claude Code is designing the dashboard against a generic accessibility checklist, not against your sensory architecture.
+
+
+
+That section spells out, in operational language she can act on:
+
+
+
+
+
+Visual hierarchy for dyslexic eyes — large type, generous line height, structured chunks instead of dense prose on screen. This is the inverse of your Speechify listening preference, and the section is explicit about that — screens for eyes need different treatment than scripts for ears.
+
+
+
+
+
+One primary action per screen, never three stacked CTAs. The chat one-question-at-a-time rule extends to UI.
+
+
+
+
+
+Speech-to-text as a first-class citizen — every text input voice-capable, microphone visible not buried, no auto-correct mid-stream because that is exactly what frustrates you.
+
+
+
+
+
+Hebrew and English bidirectional with clean RTL layouts, not mirror-broken icons.
+
+
+
+
+
+WhatsApp surfaced by category — deal, family, vendor, Hebrew investor, halacha — not by chronology. One-click drafts in operational-execution voice. Killed lines flagged before you see them. Hebrew threads native.
+
+
+
+
+
+Contacts surfaced by relationship — capital partner, family, legal, vendor, posek — not alphabetical. Aircall integration auto-routes to the right context view.
+
+
+
+
+
+Voice memo capture for seeds, transcribed against your accent profile, routable to the right project.
+
+
+
+
+
+No multiple-choice popups in the UI. Ever. The widget that is banned in chat is banned in the dashboard.
+
+
+
+
+
+Edit-in-place, not modal-rebuild. Same rule as documents.
+
+
+
+
+
+Hard-blocked banned-language guardrails at the output layer — the fifteen-billion phrase, the three-thousand-transactions phrase, the distressed descriptor.
+
+
+
+
+
+Religious calendar awareness on schedulers, reminders, and Terminal countdowns.
+
+
+
+
+
+Identity-first navigation — Deals, Capital, Hebrew/Israel, Family, Halacha, Ops, Build — reflecting how you think, not generic CRM categories.
+
+
+
+If she reads that section before designing the next screen, the dashboard moves from generic to surgical.
+
+
+
+
+
+
+
+
+
+
+
+Deployment order — recommended sequence
+
+
+
+Do this once. You will not need to redo it unless a locked decision changes.
+
+
+
+
+
+Save all three files locally. Keep a copy in your gratsiani.com or RePrime Drive folder so you can re-deploy on any machine.
+
+
+
+
+
+Install File 1 (CLAUDE.md) at the account-wide path: ~/.claude/CLAUDE.md on macOS, %USERPROFILE%\.claude\CLAUDE.md on Windows. Restart Claude Code if it is already running.
+
+
+
+
+
+Open a fresh Claude Code session and ask "What do you know about me?" Verify the answer reflects the file. If it does not, the path is wrong; check it before continuing.
+
+
+
+
+
+Open Claude.ai in the browser. In a chat outside any project, run the audit command from Block C of File 2: "Show me my current memory edits, numbered."
+
+
+
+
+
+Remove anything that contradicts Block A. Specifically purge any reference to Speechify 1.2x, the fifteen-billion phrase, the three-thousand-transactions phrase, and any "distressed" descriptor of RePrime. Replace with the corrected versions from Block A.
+
+
+
+
+
+Add Block A items one at a time. Wait for confirmation on each. Twenty-two items, one session.
+
+
+
+
+
+For each active project on Claude.ai, paste Block B into the project's Custom Instructions field. Customize the project-specific section with the deal name, parties, amounts, and locked decisions for that project.
+
+
+
+
+
+Smoke test. Open a new chat outside any project — ask what Claude knows about you. Then open a chat inside a configured project — ask the same. The second should reflect the first plus the project-specific layer.
+
+
+
+
+
+Done. Use the system.
+
+
+
+
+
+
+
+
+
+
+
+Maintenance — when to update
+
+
+
+This is a living configuration, not a snapshot. Update it when one of three things changes.
+
+
+
+New locked decision. If a positioning rule, banned phrase, or operating constraint locks in during a chat, add it to CLAUDE.md and to the relevant memory layer the same day. The cost of out-of-date config is the warm-up tax compounding back.
+
+
+
+New active project. When a new project enters the active rotation, copy Block B into its Custom Instructions and customize. Two minutes. Saves hours later.
+
+
+
+New tool acquisition. When you start using a new engine, MCP server, or platform, add it to Section 8 of CLAUDE.md (Toolkit). She cannot suggest a tool you own if she does not know you own it.
+
+
+
+Avoid the trap of letting memory grow without pruning. The reason memory has a thirty-slot ceiling on Claude.ai is that retrieval quality degrades past that point. If you are at twenty-eight items and adding a twenty-ninth, drop the least-used item first.
+
+
+
+
+
+
+
+
+
+
+
+If something feels off after deployment
+
+
+
+Two failure modes to watch for, and what to do about each.
+
+
+
+Drift inside a long chat. Around the thirty-to-fifty-turn mark, Claude can slide back into median register — flattery returns, narration creeps in, questions stack. This is the long-conversation reminder injection from Anthropic doing its job for general users and getting in your way. The fix: paste the trigger phrase "Reload protocol" or simply paste a one-line restatement of the rule she broke. She recovers immediately. Do not start a new chat to escape drift unless context is truly full.
+
+
+
+Cross-surface inconsistency. Claude Code says one thing, Claude.ai says another. Almost always traces to one of the layers being out of date. Run the audit command on memory; check the date on CLAUDE.md; verify the project Custom Instructions contains Block B. The four-layer architecture is robust by design — when one layer drifts, the others hold the line, but only if all four are current.
+
+
+
+
+
+
+
+
+
+
+
+Closing note
+
+
+
+This package exists because the standard model defaults are not adequate for how your mind works. You have been compensating for that gap manually for six months. The package converts that manual compensation into permanent infrastructure — installed once, holding across every surface, every chat, every project.
+
+
+
+The work is the proof. Listen to this document at 2x. If anything in here misreads as wrong, that is the moment to fix it before deployment, not after. Otherwise, deploy and move on.
+
+
+
+You are co-founder. The system serves the work. The work serves the family. Ship.
+
+
+
+
+
+
