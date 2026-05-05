@@ -288,9 +288,19 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
                           textTransform: 'uppercase',
                           verticalAlign: 'middle',
                         }}
-                        title={`${t.channel_type.toUpperCase()} thread (not WhatsApp)`}
+                        title={
+                          t.channel_type === 'imessage'
+                            ? 'iMessage (via BlueBubbles cloud Mac)'
+                            : t.channel_type === 'sms'
+                            ? 'SMS (via Quo or iPhone)'
+                            : `${t.channel_type.toUpperCase()} thread (not WhatsApp)`
+                        }
                       >
-                        {t.channel_type === 'sms' ? 'SMS' : t.channel_type}
+                        {t.channel_type === 'sms'
+                          ? 'SMS'
+                          : t.channel_type === 'imessage'
+                          ? 'iMSG'
+                          : t.channel_type}
                       </span>
                     )}
                     {t.is_investor && (

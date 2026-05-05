@@ -173,12 +173,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Pull WhatsApp + SMS threads for this panel. SMS threads are populated by
-    // the Quo webhook (`/api/phone/quo-webhook`) as channel_type='sms' rows in
-    // the same whatsapp_threads table — they share the panel value but have a
-    // different channel_type. ChatList renders a small `[SMS]` badge based on it.
+    // Pull all channel types for this panel. The whatsapp_threads table is
+    // shared across multiple channels — channel_type discriminates them:
+    //   305 panel → 'whatsapp' (Timelines) + 'sms' (Quo)
+    //   718 panel → 'whatsapp' (Timelines) + 'imessage' (BlueBubbles cloud Mac)
+    //                                      + 'sms' (BlueBubbles when iPhone gets a real SMS)
+    // ChatList renders a small badge for non-whatsapp channels (SMS, iMessage).
     const channelsToFetch =
-      panel === '305' ? ['whatsapp', 'sms'] : ['whatsapp']
+      panel === '305'
+        ? ['whatsapp', 'sms']
+        : ['whatsapp', 'imessage', 'sms']
     const { data: threads, error: selectErr } = await service
       .from('whatsapp_threads')
       .select('*')
