@@ -2,16 +2,17 @@ import Canvas from '@/components/center/Canvas'
 import Column from '@/components/center/Column'
 import TopStrip from '@/components/center/TopStrip'
 import VoiceShellFooter from '@/components/center/VoiceShellFooter'
+import PipelineColumn from '@/components/center/columns/PipelineColumn'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * /center — RePrime Command Center kiosk shell.
  *
- * Wave 1 Track A scaffold: chassis only. Other tracks mount their column
- * contents (Pipeline, Inbox, Bucket, Crew) into the four labeled
- * <Column> children, and replace the IdentityPickerSlot / VoiceShellFooter
- * placeholders with their live components.
+ * Wave 1 wiring: Pipeline column live; Inbox/Bucket/Crew remain placeholders
+ * until Wave 2 ships their column components. IdentityPicker is mounted by
+ * IdentityPickerSlot inside TopStrip; VoiceShellFooter remains a placeholder
+ * until Track G fills it.
  */
 export default function CenterPage() {
   return (
@@ -28,7 +29,9 @@ export default function CenterPage() {
         }}
       >
         <Canvas>
-          <Column label="Pipeline" />
+          <Column label="Pipeline" fullBleed>
+            <PipelineColumn />
+          </Column>
           <Column label="Inbox" />
           <Column label="Bucket" />
           <Column label="Crew" />
