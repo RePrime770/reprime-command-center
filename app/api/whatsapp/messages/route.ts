@@ -54,8 +54,12 @@ export async function GET(request: NextRequest) {
     .eq('id', threadId)
     .single()
 
+  // Stub investor-tagged contacts (no real WA thread yet) and any other case
+  // where the requested thread doesn't exist in DB → return empty array, not
+  // 404. Lets the UI render an empty conversation pane cleanly instead of an
+  // error toast.
   if (threadErr || !thread) {
-    return NextResponse.json({ error: 'thread not found' }, { status: 404 })
+    return NextResponse.json({ messages: [] satisfies DashboardMessage[] })
   }
 
   const panel: Panel = thread.panel
