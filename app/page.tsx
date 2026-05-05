@@ -10,6 +10,7 @@ import ReplyBox from '@/components/chat/ReplyBox'
 import SearchModal from '@/components/chat/SearchModal'
 import TopBarConcierge from '@/components/chat/TopBarConcierge'
 import QuickEmailModal from '@/components/email/QuickEmailModal'
+import BriefingModal from '@/components/briefing/BriefingModal'
 import PipedriveCard from '@/components/sidebar/PipedriveCard'
 import TodayPanel from '@/components/sidebar/TodayPanel'
 import NotesPanel from '@/components/sidebar/NotesPanel'
@@ -303,6 +304,7 @@ export default function Dashboard() {
   const [showTerminal, setShowTerminal] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [showEmail, setShowEmail] = useState(false)
+  const [showBriefing, setShowBriefing] = useState(false)
 
   const select = useCallback(
     (panel: Panel) => (thread: DashboardThread | null) => {
@@ -312,12 +314,22 @@ export default function Dashboard() {
     []
   )
 
-  // Global Ctrl+K / Cmd+K to open search
+  // Global keyboard shortcuts: Ctrl/Cmd+K → Search, Ctrl/Cmd+E → Email, Ctrl/Cmd+J → Note
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      if (!(e.ctrlKey || e.metaKey)) return
+      if (e.key === 'k') {
         e.preventDefault()
         setShowSearch(true)
+      } else if (e.key === 'e') {
+        e.preventDefault()
+        setShowEmail(true)
+      } else if (e.key === 'j') {
+        e.preventDefault()
+        window.dispatchEvent(new Event('open-notes'))
+      } else if (e.key === 'b') {
+        e.preventDefault()
+        setShowBriefing(true)
       }
     }
     window.addEventListener('keydown', handler)
@@ -446,6 +458,38 @@ export default function Dashboard() {
           }}
         >
           🤝 Meeting Request
+        </button>
+
+        {/* Briefing button — opens Morning Briefing modal */}
+        <button
+          type="button"
+          onClick={() => setShowBriefing(true)}
+          title="Morning briefing (Ctrl+B)"
+          style={{
+            background: 'rgba(255, 204, 51, 0.04)',
+            color: 'rgba(255, 204, 51, 0.92)',
+            border: '1px solid rgba(255, 204, 51, 0.55)',
+            borderRadius: 999,
+            padding: '0.55rem 1.15rem',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            letterSpacing: '0.02em',
+            flexShrink: 0,
+            transition: 'background 0.15s, box-shadow 0.15s',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 204, 51, 0.10)'
+            e.currentTarget.style.boxShadow = '0 2px 12px rgba(255, 204, 51, 0.18)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 204, 51, 0.04)'
+            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.18)'
+          }}
+        >
+          ☀ Briefing
         </button>
 
         {/* Search button — opens global search across 305, 718, Investors */}
@@ -580,6 +624,7 @@ export default function Dashboard() {
       />
 
       <QuickEmailModal open={showEmail} onClose={() => setShowEmail(false)} />
+      <BriefingModal open={showBriefing} onClose={() => setShowBriefing(false)} />
 
       {showTerminal && (
         <div

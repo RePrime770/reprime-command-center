@@ -1,0 +1,342 @@
+'use client'
+
+import { useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
+
+type Props = {
+  open: boolean
+  onClose: () => void
+}
+
+interface BriefingMeeting {
+  id: string
+  title: string
+  startTime: string
+  zoomLink: string | null
+}
+
+interface BriefingThread {
+  id: string
+  contact_name: string | null
+  phone: string | null
+  panel: string | null
+  channel_type: string | null
+  is_investor: boolean
+  unread_count: number
+  last_message_at: string | null
+  last_message_preview: string | null
+}
+
+interface ExpiringInv {
+  id: string
+  contact_name: string | null
+  contact_email: string | null
+  expires_at: string
+}
+
+interface BriefingPayload {
+  date: string
+  meetings: {
+    count: number
+    first: BriefingMeeting | null
+    nextUp: BriefingMeeting | null
+    items: BriefingMeeting[]
+  }
+  unread: {
+    total: number
+    by_panel: { '305': number; '718': number; investors: number }
+  }
+  recent_investors: BriefingThread[]
+  expiring_invitations: { count: number; items: ExpiringInv[] }
+  pending_followups: BriefingThread[]
+}
+
+const NAVY = '#0E3470'
+const GOLD = '#FFCC33'
+const TEXT = '#F5EFD8'
+const MUTED = '#8C8771'
+
+function formatTime(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+}
+
+function formatRelative(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const diffMs = d.getTime() - Date.now()
+  const min = Math.round(diffMs / 60_000)
+  if (Math.abs(min) < 1) return 'now'
+  if (min < 0) {
+    const a = -min
+    if (a < 60) return `${a}m ago`
+    if (a < 1440) return `${Math.round(a / 60)}h ago`
+    return `${Math.round(a / 1440)}d ago`
+  } else {
+    if (min < 60) return `in ${min}m`
+    if (min < 1440) return `in ${Math.round(min / 60)}h`
+    return `in ${Math.round(min / 1440)}d`
+  }
+}
+
+export default function BriefingModal({ open, onClose }: Props) {
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [open, onClose])
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['briefing', 'today'],
+    queryFn: async (): Promise<BriefingPayload> => {
+      const res = await fetch('/api/briefing/today', { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return (await res.json()) as BriefingPayload
+    },
+    enabled: open,
+    staleTime: 60_000,
+  })
+
+  if (!open) return null
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(7, 16, 30, 0.78)',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        zIndex: 9000,
+        padding: '6vh 1rem 1rem',
+      }}
+    >
+      <div
+        style={{
+          background: NAVY,
+          border: `1px solid ${GOLD}55`,
+          width: '100%',
+          maxWidth: 720,
+          maxHeight: '88vh',
+          display: 'flex',
+          flexDirection: 'column',
+          fontFamily: 'inherit',
+        }}
+      >
+        {/* Header */}
+        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${GOLD}33`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ color: GOLD, fontSize: 14, fontWeight: 700, letterSpacing: '0.06em' }}>
+              ☀ Morning Briefing
+            </div>
+            {data && <div style={{ color: MUTED, fontSize: 11, marginTop: 2, letterSpacing: '0.04em' }}>{data.date}</div>}
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" style={escBtn}>ESC</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 20px' }}>
+          {isLoading && <div style={msg}>Loading…</div>}
+          {isError && <div style={{ ...msg, color: '#FF7474' }}>Briefing failed to load.</div>}
+
+          {data && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {/* Stat row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                <Stat label="Meetings" value={String(data.meetings.count)} sub={data.meetings.nextUp ? `Next: ${formatTime(data.meetings.nextUp.startTime)}` : (data.meetings.first ? `First: ${formatTime(data.meetings.first.startTime)}` : 'None')} />
+                <Stat label="Unread" value={String(data.unread.total)} sub={`305:${data.unread.by_panel['305']} · 718:${data.unread.by_panel['718']} · Inv:${data.unread.by_panel.investors}`} />
+                <Stat label="Expiring" value={String(data.expiring_invitations.count)} sub="Invites within 24h" />
+              </div>
+
+              {/* Today's meetings */}
+              {data.meetings.items.length > 0 && (
+                <Section title="Today's Calendar">
+                  {data.meetings.items.map((m) => {
+                    const isNext = m.id === data.meetings.nextUp?.id
+                    return (
+                      <Row
+                        key={m.id}
+                        left={
+                          <div>
+                            <div style={{ color: TEXT, fontSize: 13, fontWeight: isNext ? 700 : 500 }}>
+                              {formatTime(m.startTime)} {isNext && <span style={{ color: GOLD, marginLeft: 6 }}>← next</span>}
+                            </div>
+                            <div style={{ color: MUTED, fontSize: 12, marginTop: 2 }}>{m.title}</div>
+                          </div>
+                        }
+                        right={m.zoomLink ? <a href={m.zoomLink} target="_blank" rel="noopener noreferrer" style={zoomLink}>Zoom ↗</a> : null}
+                      />
+                    )
+                  })}
+                </Section>
+              )}
+
+              {/* Recent investor activity */}
+              {data.recent_investors.length > 0 && (
+                <Section title="Recent Investor Activity (24h)">
+                  {data.recent_investors.map((t) => (
+                    <Row
+                      key={t.id}
+                      left={
+                        <div>
+                          <div style={{ color: TEXT, fontSize: 13, fontWeight: 600 }}>
+                            {t.contact_name || t.phone || 'Unknown'}
+                            <span style={{ color: GOLD, marginLeft: 6 }}>★</span>
+                          </div>
+                          <div style={{ color: MUTED, fontSize: 12, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {t.last_message_preview || '(no preview)'}
+                          </div>
+                        </div>
+                      }
+                      right={
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ color: MUTED, fontSize: 11 }}>{formatRelative(t.last_message_at)}</div>
+                          {t.unread_count > 0 && <div style={unreadPill}>{t.unread_count}</div>}
+                        </div>
+                      }
+                    />
+                  ))}
+                </Section>
+              )}
+
+              {/* Pending follow-ups */}
+              {data.pending_followups.length > 0 && (
+                <Section title="Needs a Reply">
+                  {data.pending_followups.map((t) => (
+                    <Row
+                      key={t.id}
+                      left={
+                        <div>
+                          <div style={{ color: TEXT, fontSize: 13, fontWeight: 600 }}>
+                            {t.contact_name || t.phone || 'Unknown'}
+                            {t.is_investor && <span style={{ color: GOLD, marginLeft: 6 }}>★</span>}
+                          </div>
+                          <div style={{ color: MUTED, fontSize: 12, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {t.last_message_preview || '(no preview)'}
+                          </div>
+                        </div>
+                      }
+                      right={
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ color: MUTED, fontSize: 11 }}>{formatRelative(t.last_message_at)}</div>
+                          <div style={unreadPill}>{t.unread_count}</div>
+                        </div>
+                      }
+                    />
+                  ))}
+                </Section>
+              )}
+
+              {/* Expiring invitations */}
+              {data.expiring_invitations.items.length > 0 && (
+                <Section title="Expiring Invitations">
+                  {data.expiring_invitations.items.map((inv) => (
+                    <Row
+                      key={inv.id}
+                      left={
+                        <div>
+                          <div style={{ color: TEXT, fontSize: 13, fontWeight: 600 }}>
+                            {inv.contact_name || inv.contact_email || 'Unknown'}
+                          </div>
+                          {inv.contact_email && (
+                            <div style={{ color: MUTED, fontSize: 12, marginTop: 2 }}>{inv.contact_email}</div>
+                          )}
+                        </div>
+                      }
+                      right={<div style={{ color: '#FFB400', fontSize: 11 }}>expires {formatRelative(inv.expires_at)}</div>}
+                    />
+                  ))}
+                </Section>
+              )}
+
+              {data.meetings.count === 0 &&
+                data.recent_investors.length === 0 &&
+                data.pending_followups.length === 0 &&
+                data.expiring_invitations.count === 0 && (
+                  <div style={{ ...msg, padding: '48px 0' }}>Nothing pending. Quiet morning.</div>
+                )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '10px 20px', borderTop: `1px solid ${GOLD}22`, fontSize: 10, color: MUTED, letterSpacing: '0.06em', display: 'flex', justifyContent: 'space-between' }}>
+          <span>Auto-refreshes every minute</span>
+          <span>ESC to close</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <div style={{ background: 'rgba(255, 204, 51, 0.04)', border: `1px solid ${GOLD}22`, padding: '10px 12px' }}>
+      <div style={{ color: GOLD, fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ color: TEXT, fontSize: 26, fontWeight: 700, marginTop: 4 }}>{value}</div>
+      <div style={{ color: MUTED, fontSize: 10, marginTop: 2 }}>{sub}</div>
+    </div>
+  )
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div style={{ color: GOLD, fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 8 }}>
+        {title}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>{children}</div>
+    </div>
+  )
+}
+
+function Row({ left, right }: { left: React.ReactNode; right: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${GOLD}11`, gap: 12, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>{left}</div>
+      <div style={{ flexShrink: 0 }}>{right}</div>
+    </div>
+  )
+}
+
+const escBtn: React.CSSProperties = {
+  background: 'transparent',
+  border: `1px solid ${GOLD}55`,
+  color: GOLD,
+  padding: '4px 10px',
+  fontSize: 11,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  letterSpacing: '0.10em',
+}
+
+const msg: React.CSSProperties = {
+  textAlign: 'center',
+  color: MUTED,
+  fontSize: 13,
+  padding: '32px 16px',
+}
+
+const zoomLink: React.CSSProperties = {
+  color: GOLD,
+  textDecoration: 'none',
+  fontWeight: 700,
+  fontSize: 12,
+  letterSpacing: '0.04em',
+}
+
+const unreadPill: React.CSSProperties = {
+  display: 'inline-block',
+  background: '#ef4444',
+  color: '#fff',
+  fontSize: 10,
+  fontWeight: 700,
+  padding: '2px 6px',
+  marginTop: 2,
+  borderRadius: 8,
+}
