@@ -9,10 +9,20 @@ import type { Panel, TimelinesChat, TimelinesMessage } from '@/lib/timelines/typ
 
 export const dynamic = 'force-dynamic'
 
+type WebhookAccount = {
+  id?: string | number | null
+  phone?: string | null
+  jid?: string | null
+  account_id?: string | number | null
+  [k: string]: unknown
+}
+
 type WebhookPayload = {
   message?: TimelinesMessage
   chat?: TimelinesChat
+  whatsapp_account?: WebhookAccount
   event?: string
+  event_type?: string
 }
 
 /** Match any string containing our account digits */
@@ -26,14 +36,33 @@ function matchPanel(value: string | undefined | null): Panel | null {
 
 /**
  * Determine panel from all available fields.
- * Timelines sometimes omits whatsapp_account_id so we fall back to
- * the message sender/recipient phones (one of them is always our number).
+ * Timelines.ai's current payload puts account info under a top-level
+ * `whatsapp_account` object rather than `chat.whatsapp_account_id`.
+ * We probe every plausible location so panel resolution is robust to
+ * schema drift.
  */
 function resolvePanel(
   chat: TimelinesChat,
-  message: TimelinesMessage
+  message: TimelinesMessage,
+  account: WebhookAccount | undefined
 ): Panel | null {
-  // 1. Explicit account id (most reliable when present)
+  // 0. Top-level whatsapp_account object (current Timelines schema)
+  if (account) {
+    const fromAccountPhone = matchPanel(account.phone)
+    if (fromAccountPhone) return fromAccountPhone
+    const fromAccountJid = matchPanel(account.jid)
+    if (fromAccountJid) return fromAccountJid
+    const fromAccountId = matchPanel(
+      typeof account.id === 'number' ? String(account.id) : (account.id as string | null | undefined)
+    )
+    if (fromAccountId) return fromAccountId
+    const fromAccountIdAlt = matchPanel(
+      typeof account.account_id === 'number' ? String(account.account_id) : (account.account_id as string | null | undefined)
+    )
+    if (fromAccountIdAlt) return fromAccountIdAlt
+  }
+
+  // 1. Explicit account id on chat (legacy schema)
   const fromAccountId = matchPanel(chat.whatsapp_account_id)
   if (fromAccountId) return fromAccountId
 
@@ -73,16 +102,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 })
   }
 
-  // BUG 3a: log raw payload keys so we can see actual shape from Timelines
+  // Full raw payload — needed to discover Timelines' exact nested schema.
+  // Truncate to 8KB to avoid log bloat on attachment-heavy messages.
+  console.log(
+    '[webhook] raw',
+    body.length > 8192 ? body.slice(0, 8192) + '…(truncated)' : body
+  )
   console.log('[webhook] payload keys', Object.keys(payload as Record<string, unknown>))
 
   const message = payload.message
   const chat = payload.chat
+  const account = payload.whatsapp_account
 
   console.log('[webhook] received', {
-    event: payload.event,
+    event: payload.event ?? payload.event_type ?? null,
     hasMessage: !!message,
     hasChat: !!chat,
+    hasAccount: !!account,
+    accountKeys: account ? Object.keys(account) : null,
+    messageKeys: message ? Object.keys(message as unknown as Record<string, unknown>) : null,
+    chatKeys: chat ? Object.keys(chat as unknown as Record<string, unknown>) : null,
     messageUid: message?.uid ?? null,
     chatPhone: chat?.phone ?? null,
     chatJid: chat?.jid ?? null,
@@ -113,9 +152,12 @@ export async function POST(request: Request) {
     }
   }
 
-  const panel = resolvePanel(chat, message)
+  const panel = resolvePanel(chat, message, account)
   console.log('[webhook] panel inference', {
     whatsapp_account_id: chat.whatsapp_account_id,
+    account_phone: account?.phone ?? null,
+    account_id: account?.id ?? null,
+    account_jid: account?.jid ?? null,
     sender_phone: message.sender_phone,
     recipient_phone: message.recipient_phone,
     from_me: message.from_me,
