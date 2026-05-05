@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RePrime Terminal — Confirmation (Screen 3) v2 — locked palette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:               #0E3470;
+  --gold:               #FFCC33;
+  --gold-line-22:       rgba(255, 204, 51, 0.22);
+  --gold-line-30:       rgba(255, 204, 51, 0.30);
+  --gold-line-35:       rgba(255, 204, 51, 0.35);
+  --gold-fill-04:       rgba(255, 204, 51, 0.04);
+  --gold-fill-08:       rgba(255, 204, 51, 0.08);
+  --cream-top:          #F8F0DA;
+  --cream-bottom:       #EFE2C4;
+  /* WARM BRONZE — preserved per migration brief Q5 (personal panel) */
+  --bronze-bold:        #5A3F18;
+  --bronze-soft:        #7A5A30;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #DDD9D2;
+  min-height: 100vh;
+  padding: 24px 16px;
+  display: flex;
+  justify-content: center;
+  font-family: 'Poppins', sans-serif;
+}
+
+.E {
+  width: 100%;
+  max-width: 420px;
+  background: var(--navy);
+  border: 1px solid var(--gold-line-22);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.Ehdr { padding: 18px 32px 16px; text-align: center; border-bottom: 1px solid rgba(255, 204, 51, 0.18); }
+.Ehdr-spindle-wrap { display: flex; justify-content: center; }
+.Ehdr-spindle { width: 70%; height: 7px; }
+.Ewm {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 22px;
+  letter-spacing: 0.145em;
+  color: var(--gold);
+  font-weight: 600;
+  margin: 9px 0;
+  text-indent: 0.145em;
+}
+
+/* CREAM LETTER BUBBLE — widened, all text fits */
+.L-wrap { padding: 18px 12px 14px; }
+.L { position: relative; }
+.L svg { display: block; filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.22)); }
+.L-content {
+  position: absolute;
+  top: 36px;
+  left: 18px;
+  right: 18px;
+  bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  text-align: center;
+}
+.L-lbl {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 12px;
+  color: var(--bronze-soft);
+  font-style: italic;
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+.L-lbl-name { font-weight: 600; color: var(--bronze-bold); }
+.L-greeting {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  color: var(--bronze-bold);
+  font-weight: 600;
+  font-style: italic;
+  margin-bottom: 10px;
+}
+.L-body {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 14px;
+  color: var(--navy);
+  line-height: 1.6;
+  font-style: italic;
+}
+.L-time {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  color: var(--navy);
+  font-weight: 600;
+  margin: 14px 0 2px;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.L-time-2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  color: var(--navy);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+.L-closing {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 13px;
+  color: var(--navy);
+  line-height: 1.55;
+  font-style: italic;
+  margin-top: 14px;
+}
+.L-sig {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 14px;
+  color: var(--bronze-bold);
+  font-style: italic;
+  font-weight: 600;
+  margin-top: 12px;
+}
+
+.Esec-h {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  color: var(--gold);
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.Esec-lbl {
+  font-family: 'Poppins', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  color: var(--gold);
+  text-transform: uppercase;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 11px;
+  text-indent: 0.24em;
+  opacity: 0.7;
+}
+
+/* ADD ATTENDEE */
+.AA-wrap { padding: 8px 32px 18px; }
+.AA-input {
+  width: 100%;
+  background: transparent;
+  border: 0.5px solid var(--gold-line-35);
+  padding: 11px 14px;
+  color: var(--gold);
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 14px;
+}
+.AA-input::placeholder { color: rgba(255, 204, 51, 0.45); font-style: italic; }
+.AA-input:focus { outline: none; border-color: var(--gold); }
+.AA-row { display: flex; justify-content: space-between; margin-top: 8px; }
+.AA-add {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  color: var(--gold);
+  text-decoration: none;
+  cursor: pointer;
+  opacity: 0.75;
+}
+.AA-send {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  color: var(--gold);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* CALENDAR ADD */
+.Cal-wrap { padding: 0 32px 18px; }
+.Cal-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.Cal-btn {
+  border: 0.5px solid var(--gold-line-35);
+  padding: 10px 6px;
+  text-align: center;
+  font-family: 'Poppins', sans-serif;
+  font-size: 9px;
+  color: var(--gold);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  font-weight: 600;
+  text-indent: 0.10em;
+  background: transparent;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  transition: border-color 0.15s, background 0.15s;
+}
+.Cal-btn:hover { border-color: var(--gold); background: var(--gold-fill-04); }
+
+/* MEETING DETAILS — text rows only */
+.MD-wrap { padding: 0 32px 18px; }
+.MD-rows { border-top: 0.5px solid rgba(255, 204, 51, 0.18); padding-top: 8px; }
+.MD-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 0.5px dashed rgba(255, 204, 51, 0.12);
+}
+.MD-row:last-child { border-bottom: none; }
+.MD-key { font-family: 'Poppins', sans-serif; font-size: 11px; color: var(--gold); letter-spacing: 0.04em; opacity: 0.65; }
+.MD-val { font-family: 'Poppins', sans-serif; font-size: 11px; color: var(--gold); font-weight: 500; }
+.MD-val.link { text-decoration: none; }
+
+/* RESCHEDULE */
+.R-wrap { padding: 0 32px 22px; text-align: center; }
+.R-link {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--gold);
+  line-height: 1.5;
+  text-decoration: none;
+  opacity: 0.85;
+}
+
+/* FOOTER */
+.Efoot { padding: 18px 32px; border-top: 1px solid rgba(255, 204, 51, 0.18); text-align: center; }
+.Efoot-nm {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 14px;
+  color: var(--gold);
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-indent: 0.10em;
+}
+.Efoot-by {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-style: italic;
+  font-size: 11px;
+  color: var(--gold);
+  margin-top: 3px;
+  opacity: 0.75;
+}
+.Efoot-unsub {
+  font-family: 'Poppins', sans-serif;
+  font-size: 7px;
+  color: var(--gold);
+  margin-top: 9px;
+  letter-spacing: 0.06em;
+  opacity: 0.55;
+}
+</style>
+</head>
+<body>
+
+<div class="E">
+
+  <div class="Ehdr">
+    <div class="Ehdr-spindle-wrap">
+      <svg class="Ehdr-spindle" viewBox="0 0 460 7" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="r-top" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"  stop-color="#FFCC33" stop-opacity="0"/>
+            <stop offset="6%"  stop-color="#FFCC33" stop-opacity="1"/>
+            <stop offset="94%" stop-color="#FFCC33" stop-opacity="1"/>
+            <stop offset="100%" stop-color="#FFCC33" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="2.5" width="460" height="2" fill="url(#r-top)"/>
+      </svg>
+    </div>
+    <div class="Ewm">TERMINAL</div>
+    <div class="Ehdr-spindle-wrap">
+      <svg class="Ehdr-spindle" viewBox="0 0 460 7" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="r-bot" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"  stop-color="#FFCC33" stop-opacity="0"/>
+            <stop offset="6%"  stop-color="#FFCC33" stop-opacity="1"/>
+            <stop offset="94%" stop-color="#FFCC33" stop-opacity="1"/>
+            <stop offset="100%" stop-color="#FFCC33" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="2.5" width="460" height="2" fill="url(#r-bot)"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- CREAM LETTER BUBBLE -->
+  <div class="L-wrap">
+    <div class="L">
+      <svg viewBox="0 0 480 320" width="100%">
+        <defs>
+          <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#F8F0DA"/>
+            <stop offset="100%" style="stop-color:#EFE2C4"/>
+          </linearGradient>
+        </defs>
+        <path d="M 18,28 L 215,28 C 222,28 234,2 240,1 C 246,2 258,28 265,28 L 462,28 Q 480,28 480,46 L 480,302 Q 480,320 462,320 L 18,320 Q 0,320 0,302 L 0,46 Q 0,28 18,28 Z"
+          fill="url(#bg)" stroke="rgba(255,204,51,0.30)" stroke-width="1"/>
+      </svg>
+      <div class="L-content">
+        <div class="L-lbl">A confirmation from <span class="L-lbl-name">Gideon Gratsiani</span></div>
+        <div class="L-greeting">David —</div>
+        <div class="L-body">Your introduction is set.</div>
+        <div class="L-time">Tuesday, May 5</div>
+        <div class="L-time-2">1:00 PM Central</div>
+        <div class="L-closing">Looking forward to showing you what I've been building.</div>
+        <div class="L-sig">— Gideon</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="AA-wrap">
+    <div class="Esec-h">Add Attendee</div>
+    <input class="AA-input" type="email" placeholder="name@firm.com" id="attendee-email">
+    <div class="AA-row">
+      <a class="AA-add" id="add-another">+ Add Another</a>
+      <a class="AA-send" id="send-invitation">Send Invitation →</a>
+    </div>
+  </div>
+
+  <div class="Cal-wrap">
+    <div class="Esec-lbl">Add to your calendar</div>
+    <div class="Cal-grid">
+      <a class="Cal-btn" href="/invite/[token]/cal/apple">Apple</a>
+      <a class="Cal-btn" href="/invite/[token]/cal/google">Google</a>
+      <a class="Cal-btn" href="/invite/[token]/cal/outlook">Outlook</a>
+    </div>
+  </div>
+
+  <!-- Meeting Details — TEXT ROWS, NO BUTTON -->
+  <div class="MD-wrap">
+    <div class="Esec-lbl">Meeting Details</div>
+    <div class="MD-rows">
+      <div class="MD-row">
+        <span class="MD-key">Zoom</span>
+        <a class="MD-val link" href="https://zoom.us/j/81245678901">zoom.us/j/...</a>
+      </div>
+      <div class="MD-row">
+        <span class="MD-key">Meeting ID</span>
+        <span class="MD-val">812 4567 8901</span>
+      </div>
+      <div class="MD-row">
+        <span class="MD-key">Passcode</span>
+        <span class="MD-val">terminal</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="R-wrap">
+    <a class="R-link" href="/invite/[token]/choose?reschedule=1">Need a different time?<br>Reschedule with one click →</a>
+  </div>
+
+  <div class="Efoot">
+    <div class="Efoot-nm">TERMINAL</div>
+    <div class="Efoot-by">by RePrime</div>
+    <div class="Efoot-unsub">This invitation was sent personally. Reply directly to Gideon.</div>
+  </div>
+
+</div>
+
+</body>
+</html>

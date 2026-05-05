@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RePrime Terminal — Booking (Screen 2) v2 — locked palette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:               #0E3470;
+  --navy-deep:          rgba(14, 52, 112, 0.85);
+  --navy-border:        rgba(14, 52, 112, 0.70);
+  --gold:               #FFCC33;
+  --gold-line-22:       rgba(255, 204, 51, 0.22);
+  --gold-line-30:       rgba(255, 204, 51, 0.30);
+  --gold-line-35:       rgba(255, 204, 51, 0.35);
+  --gold-fill-04:       rgba(255, 204, 51, 0.04);
+  --gold-fill-08:       rgba(255, 204, 51, 0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #DDD9D2;
+  min-height: 100vh;
+  padding: 24px 16px;
+  display: flex;
+  justify-content: center;
+  font-family: 'Poppins', sans-serif;
+}
+
+.E {
+  width: 100%;
+  max-width: 420px;
+  background: var(--navy);
+  border: 1px solid var(--gold-line-22);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.Ehdr { padding: 18px 32px 16px; text-align: center; border-bottom: 1px solid rgba(255, 204, 51, 0.18); }
+.Ehdr-spindle-wrap { display: flex; justify-content: center; }
+.Ehdr-spindle { width: 70%; height: 7px; }
+
+/* TERMINAL header — Cinzel */
+.Ewm {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 22px;
+  letter-spacing: 0.145em;
+  color: var(--gold);
+  font-weight: 600;
+  margin: 9px 0;
+  text-indent: 0.145em;
+}
+
+.Ehero { padding: 26px 32px 18px; text-align: center; }
+.Epi-label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.30em;
+  color: var(--gold);
+  font-weight: 600;
+  text-transform: uppercase;
+  text-indent: 0.30em;
+  margin-bottom: 11px;
+  opacity: 0.85;
+}
+.Ename {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 44px;
+  color: var(--gold);
+  font-weight: 600;
+  line-height: 1.0;
+  letter-spacing: -0.01em;
+}
+
+.Emem {
+  padding: 18px 32px;
+  text-align: center;
+  border-top: 1px solid rgba(255, 204, 51, 0.18);
+  border-bottom: 1px solid rgba(255, 204, 51, 0.18);
+}
+.Ebio {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 26px;
+  color: var(--gold);
+  font-weight: 400;
+  font-style: italic;
+}
+.Edot { width: 4px; height: 4px; border-radius: 50%; background: var(--gold); margin: 10px auto; }
+.Epm {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 20px;
+  color: var(--gold);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.Eslots { padding: 22px 32px 0; }
+.Eslots-lbl {
+  font-family: 'Poppins', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  color: var(--gold);
+  text-transform: uppercase;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 14px;
+  text-indent: 0.24em;
+  opacity: 0.85;
+}
+.Eslot, .Eown {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  border: 0.5px solid var(--gold-line-35);
+  background: transparent;
+  text-align: center;
+  text-decoration: none;
+  margin-bottom: 7px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.Eown { margin-bottom: 0; }
+.Eslot:hover, .Eown:hover {
+  border-color: var(--gold);
+  background: var(--gold-fill-04);
+}
+.Eslot-p, .Eown-p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 9px;
+  color: var(--gold);
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  font-weight: 600;
+  text-indent: 0.20em;
+  opacity: 0.85;
+}
+.Eslot-t {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 18px;
+  color: var(--gold);
+  font-weight: 400;
+  margin-top: 4px;
+}
+.Eown-t {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  color: var(--gold);
+  font-weight: 400;
+  margin-top: 4px;
+}
+
+.Econfirm { padding: 14px 32px 22px; text-align: center; }
+.Econfirm-t {
+  font-family: 'Poppins', sans-serif;
+  font-size: 9px;
+  color: var(--gold);
+  line-height: 1.85;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+.Efoot {
+  padding: 18px 32px;
+  border-top: 1px solid rgba(255, 204, 51, 0.18);
+  text-align: center;
+}
+.Efoot-nm {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 14px;
+  color: var(--gold);
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-indent: 0.10em;
+}
+.Efoot-by {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-style: italic;
+  font-size: 11px;
+  color: var(--gold);
+  margin-top: 3px;
+  opacity: 0.75;
+}
+.Efoot-unsub {
+  font-family: 'Poppins', sans-serif;
+  font-size: 7px;
+  color: var(--gold);
+  margin-top: 9px;
+  letter-spacing: 0.06em;
+  opacity: 0.55;
+}
+</style>
+</head>
+<body>
+
+<div class="E">
+
+  <div class="Ehdr">
+    <div class="Ehdr-spindle-wrap">
+      <svg class="Ehdr-spindle" viewBox="0 0 460 7" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="r-top" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"  stop-color="#FFCC33" stop-opacity="0"/>
+            <stop offset="6%"  stop-color="#FFCC33" stop-opacity="1"/>
+            <stop offset="94%" stop-color="#FFCC33" stop-opacity="1"/>
+            <stop offset="100%" stop-color="#FFCC33" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="2.5" width="460" height="2" fill="url(#r-top)"/>
+      </svg>
+    </div>
+    <div class="Ewm">TERMINAL</div>
+    <div class="Ehdr-spindle-wrap">
+      <svg class="Ehdr-spindle" viewBox="0 0 460 7" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="r-bot" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"  stop-color="#FFCC33" stop-opacity="0"/>
+            <stop offset="6%"  stop-color="#FFCC33" stop-opacity="1"/>
+            <stop offset="94%" stop-color="#FFCC33" stop-opacity="1"/>
+            <stop offset="100%" stop-color="#FFCC33" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="2.5" width="460" height="2" fill="url(#r-bot)"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="Ehero">
+    <div class="Epi-label">Private Introduction</div>
+    <div class="Ename">David Cohen</div>
+  </div>
+
+  <div class="Emem">
+    <div class="Ebio">By Invitation Only</div>
+    <div class="Edot"></div>
+    <div class="Epm">Private Membership</div>
+  </div>
+
+  <div class="Eslots">
+    <div class="Eslots-lbl">Suggested — Tuesday, May 5</div>
+    <a class="Eslot" href="?slot=morning"><div class="Eslot-p">Morning</div><div class="Eslot-t">May 5 · 9:00 AM Central</div></a>
+    <a class="Eslot" href="?slot=afternoon"><div class="Eslot-p">Afternoon</div><div class="Eslot-t">May 5 · 1:00 PM Central</div></a>
+    <a class="Eslot" href="?slot=late"><div class="Eslot-p">Late Afternoon</div><div class="Eslot-t">May 5 · 4:30 PM Central</div></a>
+    <a class="Eown" href="/invite/[token]/choose"><div class="Eown-p">Different Time?</div><div class="Eown-t">Choose your own →</div></a>
+  </div>
+
+  <div class="Econfirm">
+    <div class="Econfirm-t">One click confirms · 30 minutes</div>
+  </div>
+
+  <div class="Efoot">
+    <div class="Efoot-nm">TERMINAL</div>
+    <div class="Efoot-by">by RePrime</div>
+    <div class="Efoot-unsub">This invitation was sent personally. Reply directly to Gideon.</div>
+  </div>
+
+</div>
+
+</body>
+</html>

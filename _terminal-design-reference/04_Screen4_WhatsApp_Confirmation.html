@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RePrime Terminal — WhatsApp Confirmation (Screen 4) v2 — locked palette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:               #0E3470;
+  --gold:               #FFCC33;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #DDD9D2;
+  min-height: 100vh;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.label { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #555; font-weight: 500; }
+
+.note {
+  max-width: 380px;
+  background: #FFF;
+  border: 0.5px solid #CCC;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #444;
+  line-height: 1.55;
+}
+
+.phone { background: #1A1A1C; border-radius: 22px; padding: 12px; width: 380px; }
+.wa { background: #0B141A; border-radius: 12px; overflow: hidden; }
+.wa-header { background: #1F2C34; padding: 10px 16px; display: flex; align-items: center; gap: 10px; }
+.wa-av { width: 30px; height: 30px; background: #2A3942; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #8696A0; font-weight: 600; }
+.wa-name { font-size: 13px; color: #E9EDEF; font-weight: 600; }
+.wa-status { font-size: 10px; color: #8696A0; }
+
+.msg-out { padding: 10px 12px 4px; display: flex; justify-content: flex-end; }
+.b-out {
+  background: #005C4B;
+  border-radius: 10px 10px 0 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #E9EDEF;
+  line-height: 1.5;
+  max-width: 86%;
+}
+.b-out .ts { text-align: right; font-size: 10px; color: rgba(233,237,239,0.4); margin-top: 4px; }
+
+.msg-in { padding: 4px 12px; display: flex; justify-content: flex-start; }
+.b-in { background: #1F2C34; border-radius: 0 10px 10px 10px; overflow: hidden; max-width: 86%; }
+.b-in-text { padding: 9px 12px 6px; font-size: 12px; color: #E9EDEF; line-height: 1.55; }
+.b-in-confirmed {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  color: var(--gold);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.b-in-time { color: #E9EDEF; font-size: 13px; }
+
+/* Mini confirmation card inside WhatsApp message */
+.b-in-card {
+  background: var(--navy);
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.b-in-term {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 0.145em;
+  color: var(--gold);
+  font-weight: 600;
+  text-indent: 0.145em;
+}
+.b-in-spindle { width: 60px; }
+.b-in-bigtime {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  color: var(--gold);
+  font-weight: 600;
+}
+.b-in-with {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 11px;
+  color: var(--gold);
+}
+.b-in-ts { padding: 4px 12px 6px; font-size: 10px; color: rgba(233,237,239,0.4); }
+</style>
+</head>
+<body>
+
+<div class="label">Screen 4 — WhatsApp confirmation reply (Twilio)</div>
+
+<div class="phone">
+  <div class="wa">
+    <div class="wa-header">
+      <div class="wa-av">G</div>
+      <div>
+        <div class="wa-name">Gideon</div>
+        <div class="wa-status">online</div>
+      </div>
+    </div>
+
+    <div class="msg-out">
+      <div class="b-out">
+        David — this is Gideon. Building something privately. You're one of the first I want to show.
+        <div class="ts">10:14 ✓✓</div>
+      </div>
+    </div>
+
+    <div class="msg-in">
+      <div class="b-in">
+        <div class="b-in-text">
+          <div class="b-in-confirmed">Confirmed ✓</div>
+          <div class="b-in-time">Tuesday, May 5 · 1:00 PM Central</div>
+        </div>
+        <div class="b-in-card">
+          <div class="b-in-term">TERMINAL</div>
+          <svg class="b-in-spindle" viewBox="0 0 460 5" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="s4r" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"  stop-color="#FFCC33" stop-opacity="0"/>
+                <stop offset="6%"  stop-color="#FFCC33" stop-opacity="1"/>
+                <stop offset="94%" stop-color="#FFCC33" stop-opacity="1"/>
+                <stop offset="100%" stop-color="#FFCC33" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <rect x="0" y="2" width="460" height="1" fill="url(#s4r)"/>
+          </svg>
+          <div class="b-in-bigtime">May 5 · 1:00 PM</div>
+          <div class="b-in-with">with Gideon</div>
+        </div>
+        <div class="b-in-ts">10:16</div>
+      </div>
+    </div>
+
+    <div class="msg-in">
+      <div class="b-in">
+        <div class="b-in-text">
+          See you Tuesday, David.
+        </div>
+        <div class="b-in-ts">10:18</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="note">
+  <strong>Twilio confirmation reply.</strong> Body text "Confirmed ✓ + date · time". The visual mini-card is a Twilio Content Template (Card type) registered with Twilio WhatsApp Business — for v1 the plain text body ships, the visual card adds in v2.
+</div>
+
+</body>
+</html>
