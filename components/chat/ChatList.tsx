@@ -1,9 +1,22 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { createClient } from '@/lib/supabase/client'
 import { formatPhoneDisplay } from '@/lib/timelines/parse'
 import type { DashboardThread, Panel } from '@/lib/timelines/types'
+
+async function blockThread(thread: DashboardThread): Promise<void> {
+  const res = await fetch('/api/contacts/block', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ thread_id: thread.id, reason: 'spam_block_button' }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.message || data.error || `HTTP ${res.status}`)
+  }
+}
 
 type Props = {
   panel: Panel
@@ -68,9 +81,12 @@ function truncate(s: string | null, n: number): string {
 
 export default function ChatList({ panel, selectedThreadId, onSelect, hideInvestors = false }: Props) {
   const theme = PANEL_THEME[panel]
+  const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortMode>('recent')
   const [filter, setFilter] = useState<FilterMode>('all')
+  const [blockingId, setBlockingId] = useState<string | null>(null)
+  const [confirmBlock, setConfirmBlock] = useState<DashboardThread | null>(null)
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['threads', panel],
@@ -233,9 +249,13 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
             ? 'rgba(255, 204, 51,0.06)'
             : 'transparent'
           return (
-            <button
+            <div
               key={t.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelect(t)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(t) } }}
+              className="rp-thread-row"
               style={{
                 width: '100%',
                 display: 'flex',
@@ -250,6 +270,7 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
                 textAlign: 'left',
                 borderBottom: `1px solid ${theme.border}`,
                 fontFamily: 'inherit',
+                position: 'relative',
               }}
             >
               <div
@@ -345,13 +366,144 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
                   )}
                 </div>
               </div>
-            </button>
+              {/* Block button — appears on hover, click → confirm modal */}
+              <button
+                type="button"
+                aria-label={`Block ${t.contact_name || t.phone}`}
+                title="Block this contact across all channels"
+                onClick={(e) => { e.stopPropagation(); setConfirmBlock(t) }}
+                className="rp-thread-block-btn"
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 26,
+                  height: 26,
+                  borderRadius: 999,
+                  background: 'rgba(239, 68, 68, 0.10)',
+                  border: '1px solid rgba(239, 68, 68, 0.45)',
+                  color: '#FF7474',
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  display: 'none',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'inherit',
+                  padding: 0,
+                  lineHeight: 1,
+                }}
+              >
+                🚫
+              </button>
+            </div>
           )
         })}
       </div>
       {isFetching && !isLoading && (
         <div style={{ padding: '0.3rem 0.75rem', fontSize: 11, color: theme.muted, borderTop: `1px solid ${theme.border}` }}>
           Refreshing…
+        </div>
+      )}
+
+      {/* Hover styles for the block button — hidden by default, shown on row hover */}
+      <style jsx>{`
+        :global(.rp-thread-row):hover :global(.rp-thread-block-btn) {
+          display: flex !important;
+        }
+        :global(.rp-thread-block-btn):hover {
+          background: rgba(239, 68, 68, 0.20) !important;
+          border-color: #FF7474 !important;
+        }
+      `}</style>
+
+      {/* Block confirmation modal */}
+      {confirmBlock && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => { if (e.target === e.currentTarget) setConfirmBlock(null) }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(7, 16, 30, 0.78)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9000,
+            padding: '1rem',
+          }}
+        >
+          <div style={{
+            background: '#0E3470',
+            border: '1px solid rgba(255, 204, 51, 0.35)',
+            padding: '24px 28px',
+            maxWidth: 480,
+            width: '100%',
+            color: '#fff',
+            fontFamily: 'inherit',
+          }}>
+            <h3 style={{ margin: 0, fontSize: 18, color: '#FFCC33', letterSpacing: '0.02em' }}>Block this contact?</h3>
+            <p style={{ marginTop: 12, fontSize: 14, lineHeight: 1.6, color: '#F5EFD8' }}>
+              <b style={{ color: '#FFCC33' }}>{confirmBlock.contact_name || confirmBlock.phone}</b> will be blocked
+              <b> across every channel</b> — WhatsApp 305, WhatsApp 718, SMS, and email — for any matching Pipedrive
+              contact ID, phone number, or email. They will not appear in any panel until you unblock.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 22 }}>
+              <button
+                type="button"
+                onClick={() => setConfirmBlock(null)}
+                disabled={blockingId === confirmBlock.id}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(255, 204, 51, 0.35)',
+                  color: '#FFCC33',
+                  padding: '8px 18px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  letterSpacing: '0.10em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!confirmBlock) return
+                  setBlockingId(confirmBlock.id)
+                  try {
+                    await blockThread(confirmBlock)
+                    queryClient.invalidateQueries({ queryKey: ['threads', panel] })
+                    queryClient.invalidateQueries({ queryKey: ['investor-chat-threads'] })
+                    setConfirmBlock(null)
+                  } catch (err) {
+                    alert(`Block failed: ${(err as Error).message}`)
+                  } finally {
+                    setBlockingId(null)
+                  }
+                }}
+                disabled={blockingId === confirmBlock.id}
+                style={{
+                  background: '#FF7474',
+                  border: 0,
+                  color: '#fff',
+                  padding: '8px 18px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: '0.10em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  opacity: blockingId === confirmBlock.id ? 0.6 : 1,
+                }}
+              >
+                {blockingId === confirmBlock.id ? 'Blocking…' : 'Block everywhere'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

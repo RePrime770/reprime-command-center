@@ -188,6 +188,7 @@ export async function GET(request: NextRequest) {
       .select('*')
       .eq('panel', panel)
       .in('channel_type', channelsToFetch)
+      .or('is_blocked.is.null,is_blocked.eq.false') // hide blocked contacts; null treats pre-migration rows as not-blocked
       .order('last_message_at', { ascending: false, nullsFirst: false })
 
     if (selectErr) {

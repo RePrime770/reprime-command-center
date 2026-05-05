@@ -126,6 +126,7 @@ export async function GET() {
         'id, panel, channel_type, phone, contact_name, is_group, jid, last_message_at, last_message_preview, unread_count, pipedrive_contact_id, is_priority'
       )
       .or(threadFilters.join(','))
+      .or('is_blocked.is.null,is_blocked.eq.false')
       .order('last_message_at', { ascending: false, nullsFirst: false })
     const { data, error } = await query
     if (error) {
@@ -144,6 +145,7 @@ export async function GET() {
         'id, panel, channel_type, phone, contact_name, is_group, jid, last_message_at, last_message_preview, unread_count, pipedrive_contact_id, is_priority'
       )
       .in('phone', phones)
+      .or('is_blocked.is.null,is_blocked.eq.false')
     if (!phoneErr && phoneMatched) {
       const haveIds = new Set(rows.map((r) => r.id))
       for (const r of phoneMatched as ThreadRow[]) {
