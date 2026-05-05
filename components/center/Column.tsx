@@ -16,6 +16,12 @@ const ACCENT: Record<string, string> = {
 export type ColumnProps = {
   label: 'Pipeline' | 'Inbox' | 'Bucket' | 'Crew'
   children?: ReactNode
+  /**
+   * When true, the column body skips its own padding + scroll so a column-
+   * level child (e.g. PipelineColumn) can manage them itself. The accent
+   * border and the label header still render.
+   */
+  fullBleed?: boolean
 }
 
 /**
@@ -24,9 +30,11 @@ export type ColumnProps = {
  * Width is driven by the parent Canvas grid (target ~1280px on a 5120-wide
  * monitor). Each column scrolls independently in the vertical axis.
  *
- * Tracks B/C/D/E mount their column-specific contents as `children`.
+ * Tracks B/C/D/E mount their column-specific contents as `children`. When a
+ * track ships its own scrolling/padding (PipelineColumn does), pass
+ * `fullBleed` to suppress the wrapper's body styles.
  */
-export default function Column({ label, children }: ColumnProps) {
+export default function Column({ label, children, fullBleed }: ColumnProps) {
   const accent = ACCENT[label] ?? 'var(--rp-gold)'
 
   return (
@@ -73,9 +81,11 @@ export default function Column({ label, children }: ColumnProps) {
         style={{
           flex: 1,
           minHeight: 0,
-          overflowY: 'auto',
+          overflowY: fullBleed ? 'hidden' : 'auto',
           overflowX: 'hidden',
-          padding: '12px 16px 16px',
+          padding: fullBleed ? 0 : '12px 16px 16px',
+          display: fullBleed ? 'flex' : undefined,
+          flexDirection: fullBleed ? 'column' : undefined,
         }}
       >
         {children}

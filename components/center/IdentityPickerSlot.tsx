@@ -1,14 +1,13 @@
 'use client'
 
+import IdentityPicker from './IdentityPicker'
+
 /**
- * IdentityPickerSlot — empty mount point for Track F's IdentityPicker.
+ * IdentityPickerSlot — TopStrip mount point for the IdentityPicker.
  *
- * Track A ships the slot only. Track F (feat/center-identity) mounts its
- * IdentityPicker component into the element with data-slot="identity-picker"
- * via portal or direct child render after merge.
- *
- * The slot reserves space so the TopStrip layout does not jump when the
- * picker mounts.
+ * Track A shipped the slot; Track F shipped the IdentityPicker; this wave 1.5
+ * wiring renders the picker inside the slot. Slot keeps a minimum width so
+ * the TopStrip layout does not jump while the picker hydrates.
  */
 export default function IdentityPickerSlot() {
   return (
@@ -21,14 +20,9 @@ export default function IdentityPickerSlot() {
         alignItems: 'center',
         justifyContent: 'flex-end',
         flexShrink: 0,
-        fontFamily: 'inherit',
-        fontSize: 11,
-        color: 'rgba(255, 204, 51, 0.45)',
-        letterSpacing: '0.10em',
-        textTransform: 'uppercase',
       }}
     >
-      identity
+      <IdentityPicker />
     </div>
   )
 }
