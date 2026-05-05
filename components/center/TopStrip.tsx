@@ -1,6 +1,7 @@
 'use client'
 
 import ColorLegend from '@/components/help/ColorLegend'
+import HealthPill from './HealthPill'
 import IdentityPickerSlot from './IdentityPickerSlot'
 
 /**
@@ -101,6 +102,8 @@ export default function TopStrip() {
         >
           Secretary
         </button>
+
+        <HealthPill />
 
         <IdentityPickerSlot />
       </div>
