@@ -292,6 +292,59 @@ export async function updatePerson(
   return res.data
 }
 
+export async function createPerson(
+  body: Record<string, unknown>
+): Promise<PipedrivePerson> {
+  const res = await pipedriveRequest<{ data: PipedrivePerson }>(`/persons`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export interface PipedriveOrganization {
+  id: number
+  name: string
+}
+
+interface PipedriveOrgSearchItem {
+  result_score: number
+  item: { id: number; name: string }
+}
+
+/**
+ * Search-or-create an organization by name. Pipedrive has no native
+ * upsert; this does an exact-match search and falls back to POST.
+ * Caches by lowercased name within the process to avoid re-querying
+ * during a bulk import.
+ */
+const orgCache = new Map<string, number>()
+
+export async function findOrCreateOrganization(name: string): Promise<number | null> {
+  const trimmed = name.trim()
+  if (!trimmed) return null
+  const key = trimmed.toLowerCase()
+  const cached = orgCache.get(key)
+  if (cached) return cached
+
+  const term = encodeURIComponent(trimmed)
+  const search = await pipedriveRequest<{
+    data: { items?: PipedriveOrgSearchItem[] } | null
+  }>(`/organizations/search?term=${term}&exact_match=true&limit=1`)
+  const hit = search.data?.items?.[0]?.item
+  if (hit) {
+    orgCache.set(key, hit.id)
+    return hit.id
+  }
+
+  const created = await pipedriveRequest<{ data: PipedriveOrganization }>(`/organizations`, {
+    method: 'POST',
+    body: JSON.stringify({ name: trimmed }),
+  })
+  orgCache.set(key, created.data.id)
+  return created.data.id
+}
+
 // ── Investor TAG parsing ────────────────────────────────────────────────────
 // Pipedrive TAG values for investors follow the convention:
 //   investor-{A|B|C|D}-{principal|connector}
