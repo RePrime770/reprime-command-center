@@ -16,6 +16,7 @@ import ShortcutHelp from '@/components/help/ShortcutHelp'
 import PipedriveCard from '@/components/sidebar/PipedriveCard'
 import TodayPanel from '@/components/sidebar/TodayPanel'
 import MeetingNowBanner from '@/components/sidebar/MeetingNowBanner'
+import FailedDeliveryBanner from '@/components/sidebar/FailedDeliveryBanner'
 import NotesPanel from '@/components/sidebar/NotesPanel'
 import InvestorChatPanel from '@/components/panels/InvestorChatPanel'
 import BookingsPanel from '@/components/bookings/BookingsPanel'
@@ -371,6 +372,7 @@ export default function Dashboard() {
 
   return (
     <>
+      <FailedDeliveryBanner />
       <MeetingNowBanner />
       <TodayPanel />
 
