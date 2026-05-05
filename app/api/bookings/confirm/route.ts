@@ -164,11 +164,17 @@ function buildIcs(opts: {
 }
 
 async function findChatIdForPhone(panel: '305' | '718', phone: string): Promise<number | null> {
-  const target = phone.replace(/\D/g, '')
+  const target = (phone ?? '').replace(/\D/g, '')
+  if (!target) return null
   for (let page = 1; page <= 5; page++) {
     const chats = await getChats(panel, page)
     if (chats.length === 0) return null
-    const match = chats.find((c) => c.phone.replace(/\D/g, '') === target && !c.is_group)
+    // Some Timelines chats have null/undefined phone (groups, system entries) —
+    // guard before .replace() so the iteration doesn't crash before reaching
+    // the real match.
+    const match = chats.find(
+      (c) => !c.is_group && typeof c.phone === 'string' && c.phone.replace(/\D/g, '') === target
+    )
     if (match) return match.id
   }
   return null
