@@ -273,14 +273,34 @@ export default function ChatList({ panel, selectedThreadId, onSelect, hideInvest
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6 }}>
                   <span style={{ fontWeight: hasUnread ? 800 : 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: hasUnread ? '#fff' : theme.text }}>
                     {displayName}
+                    {t.channel_type !== 'whatsapp' && (
+                      <span
+                        style={{
+                          marginLeft: 6,
+                          fontSize: 9,
+                          fontWeight: 700,
+                          letterSpacing: '0.06em',
+                          color: '#FFCC33',
+                          background: 'rgba(255,204,51,0.15)',
+                          border: '0.5px solid rgba(255,204,51,0.4)',
+                          borderRadius: 4,
+                          padding: '1px 5px',
+                          textTransform: 'uppercase',
+                          verticalAlign: 'middle',
+                        }}
+                        title={`${t.channel_type.toUpperCase()} thread (not WhatsApp)`}
+                      >
+                        {t.channel_type === 'sms' ? 'SMS' : t.channel_type}
+                      </span>
+                    )}
                     {t.is_investor && (
                       <span style={{ marginLeft: 6, color: theme.accent, fontSize: 11 }}>★</span>
                     )}
                     {isPriority && !hasUnread && (
-                      <span style={{ marginLeft: 5, fontSize: 11, color: '#FFCC33' }} title="AI-flagged: important">âš¡</span>
+                      <span style={{ marginLeft: 5, fontSize: 11, color: '#FFCC33' }} title="AI-flagged: important">⚡</span>
                     )}
                     {isPriority && hasUnread && (
-                      <span style={{ marginLeft: 5, fontSize: 11, color: '#fca5a5' }} title="AI-flagged: important">âš¡</span>
+                      <span style={{ marginLeft: 5, fontSize: 11, color: '#fca5a5' }} title="AI-flagged: important">⚡</span>
                     )}
                   </span>
                   <span style={{ fontSize: 11, color: hasUnread ? '#fca5a5' : theme.muted, flexShrink: 0, fontWeight: hasUnread ? 600 : 400 }}>
