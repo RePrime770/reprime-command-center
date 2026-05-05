@@ -25,6 +25,10 @@
     {
       "path": "/api/bucket/fire-reminders",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/email/sync",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
