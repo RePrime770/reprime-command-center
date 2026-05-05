@@ -341,6 +341,12 @@ export default function Dashboard() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return
+      // Don't hijack shortcuts while user is typing into a field. Ctrl+K is the
+      // exception — Gideon expects it to launch search even from a chat reply.
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName?.toLowerCase()
+      const inField = tag === 'input' || tag === 'textarea' || target?.isContentEditable
+      if (inField && e.key !== 'k') return
       if (e.key === 'k') {
         e.preventDefault()
         setShowSearch(true)
