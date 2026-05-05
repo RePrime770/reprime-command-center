@@ -128,6 +128,16 @@ const TARGETS: Record<string, TargetResolver> = {
     defaultWidth: 720,
     defaultHeight: 720,
   }),
+  'investor-cadence': (o) => ({
+    title: o.title ?? 'Investor cadence',
+    kind: {
+      type: 'component',
+      key: 'investor-cadence',
+      props: o.componentProps,
+    },
+    defaultWidth: 880,
+    defaultHeight: 720,
+  }),
 }
 
 const INITIAL: StoreSnapshot = {
