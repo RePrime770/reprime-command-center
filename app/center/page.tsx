@@ -1,36 +1,22 @@
 import Canvas from '@/components/center/Canvas'
 import Column from '@/components/center/Column'
-import ReminderToast from '@/components/center/ReminderToast'
 import TopStrip from '@/components/center/TopStrip'
 import VoiceShellFooter from '@/components/center/VoiceShellFooter'
-import VoiceModalsHost from '@/components/center/VoiceModalsHost'
-import CrewColumn from '@/components/center/columns/CrewColumn'
-import InboxColumn from '@/components/center/columns/InboxColumn'
-import PipelineColumn from '@/components/center/columns/PipelineColumn'
-import BucketColumn from '@/components/center/columns/BucketColumn'
-import BucketItemDetail from '@/components/center/BucketItemDetail'
-import InvestorCadenceWindow from '@/components/center/InvestorCadenceWindow'
-import InvestorProfileWindow from '@/components/center/InvestorProfileWindow'
-import SecretaryWindow from '@/components/center/windows/SecretaryWindow'
 import WindowManager from '@/components/center/windows/WindowManager'
 import WindowTaskbar from '@/components/center/windows/WindowTaskbar'
-import type { InvestorProfileData } from '@/components/panels/InvestorProfile'
+import {
+  COLUMN_SLOTS,
+  FOOTER_OVERLAYS,
+  WINDOW_REGISTRY,
+} from '@/lib/center/slots'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * /center — RePrime Command Center kiosk shell.
  *
- * Wave 1 + Tracks B, C, D, G wiring: Pipeline + Inbox + Bucket + Crew
- * columns all live; the voice shell footer is wired (hold space /
- * Ctrl+Shift+V). IdentityPicker is mounted by IdentityPickerSlot
- * inside TopStrip.
- *
- * BucketItemDetail is registered into the WindowManager so clicking a
- * Bucket row opens a real detail body instead of the default stub.
- *
- * VoiceModalsHost listens for `center:open-search|call|email|briefing`
- * CustomEvents that VoiceShell dispatches and opens the existing modals.
+ * Mount points come from lib/center/slots.tsx. Add new columns, windows,
+ * or overlays THERE, NOT here. This file is for layout chrome only.
  */
 export default function CenterPage() {
   return (
@@ -47,45 +33,20 @@ export default function CenterPage() {
         }}
       >
         <Canvas>
-          <Column label="Pipeline" fullBleed>
-            <PipelineColumn />
-          </Column>
-          <Column label="Inbox" fullBleed>
-            <InboxColumn />
-          </Column>
-          <Column label="Bucket" fullBleed>
-            <BucketColumn />
-          </Column>
-          <Column label="Crew">
-            <CrewColumn />
-          </Column>
+          {COLUMN_SLOTS.map(({ label, component: Component, fullBleed }) => (
+            <Column key={label} label={label} fullBleed={fullBleed}>
+              {Component ? <Component /> : null}
+            </Column>
+          ))}
         </Canvas>
       </main>
 
       <WindowTaskbar />
       <VoiceShellFooter />
-      <WindowManager
-        registry={{
-          'bucket-item': (props) => (
-            <BucketItemDetail
-              {...(props as { itemId?: string; title?: string })}
-            />
-          ),
-          'investor-profile': (props) => (
-            <InvestorProfileWindow
-              {...(props as {
-                pipedriveContactId?: number
-                name?: string
-                fallbackData?: InvestorProfileData
-              })}
-            />
-          ),
-          secretary: () => <SecretaryWindow />,
-          'investor-cadence': () => <InvestorCadenceWindow />,
-        }}
-      />
-      <ReminderToast />
-      <VoiceModalsHost />
+      <WindowManager registry={WINDOW_REGISTRY} />
+      {FOOTER_OVERLAYS.map((Overlay, i) => (
+        <Overlay key={i} />
+      ))}
     </>
   )
 }
