@@ -189,11 +189,26 @@ export default function BriefingModal({ open, onClose, onThreadClick }: Props) {
                 </div>
               </div>
 
-              {/* Stat row */}
+              {/* Stat row — color-coded by meaning per the legend */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                <Stat label="Meetings" value={String(data.meetings.count)} sub={data.meetings.nextUp ? `Next: ${formatTime(data.meetings.nextUp.startTime)}` : (data.meetings.first ? `First: ${formatTime(data.meetings.first.startTime)}` : 'None')} />
-                <Stat label="Unread" value={String(data.unread.total)} sub={`305:${data.unread.by_panel['305']} · 718:${data.unread.by_panel['718']} · Inv:${data.unread.by_panel.investors}`} />
-                <Stat label="Expiring" value={String(data.expiring_invitations.count)} sub="Invites within 24h" />
+                <Stat
+                  label="Meetings"
+                  value={String(data.meetings.count)}
+                  sub={data.meetings.nextUp ? `Next: ${formatTime(data.meetings.nextUp.startTime)}` : (data.meetings.first ? `First: ${formatTime(data.meetings.first.startTime)}` : 'None')}
+                  accent={GOLD}
+                />
+                <Stat
+                  label="Unread"
+                  value={String(data.unread.total)}
+                  sub={`305:${data.unread.by_panel['305']} · 718:${data.unread.by_panel['718']} · Inv:${data.unread.by_panel.investors}`}
+                  accent={data.unread.by_panel.investors > 0 ? '#FFCC33' : '#25D366'}
+                />
+                <Stat
+                  label="Expiring"
+                  value={String(data.expiring_invitations.count)}
+                  sub="Invites within 24h"
+                  accent={data.expiring_invitations.count > 0 ? '#F59E0B' : '#25D366'}
+                />
               </div>
 
               {/* Today's meetings */}
@@ -319,10 +334,10 @@ export default function BriefingModal({ open, onClose, onThreadClick }: Props) {
   )
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
+function Stat({ label, value, sub, accent = GOLD }: { label: string; value: string; sub: string; accent?: string }) {
   return (
-    <div style={{ background: 'rgba(255, 204, 51, 0.04)', border: `1px solid ${GOLD}22`, padding: '10px 12px' }}>
-      <div style={{ color: GOLD, fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{label}</div>
+    <div style={{ background: 'rgba(255, 204, 51, 0.04)', border: `1px solid ${accent}55`, borderLeft: `3px solid ${accent}`, padding: '10px 12px' }}>
+      <div style={{ color: accent, fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{label}</div>
       <div style={{ color: TEXT, fontSize: 26, fontWeight: 700, marginTop: 4 }}>{value}</div>
       <div style={{ color: MUTED, fontSize: 10, marginTop: 2 }}>{sub}</div>
     </div>

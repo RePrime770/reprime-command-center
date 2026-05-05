@@ -18,7 +18,7 @@ interface CalendarPayload {
 
 const NAVY = '#0E3470'
 const GOLD = '#FFCC33'
-const GREEN = '#22c55e'
+const LIVE = '#A855F7'    /* Live-now violet — matches legend */
 
 const DISMISS_KEY = 'meeting-now-dismissed-v1'
 const SHOW_WINDOW_MIN = 10 // show banner from T-1 to T+10
@@ -106,8 +106,8 @@ export default function MeetingNowBanner() {
   return (
     <div
       style={{
-        background: `linear-gradient(90deg, ${NAVY} 0%, ${NAVY} 60%, rgba(34,197,94,0.18) 100%)`,
-        borderBottom: `1px solid ${GREEN}`,
+        background: `linear-gradient(90deg, ${NAVY} 0%, ${NAVY} 60%, rgba(168, 85, 247, 0.22) 100%)`,
+        borderBottom: `1px solid ${LIVE}`,
         color: '#fff',
         display: 'flex',
         alignItems: 'center',
@@ -115,7 +115,7 @@ export default function MeetingNowBanner() {
         padding: '10px 16px',
         fontFamily: 'inherit',
         flexShrink: 0,
-        boxShadow: '0 2px 8px rgba(34,197,94,0.18)',
+        boxShadow: '0 2px 8px rgba(168, 85, 247, 0.22)',
       }}
     >
       <div
@@ -124,7 +124,7 @@ export default function MeetingNowBanner() {
           width: 10,
           height: 10,
           borderRadius: '50%',
-          background: GREEN,
+          background: LIVE,
           flexShrink: 0,
           animation: 'meetingNowPulse 1.4s ease-in-out infinite',
         }}

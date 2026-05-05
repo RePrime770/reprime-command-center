@@ -38,6 +38,21 @@
   --status-success: #00A980;
   --status-warning: #FFCC33;
   --status-error: #FF7474;
+
+  /* ── Meaning-based palette (May 5, 2026) ─────────────────────────────────
+     Each color carries ONE meaning across the dashboard. The legend bar at
+     the top of the screen shows what each color means so Gideon can learn
+     the system at a glance instead of memorizing component-by-component.
+     Use these tokens, not raw hex, for any new colored UI.                  */
+  --c-channel-305:    #F0B400;   /* RePrime business — Quo */
+  --c-channel-718:    #25D366;   /* Personal WhatsApp / OK / Sent */
+  --c-channel-imsg:   #0A84FF;   /* iMessage */
+  --c-channel-sms:    #FF9500;   /* SMS fallback */
+  --c-investor:       #FFCC33;   /* Investor — gold star (same as brand) */
+  --c-live-now:       #A855F7;   /* In progress / live now / streaming */
+  --c-fail:           #EF4444;   /* Failed / Blocked / Critical */
+  --c-warn:           #F59E0B;   /* Expiring / heads-up */
+  --c-meeting:        #FFCC33;   /* Calendar / Terminal meetings */
 }
 
 * { box-sizing: border-box; }

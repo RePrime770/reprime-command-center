@@ -13,6 +13,7 @@ import QuickEmailModal from '@/components/email/QuickEmailModal'
 import BriefingModal from '@/components/briefing/BriefingModal'
 import QuickCallModal from '@/components/phone/QuickCallModal'
 import ShortcutHelp from '@/components/help/ShortcutHelp'
+import ColorLegend from '@/components/help/ColorLegend'
 import PipedriveCard from '@/components/sidebar/PipedriveCard'
 import TodayPanel from '@/components/sidebar/TodayPanel'
 import MeetingNowBanner from '@/components/sidebar/MeetingNowBanner'
@@ -372,6 +373,7 @@ export default function Dashboard() {
 
   return (
     <>
+      <ColorLegend />
       <FailedDeliveryBanner />
       <MeetingNowBanner />
       <TodayPanel />
