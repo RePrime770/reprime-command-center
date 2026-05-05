@@ -1,0 +1,89 @@
+import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from '@/lib/supabase/server'
+import { sendEmail } from '@/lib/sendgrid/client'
+
+export const dynamic = 'force-dynamic'
+
+const ALLOWED_EMAIL = 'g@reprime.com'
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+type SendBody = {
+  to?: string | string[]
+  cc?: string | string[]
+  bcc?: string | string[]
+  subject?: string
+  body?: string
+  html?: string
+}
+
+function dedupeEmails(value: string | string[] | undefined): string[] {
+  if (!value) return []
+  const arr = Array.isArray(value) ? value : value.split(/[,;\s]+/)
+  return Array.from(
+    new Set(arr.map((e) => (e || '').trim().toLowerCase()).filter(Boolean))
+  )
+}
+
+export async function POST(request: NextRequest) {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user || user.email !== ALLOWED_EMAIL) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  let body: SendBody
+  try { body = (await request.json()) as SendBody }
+  catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
+
+  const to = dedupeEmails(body.to)
+  if (to.length === 0) {
+    return NextResponse.json({ error: 'to_required' }, { status: 400 })
+  }
+  const invalid = to.filter((e) => !EMAIL_RE.test(e))
+  if (invalid.length > 0) {
+    return NextResponse.json(
+      { error: 'invalid_email', message: `Bad email(s): ${invalid.join(', ')}` },
+      { status: 400 }
+    )
+  }
+
+  const subject = (body.subject || '').trim()
+  if (!subject) {
+    return NextResponse.json({ error: 'subject_required' }, { status: 400 })
+  }
+
+  const text = (body.body || '').trim()
+  const html = body.html?.trim() || undefined
+  if (!text && !html) {
+    return NextResponse.json({ error: 'body_required' }, { status: 400 })
+  }
+
+  const cc = dedupeEmails(body.cc)
+  const bcc = dedupeEmails(body.bcc)
+  const from = process.env.SENDGRID_FROM_EMAIL || 'g@reprime-terminal.com'
+
+  try {
+    await sendEmail({
+      to,
+      cc: cc.length > 0 ? cc : undefined,
+      bcc: bcc.length > 0 ? bcc : undefined,
+      from,
+      replyTo: 'g@reprime.com',
+      subject,
+      text: text || undefined,
+      html,
+    })
+  } catch (err) {
+    return NextResponse.json(
+      { error: 'send_failed', message: (err as Error).message },
+      { status: 502 }
+    )
+  }
+
+  return NextResponse.json({
+    ok: true,
+    sent_to: to,
+    cc: cc.length > 0 ? cc : undefined,
+    bcc: bcc.length > 0 ? bcc : undefined,
+  })
+}

@@ -9,6 +9,7 @@ import MessageView from '@/components/chat/MessageView'
 import ReplyBox from '@/components/chat/ReplyBox'
 import SearchModal from '@/components/chat/SearchModal'
 import TopBarConcierge from '@/components/chat/TopBarConcierge'
+import QuickEmailModal from '@/components/email/QuickEmailModal'
 import PipedriveCard from '@/components/sidebar/PipedriveCard'
 import TodayPanel from '@/components/sidebar/TodayPanel'
 import NotesPanel from '@/components/sidebar/NotesPanel'
@@ -301,6 +302,7 @@ export default function Dashboard() {
   const [activeThread, setActiveThread] = useState<DashboardThread | null>(null)
   const [showTerminal, setShowTerminal] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
+  const [showEmail, setShowEmail] = useState(false)
 
   const select = useCallback(
     (panel: Panel) => (thread: DashboardThread | null) => {
@@ -478,6 +480,38 @@ export default function Dashboard() {
           🔍 Search
         </button>
 
+        {/* Quick Email — compose + send via SendGrid */}
+        <button
+          type="button"
+          onClick={() => setShowEmail(true)}
+          title="Compose a new email — sent from g@reprime-terminal.com, Reply-To g@reprime.com"
+          style={{
+            background: 'rgba(255, 204, 51, 0.04)',
+            color: 'rgba(255, 204, 51, 0.92)',
+            border: '1px solid rgba(255, 204, 51, 0.55)',
+            borderRadius: 999,
+            padding: '0.55rem 1.15rem',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            letterSpacing: '0.02em',
+            flexShrink: 0,
+            transition: 'background 0.15s, box-shadow 0.15s',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 204, 51, 0.10)'
+            e.currentTarget.style.boxShadow = '0 2px 12px rgba(255, 204, 51, 0.18)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 204, 51, 0.04)'
+            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.18)'
+          }}
+        >
+          📧 Email
+        </button>
+
         {/* Quick Note — opens the Notes flap */}
         <button
           type="button"
@@ -536,9 +570,6 @@ export default function Dashboard() {
         open={showSearch}
         onClose={() => setShowSearch(false)}
         onSelect={(thread) => {
-          // Open the thread in its panel. Investor threads — set on both
-          // panels so it shows up regardless of where the InvestorChatPanel
-          // happens to be. For 305/718 threads, set the matching panel.
           if (thread.panel === '305' || thread.panel === '718') {
             setSelections((prev) => ({ ...prev, [thread.panel]: thread }))
             setActiveThread(thread)
@@ -547,6 +578,8 @@ export default function Dashboard() {
           }
         }}
       />
+
+      <QuickEmailModal open={showEmail} onClose={() => setShowEmail(false)} />
 
       {showTerminal && (
         <div
