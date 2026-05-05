@@ -12,6 +12,7 @@ import TopBarConcierge from '@/components/chat/TopBarConcierge'
 import QuickEmailModal from '@/components/email/QuickEmailModal'
 import BriefingModal from '@/components/briefing/BriefingModal'
 import QuickCallModal from '@/components/phone/QuickCallModal'
+import ShortcutHelp from '@/components/help/ShortcutHelp'
 import PipedriveCard from '@/components/sidebar/PipedriveCard'
 import TodayPanel from '@/components/sidebar/TodayPanel'
 import MeetingNowBanner from '@/components/sidebar/MeetingNowBanner'
@@ -696,6 +697,7 @@ export default function Dashboard() {
         }}
       />
       <QuickCallModal open={showCall} onClose={() => setShowCall(false)} />
+      <ShortcutHelp />
 
       {showTerminal && (
         <div
