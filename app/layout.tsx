@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
@@ -17,7 +17,13 @@ export const metadata: Metadata = {
   title: "RePrime Command Center",
   description: "CRE command center",
   icons: [{ rel: "icon", url: "/icon.svg" }],
-  viewport: "width=device-width, initial-scale=1",
+};
+
+// Next 16 split viewport out of metadata. Same effective output as before:
+// <meta name="viewport" content="width=device-width, initial-scale=1">
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
