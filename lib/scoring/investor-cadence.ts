@@ -11,7 +11,8 @@
  *   - overdueAsksCount >= 1   → -30
  *   - Tier multiplier on net score: A 1.5, B 1.2, C 1.0, D 0.7
  *   - Clamp 0–100
- *   - Status: >=75 hot, >=50 warm, >=25 cooling, else cold
+ *   - Status: >=40 hot, >=30 warm, >=15 cooling, else cold
+ *     (Bands sized so all four are reachable given the v1 max score of 45.)
  */
 
 export type InvestorTier = 'A' | 'B' | 'C' | 'D'
@@ -68,7 +69,8 @@ export function scoreInvestorCadence(
     reasons.push('No inbound on record')
   } else if (inboundDays <= 3) {
     score += 30
-    reasons.push(`Replied ${formatDays(inboundDays)} ago`)
+    const phrase = formatDays(inboundDays)
+    reasons.push(phrase === 'today' ? 'Replied today' : `Replied ${phrase} ago`)
   } else if (inboundDays <= 7) {
     score += 15
     reasons.push(`Last reply ${formatDays(inboundDays)} ago`)
@@ -92,9 +94,9 @@ export function scoreInvestorCadence(
   if (score > 100) score = 100
 
   let status: CadenceStatus
-  if (score >= 75) status = 'hot'
-  else if (score >= 50) status = 'warm'
-  else if (score >= 25) status = 'cooling'
+  if (score >= 40) status = 'hot'
+  else if (score >= 30) status = 'warm'
+  else if (score >= 15) status = 'cooling'
   else status = 'cold'
 
   return { score, status, reasons }

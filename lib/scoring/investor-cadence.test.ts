@@ -23,14 +23,31 @@ function input(over: Partial<CadenceInput> = {}): CadenceInput {
 }
 
 describe('scoreInvestorCadence — inbound recency bands', () => {
-  it('inbound today (0 days) → +30 base, A tier → 45 cooling', () => {
+  it('inbound today (0 days) → +30 base, A tier → 45 hot', () => {
     const r = scoreInvestorCadence(
       input({ lastInboundAt: isoDaysAgo(0), tier: 'A' }),
       NOW,
     )
     expect(r.score).toBe(45)
-    expect(r.status).toBe('cooling')
+    expect(r.status).toBe('hot')
     expect(r.reasons.some((x) => x.startsWith('Replied'))).toBe(true)
+  })
+
+  it('inbound today renders as "Replied today" (no "ago" suffix)', () => {
+    const r = scoreInvestorCadence(
+      input({ lastInboundAt: isoDaysAgo(0), tier: 'C' }),
+      NOW,
+    )
+    expect(r.reasons).toContain('Replied today')
+    expect(r.reasons.some((x) => x.includes('today ago'))).toBe(false)
+  })
+
+  it('inbound 1 day ago renders with "ago" suffix', () => {
+    const r = scoreInvestorCadence(
+      input({ lastInboundAt: isoDaysAgo(1), tier: 'C' }),
+      NOW,
+    )
+    expect(r.reasons).toContain('Replied 1 day ago')
   })
 
   it('inbound 3 days ago (boundary of 0–3 band) → +30', () => {
@@ -39,7 +56,7 @@ describe('scoreInvestorCadence — inbound recency bands', () => {
       NOW,
     )
     expect(r.score).toBe(30)
-    expect(r.status).toBe('cooling')
+    expect(r.status).toBe('warm')
   })
 
   it('inbound 4 days ago → +15 (4–7 band)', () => {
@@ -48,7 +65,7 @@ describe('scoreInvestorCadence — inbound recency bands', () => {
       NOW,
     )
     expect(r.score).toBe(15)
-    expect(r.status).toBe('cold')
+    expect(r.status).toBe('cooling')
     expect(r.reasons.some((x) => x.startsWith('Last reply'))).toBe(true)
   })
 
@@ -182,38 +199,60 @@ describe('scoreInvestorCadence — tier multipliers', () => {
   })
 })
 
-describe('scoreInvestorCadence — status thresholds (reachable bands only)', () => {
+describe('scoreInvestorCadence — status thresholds (all four bands reachable)', () => {
   it('score 0 → cold', () => {
     const r = scoreInvestorCadence(input({ tier: 'A' }), NOW)
     expect(r.status).toBe('cold')
   })
 
-  it('score 24 → cold (below cooling)', () => {
-    // tier D + inbound 0 days = round(30 * 0.7) = 21 → cold
+  it('score 21 (tier D, 0d) → cooling (in 15–29 band)', () => {
     const r = scoreInvestorCadence(
       input({ lastInboundAt: isoDaysAgo(0), tier: 'D' }),
       NOW,
     )
     expect(r.score).toBe(21)
-    expect(r.status).toBe('cold')
+    expect(r.status).toBe('cooling')
   })
 
-  it('score 30 → cooling (at threshold 25)', () => {
+  it('score 15 (tier C, 4d) → cooling (at threshold 15)', () => {
     const r = scoreInvestorCadence(
-      input({ lastInboundAt: isoDaysAgo(3), tier: 'C' }),
+      input({ lastInboundAt: isoDaysAgo(4), tier: 'C' }),
+      NOW,
+    )
+    expect(r.score).toBe(15)
+    expect(r.status).toBe('cooling')
+  })
+
+  it('score 30 (tier C, 0d) → warm (at threshold 30)', () => {
+    const r = scoreInvestorCadence(
+      input({ lastInboundAt: isoDaysAgo(0), tier: 'C' }),
       NOW,
     )
     expect(r.score).toBe(30)
-    expect(r.status).toBe('cooling')
+    expect(r.status).toBe('warm')
   })
 
-  it('score 45 → cooling (highest reachable in v1)', () => {
+  it('score 36 (tier B, 0d) → warm', () => {
     const r = scoreInvestorCadence(
-      input({ lastInboundAt: isoDaysAgo(0), tier: 'A' }),
+      input({ lastInboundAt: isoDaysAgo(0), tier: 'B' }),
+      NOW,
+    )
+    expect(r.score).toBe(36)
+    expect(r.status).toBe('warm')
+  })
+
+  it('score 45 (tier A, 0d, zero open asks) → hot — proves hot is reachable', () => {
+    const r = scoreInvestorCadence(
+      input({
+        lastInboundAt: isoDaysAgo(0),
+        tier: 'A',
+        openAsksCount: 0,
+        overdueAsksCount: 0,
+      }),
       NOW,
     )
     expect(r.score).toBe(45)
-    expect(r.status).toBe('cooling')
+    expect(r.status).toBe('hot')
   })
 })
 
