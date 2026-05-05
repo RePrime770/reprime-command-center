@@ -53,18 +53,56 @@ export interface PipedriveDeal {
   org_id?: number | { value: number; name: string } | null
   add_time?: string
   update_time?: string
+  stage_change_time?: string | null
 }
 
 export async function listDeals(
-  params: { status?: string; limit?: number; start?: number } = {}
+  params: { status?: string; limit?: number; start?: number; sort?: string } = {}
 ): Promise<PipedriveDeal[]> {
   const qs = new URLSearchParams()
   if (params.status) qs.set('status', params.status)
   if (params.limit !== undefined) qs.set('limit', String(params.limit))
   if (params.start !== undefined) qs.set('start', String(params.start))
+  if (params.sort) qs.set('sort', params.sort)
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const data = await pipedriveRequest<{ data: PipedriveDeal[] | null }>(`/deals${suffix}`)
   return data.data ?? []
+}
+
+// ── Pipedrive stages ─────────────────────────────────────────────────────────
+
+export interface PipedriveStage {
+  id: number
+  name: string
+  pipeline_id: number
+  order_nr?: number
+  active_flag?: boolean
+}
+
+let stagesCache: { ts: number; data: PipedriveStage[] } | null = null
+const STAGES_TTL_MS = 5 * 60_000
+
+export async function listStages(): Promise<PipedriveStage[]> {
+  const now = Date.now()
+  if (stagesCache && now - stagesCache.ts < STAGES_TTL_MS) {
+    return stagesCache.data
+  }
+  const res = await pipedriveRequest<{ data: PipedriveStage[] | null }>(`/stages`)
+  const data = res.data ?? []
+  stagesCache = { ts: now, data }
+  return data
+}
+
+export async function getStageNameMap(): Promise<Map<number, string>> {
+  const stages = await listStages()
+  const m = new Map<number, string>()
+  for (const s of stages) m.set(s.id, s.name)
+  return m
+}
+
+/** Build the user-facing Pipedrive deal URL for a given deal id. */
+export function pipedriveDealUrl(id: number): string {
+  return `https://reprimegroup.pipedrive.com/deal/${id}`
 }
 
 export async function getDeal(id: number): Promise<PipedriveDeal | null> {
