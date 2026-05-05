@@ -122,6 +122,12 @@ const TARGETS: Record<string, TargetResolver> = {
     defaultWidth: 880,
     defaultHeight: 720,
   }),
+  secretary: (o) => ({
+    title: o.title ?? 'Awaiting Reply',
+    kind: { type: 'component', key: 'secretary', props: o.componentProps },
+    defaultWidth: 720,
+    defaultHeight: 720,
+  }),
 }
 
 const INITIAL: StoreSnapshot = {
