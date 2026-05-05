@@ -119,6 +119,10 @@ export default function TopBarConcierge({ activeThread }: Props) {
     gap: 6,
   }
 
+  const isGroup = activeThread?.is_group === true
+  const concierge_disabled_title =
+    'Concierge actions only work on 1:1 chats — this is a group. Reply from your iPhone WhatsApp directly.'
+
   return (
     <>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
@@ -127,16 +131,20 @@ export default function TopBarConcierge({ activeThread }: Props) {
             key={a.type}
             type="button"
             title={
-              activeThread
-                ? `${a.label} — sends to ${activeThread.contact_name || activeThread.phone}`
-                : 'Click a conversation first, then use this button'
+              !activeThread
+                ? 'Click a conversation first, then use this button'
+                : isGroup
+                ? concierge_disabled_title
+                : `${a.label} — sends to ${activeThread.contact_name || activeThread.phone}`
             }
             onClick={() => void start(a.type)}
+            disabled={isGroup}
             style={{
               ...btnBase,
               border: `1px solid ${a.color}`,
               color: a.color,
-              cursor: 'pointer',
+              cursor: isGroup ? 'not-allowed' : 'pointer',
+              opacity: isGroup ? 0.4 : 1,
             }}
           >
             {a.emoji} {a.label}

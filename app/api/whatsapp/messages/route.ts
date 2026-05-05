@@ -203,6 +203,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'thread_has_no_phone' }, { status: 409 })
   }
 
+  // Block outbound to group chats — Timelines.ai's /messages endpoint requires a
+  // real phone, and we only have a synthetic group:{chat_id} identifier. Sending
+  // to groups from the dashboard isn't supported until we wire up Timelines'
+  // group-send API. Reply from the iPhone WhatsApp directly for now.
+  if (thread.is_group || recipientPhone.startsWith('group:') || /^\+?\d+$/.test(recipientPhone) === false) {
+    return NextResponse.json(
+      {
+        error: 'group_send_unsupported',
+        message:
+          'Sending to group chats from the dashboard is not supported yet. Reply from your iPhone WhatsApp directly.',
+      },
+      { status: 400 }
+    )
+  }
+
   const accountId = PANEL_ACCOUNT_MAP[panel]
   const wireText = attachmentUrl
     ? text
