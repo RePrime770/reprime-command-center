@@ -1,9 +1,68 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 
 const REFETCH_MS = 60_000
+const NAME_STALE_MS = 60 * 60_000 // 1h — Pipedrive resolve is server-cached at 1h too
+
+// ── Pipedrive name resolution ────────────────────────────────────────────────
+
+function isEmail(s: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)
+}
+
+function isE164Phone(s: string): boolean {
+  return /^\+\d{8,15}$/.test(s)
+}
+
+type ResolvedName = string | null
+
+type ResolveResponse = {
+  person?: { id: number; name?: string | null } | null
+}
+
+async function fetchPipedriveName(identifier: string): Promise<ResolvedName> {
+  const param = isEmail(identifier)
+    ? `email=${encodeURIComponent(identifier)}`
+    : isE164Phone(identifier)
+      ? `phone=${encodeURIComponent(identifier)}`
+      : null
+  if (!param) return null
+  const res = await fetch(`/api/pipedrive/resolve?${param}`, { cache: 'no-store' })
+  if (!res.ok) return null
+  const data = (await res.json()) as ResolveResponse
+  return data.person?.name?.trim() || null
+}
+
+function useResolvedNames(identifiers: string[]): Map<string, ResolvedName> {
+  // Dedupe and only resolve email + E.164 phones; everything else stays raw.
+  const targets = useMemo(() => {
+    const set = new Set<string>()
+    for (const id of identifiers) {
+      if (isEmail(id) || isE164Phone(id)) set.add(id)
+    }
+    return Array.from(set)
+  }, [identifiers])
+
+  const queries = useQueries({
+    queries: targets.map((identifier) => ({
+      queryKey: ['secretary', 'pipedrive-name', identifier],
+      queryFn: () => fetchPipedriveName(identifier),
+      staleTime: NAME_STALE_MS,
+      gcTime: NAME_STALE_MS,
+      retry: false,
+    })),
+  })
+
+  return useMemo(() => {
+    const map = new Map<string, ResolvedName>()
+    targets.forEach((id, i) => {
+      map.set(id, queries[i]?.data ?? null)
+    })
+    return map
+  }, [targets, queries])
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -116,7 +175,15 @@ const sectionCount: React.CSSProperties = {
   textTransform: 'none',
 }
 
-function AskRow({ ask, overdue }: { ask: OutboundAsk; overdue?: boolean }) {
+function AskRow({
+  ask,
+  overdue,
+  resolvedName,
+}: {
+  ask: OutboundAsk
+  overdue?: boolean
+  resolvedName?: ResolvedName
+}) {
   const accent = CHANNEL_COLOR[ask.channel]
   const sentAgo = formatRelativePast(ask.sent_at)
   const expected = formatRelativeFuture(ask.expected_reply_by)
@@ -203,9 +270,29 @@ function AskRow({ ask, overdue }: { ask: OutboundAsk; overdue?: boolean }) {
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
             }}
-            title={ask.recipient_identifier}
+            title={
+              resolvedName
+                ? `${resolvedName} — ${ask.recipient_identifier}`
+                : ask.recipient_identifier
+            }
           >
-            {ask.recipient_identifier}
+            {resolvedName ? (
+              <>
+                {resolvedName}
+                <span
+                  style={{
+                    color: 'var(--rp-gold-lite)',
+                    fontWeight: 400,
+                    opacity: 0.7,
+                  }}
+                >
+                  {' — '}
+                  {ask.recipient_identifier}
+                </span>
+              </>
+            ) : (
+              ask.recipient_identifier
+            )}
           </span>
           <span
             aria-label={`channel ${CHANNEL_LABEL[ask.channel]}`}
@@ -306,6 +393,20 @@ export default function SecretaryTab() {
   const overdue = asks.data?.overdue ?? []
   const awaiting = asks.data?.awaiting ?? []
 
+  // Collect identifiers across all sections so each unique recipient is
+  // resolved once. Pipedrive lookup runs in parallel and never blocks the
+  // initial render — rows show the raw identifier first, then the name
+  // appears as the query resolves.
+  const allIdentifiers = useMemo(() => {
+    const ids: string[] = []
+    for (const a of overdue) ids.push(a.recipient_identifier)
+    for (const a of awaiting) ids.push(a.recipient_identifier)
+    for (const a of asks.data?.replied_recent ?? []) ids.push(a.recipient_identifier)
+    return ids
+  }, [overdue, awaiting, asks.data?.replied_recent])
+
+  const nameMap = useResolvedNames(allIdentifiers)
+
   return (
     <div
       data-component="secretary-tab"
@@ -325,7 +426,12 @@ export default function SecretaryTab() {
             <span style={sectionCount}>{overdue.length}</span>
           </div>
           {overdue.map((ask) => (
-            <AskRow key={ask.id} ask={ask} overdue />
+            <AskRow
+              key={ask.id}
+              ask={ask}
+              overdue
+              resolvedName={nameMap.get(ask.recipient_identifier) ?? null}
+            />
           ))}
         </section>
       )}
@@ -346,7 +452,11 @@ export default function SecretaryTab() {
           <EmptyHint text="Nothing waiting on a reply." />
         )}
         {awaiting.map((ask) => (
-          <AskRow key={ask.id} ask={ask} />
+          <AskRow
+            key={ask.id}
+            ask={ask}
+            resolvedName={nameMap.get(ask.recipient_identifier) ?? null}
+          />
         ))}
       </section>
 
@@ -363,7 +473,11 @@ export default function SecretaryTab() {
           <EmptyHint text="No replies yet this week." />
         )}
         {repliedToShow.map((ask) => (
-          <AskRow key={ask.id} ask={ask} />
+          <AskRow
+            key={ask.id}
+            ask={ask}
+            resolvedName={nameMap.get(ask.recipient_identifier) ?? null}
+          />
         ))}
         {(asks.data?.replied_recent.length ?? 0) > 5 && (
           <button

@@ -9,6 +9,7 @@ import InboxColumn from '@/components/center/columns/InboxColumn'
 import PipelineColumn from '@/components/center/columns/PipelineColumn'
 import BucketColumn from '@/components/center/columns/BucketColumn'
 import BucketItemDetail from '@/components/center/BucketItemDetail'
+import SecretaryWindow from '@/components/center/windows/SecretaryWindow'
 import WindowManager from '@/components/center/windows/WindowManager'
 import WindowTaskbar from '@/components/center/windows/WindowTaskbar'
 
@@ -67,6 +68,7 @@ export default function CenterPage() {
               {...(props as { itemId?: string; title?: string })}
             />
           ),
+          secretary: () => <SecretaryWindow />,
         }}
       />
       <ReminderToast />

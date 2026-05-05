@@ -3,6 +3,7 @@ import { Redis } from '@upstash/redis'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
 import {
+  findPersonByEmail,
   findPersonByPhone,
   getPersonActivities,
   PIPEDRIVE_FIELD_KEYS,
@@ -45,22 +46,39 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const rawPhone = searchParams.get('phone')
+  const rawEmail = searchParams.get('email')
   const panel = searchParams.get('panel') as Panel | null
-  if (!rawPhone) {
-    return NextResponse.json({ error: 'phone required' }, { status: 400 })
+
+  if (!rawPhone && !rawEmail) {
+    return NextResponse.json({ error: 'phone or email required' }, { status: 400 })
   }
 
-  const phone = normalizePhone(rawPhone)
-  if (!phone) {
-    return NextResponse.json(
-      { person: null, activities: [], fieldKeys: FIELD_KEYS } satisfies ResolvePayload
-    )
+  let cacheKey: string | null = null
+  let phone: string | null = null
+  let email: string | null = null
+
+  if (rawPhone) {
+    phone = normalizePhone(rawPhone)
+    if (!phone) {
+      return NextResponse.json(
+        { person: null, activities: [], fieldKeys: FIELD_KEYS } satisfies ResolvePayload
+      )
+    }
+    cacheKey = `pipedrive:phone:${phone}`
+  } else if (rawEmail) {
+    const trimmed = rawEmail.trim().toLowerCase()
+    if (!trimmed.includes('@')) {
+      return NextResponse.json(
+        { person: null, activities: [], fieldKeys: FIELD_KEYS } satisfies ResolvePayload
+      )
+    }
+    email = trimmed
+    cacheKey = `pipedrive:email:${email}`
   }
 
   const redis = getRedis()
-  const cacheKey = `pipedrive:phone:${phone}`
 
-  if (redis) {
+  if (redis && cacheKey) {
     const cached = await redis.get<ResolvePayload>(cacheKey)
     if (cached) {
       return NextResponse.json(cached)
@@ -71,7 +89,11 @@ export async function GET(request: Request) {
   let activities: PipedriveActivity[] = []
 
   try {
-    person = await findPersonByPhone(phone)
+    if (phone) {
+      person = await findPersonByPhone(phone)
+    } else if (email) {
+      person = await findPersonByEmail(email)
+    }
     if (person) {
       activities = await getPersonActivities(person.id, 3)
     }
@@ -88,11 +110,11 @@ export async function GET(request: Request) {
     fieldKeys: FIELD_KEYS,
   }
 
-  if (redis) {
+  if (redis && cacheKey) {
     await redis.set(cacheKey, payload, { ex: CACHE_TTL })
   }
 
-  if (person && panel) {
+  if (person && panel && phone) {
     const service = createServiceClient()
     await service
       .from('whatsapp_threads')
