@@ -684,6 +684,8 @@ export default function Dashboard() {
             setSelections((prev) => ({ ...prev, [thread.panel]: thread }))
             setActiveThread(thread)
           } else {
+            // Investor thread — let InvestorChatPanel open it via window event
+            window.dispatchEvent(new CustomEvent('open-investor-thread', { detail: { threadId: thread.id } }))
             setActiveThread(thread)
           }
         }}
@@ -698,6 +700,8 @@ export default function Dashboard() {
             setSelections((prev) => ({ ...prev, [thread.panel as Panel]: thread as DashboardThread }))
             setActiveThread(thread as DashboardThread)
           } else {
+            // Investor thread — InvestorChatPanel listens for this event
+            window.dispatchEvent(new CustomEvent('open-investor-thread', { detail: { threadId: thread.id } }))
             setActiveThread(thread as DashboardThread)
           }
         }}

@@ -118,6 +118,20 @@ export default function InvestorChatPanel() {
     if (fresh && fresh !== selected) setSelected(fresh)
   }, [threadsData, selected])
 
+  // Allow other parts of the dashboard (Search, Briefing) to open an investor
+  // thread by dispatching a window event with { detail: { threadId } }.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ threadId?: string }>
+      const id = ce.detail?.threadId
+      if (!id || !threadsData) return
+      const match = threadsData.find((t) => t.id === id)
+      if (match) setSelected(match)
+    }
+    window.addEventListener('open-investor-thread', handler as EventListener)
+    return () => window.removeEventListener('open-investor-thread', handler as EventListener)
+  }, [threadsData])
+
   // Optimistic message append
   const onOptimistic = useCallback(
     (m: DashboardMessage) => {
