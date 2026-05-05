@@ -4,6 +4,7 @@ import ReminderToast from '@/components/center/ReminderToast'
 import TopStrip from '@/components/center/TopStrip'
 import VoiceShellFooter from '@/components/center/VoiceShellFooter'
 import CrewColumn from '@/components/center/columns/CrewColumn'
+import InboxColumn from '@/components/center/columns/InboxColumn'
 import PipelineColumn from '@/components/center/columns/PipelineColumn'
 import BucketColumn from '@/components/center/columns/BucketColumn'
 import BucketItemDetail from '@/components/center/BucketItemDetail'
@@ -15,10 +16,10 @@ export const dynamic = 'force-dynamic'
 /**
  * /center — RePrime Command Center kiosk shell.
  *
- * Wave 1 + Tracks B & D wiring: Pipeline + Bucket + Crew columns live;
- * Inbox remains a placeholder until Track C ships. IdentityPicker is
- * mounted by IdentityPickerSlot inside TopStrip; VoiceShellFooter
- * remains a placeholder until Track G fills it.
+ * Wave 1 + Tracks B, C, D wiring: Pipeline + Inbox + Bucket + Crew
+ * columns all live. IdentityPicker is mounted by IdentityPickerSlot
+ * inside TopStrip; VoiceShellFooter remains a placeholder until
+ * Track G fills it.
  *
  * BucketItemDetail is registered into the WindowManager so clicking a
  * Bucket row opens a real detail body instead of the default stub.
@@ -41,7 +42,9 @@ export default function CenterPage() {
           <Column label="Pipeline" fullBleed>
             <PipelineColumn />
           </Column>
-          <Column label="Inbox" />
+          <Column label="Inbox" fullBleed>
+            <InboxColumn />
+          </Column>
           <Column label="Bucket" fullBleed>
             <BucketColumn />
           </Column>
