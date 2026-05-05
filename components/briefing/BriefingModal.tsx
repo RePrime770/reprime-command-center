@@ -37,6 +37,15 @@ interface ExpiringInv {
   expires_at: string
 }
 
+interface TenantFiling {
+  case_no: string
+  tenant: string
+  party_title: string | null
+  court: string | null
+  filed_at: string | null
+  first_seen_at: string
+}
+
 interface BriefingPayload {
   date: string
   meetings: {
@@ -52,6 +61,7 @@ interface BriefingPayload {
   recent_investors: BriefingThread[]
   expiring_invitations: { count: number; items: ExpiringInv[] }
   pending_followups: BriefingThread[]
+  tenant_filings_today?: TenantFiling[]
 }
 
 const NAVY = '#0E3470'
@@ -292,6 +302,35 @@ export default function BriefingModal({ open, onClose, onThreadClick }: Props) {
                 </Section>
               )}
 
+              {/* New tenant filings (Inforuptcy) */}
+              {(data.tenant_filings_today?.length ?? 0) > 0 && (
+                <Section title="New Tenant Filings (today)">
+                  {(data.tenant_filings_today ?? []).map((f) => (
+                    <Row
+                      key={f.case_no}
+                      left={
+                        <div>
+                          <div style={{ color: TEXT, fontSize: 13, fontWeight: 600 }}>
+                            {f.tenant}
+                          </div>
+                          <div style={{ color: MUTED, fontSize: 12, marginTop: 2 }}>
+                            {f.case_no}
+                            {f.court ? ` · ${f.court}` : ''}
+                          </div>
+                        </div>
+                      }
+                      right={
+                        <div style={{ textAlign: 'right' }}>
+                          {f.filed_at && (
+                            <div style={{ color: MUTED, fontSize: 11 }}>filed {f.filed_at}</div>
+                          )}
+                        </div>
+                      }
+                    />
+                  ))}
+                </Section>
+              )}
+
               {/* Expiring invitations */}
               {data.expiring_invitations.items.length > 0 && (
                 <Section title="Expiring Invitations">
@@ -317,7 +356,8 @@ export default function BriefingModal({ open, onClose, onThreadClick }: Props) {
               {data.meetings.count === 0 &&
                 data.recent_investors.length === 0 &&
                 data.pending_followups.length === 0 &&
-                data.expiring_invitations.count === 0 && (
+                data.expiring_invitations.count === 0 &&
+                (data.tenant_filings_today?.length ?? 0) === 0 && (
                   <div style={{ ...msg, padding: '48px 0' }}>Nothing pending. Quiet morning.</div>
                 )}
             </div>

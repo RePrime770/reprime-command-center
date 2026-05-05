@@ -113,6 +113,15 @@ interface BriefingThread {
   last_message_preview: string | null
 }
 
+interface TenantFiling {
+  case_no: string
+  tenant: string
+  party_title: string | null
+  court: string | null
+  filed_at: string | null
+  first_seen_at: string
+}
+
 interface BriefingResponse {
   date: string
   meetings: {
@@ -137,6 +146,41 @@ interface BriefingResponse {
   }
   pending_followups: BriefingThread[]
   active_deals: ActiveDeal[]
+  tenant_filings_today: TenantFiling[]
+}
+
+/**
+ * Returns the ISO instant for "today midnight in America/Chicago" — DST-aware,
+ * works in both CDT and CST. Used to bucket inforuptcy_filings rows that
+ * landed since the last cron run.
+ */
+function midnightCTTodayISO(): string {
+  const now = new Date()
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(now)
+  const part = (t: string) => parts.find((p) => p.type === t)?.value ?? '0'
+  const y = Number(part('year'))
+  const m = Number(part('month'))
+  const d = Number(part('day'))
+  const ctAsUTC = Date.UTC(
+    y,
+    m - 1,
+    d,
+    Number(part('hour')) % 24,
+    Number(part('minute')),
+    Number(part('second')),
+  )
+  const offsetMs = ctAsUTC - now.getTime()
+  const ctMidnightAsUTC = Date.UTC(y, m - 1, d, 0, 0, 0)
+  return new Date(ctMidnightAsUTC - offsetMs).toISOString()
 }
 
 function findNextUpId(events: BriefingMeeting[]): string | null {
@@ -261,6 +305,22 @@ export async function GET() {
   // 6. Active Pipedrive deals (top 10 open by stage_change_time desc, 5-min cache)
   const activeDeals = await fetchActiveDeals()
 
+  // 7. Tenant filings (Inforuptcy) — rows landed since CT midnight today.
+  // Source: lib/inforuptcy/client.ts cron at /api/cron/inforuptcy-poll.
+  let tenantFilings: TenantFiling[] = []
+  try {
+    const since = midnightCTTodayISO()
+    const { data: rows } = await svc
+      .from('inforuptcy_filings')
+      .select('case_no, tenant, party_title, court, filed_at, first_seen_at')
+      .gte('first_seen_at', since)
+      .order('first_seen_at', { ascending: false })
+      .limit(50)
+    tenantFilings = (rows ?? []) as TenantFiling[]
+  } catch (err) {
+    console.error('[briefing] tenant_filings_today failed', err)
+  }
+
   const payload: BriefingResponse = {
     date: dateStr,
     meetings: {
@@ -280,6 +340,7 @@ export async function GET() {
     },
     pending_followups: pendingFollowups,
     active_deals: activeDeals,
+    tenant_filings_today: tenantFilings,
   }
 
   return NextResponse.json(payload)

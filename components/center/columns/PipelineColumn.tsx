@@ -35,6 +35,24 @@ interface ExpiringInvitation {
   expires_at: string
 }
 
+interface TenantFiling {
+  case_no: string
+  tenant: string
+  party_title: string | null
+  court: string | null
+  filed_at: string | null
+  first_seen_at: string
+}
+
+const TENANT_WATCHLIST = [
+  'Family Dollar Stores',
+  'Dollar Tree',
+  'Planet Fitness',
+  'Tractor Supply',
+  'Joann',
+  'Big Lots',
+] as const
+
 interface BriefingPayload {
   date: string
   meetings: {
@@ -54,6 +72,7 @@ interface BriefingPayload {
   }
   pending_followups: unknown[]
   active_deals?: ActiveDeal[]
+  tenant_filings_today?: TenantFiling[]
 }
 
 interface CalendarEvent {
@@ -252,6 +271,15 @@ export default function PipelineColumn() {
   const events = calendar.data?.events ?? []
   const deals = briefing.data?.active_deals ?? []
   const expiring = briefing.data?.expiring_invitations.items ?? []
+  const tenantFilings = briefing.data?.tenant_filings_today ?? []
+  const tenantCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const t of TENANT_WATCHLIST) counts[t] = 0
+    for (const f of tenantFilings) {
+      counts[f.tenant] = (counts[f.tenant] ?? 0) + 1
+    }
+    return counts
+  }, [tenantFilings])
 
   return (
     <div
@@ -412,7 +440,54 @@ export default function PipelineColumn() {
         })}
       </section>
 
-      {/* 5. Expiring invitations */}
+      {/* 5. Tenant filings (Inforuptcy) — new bankruptcy/adversary cases today */}
+      <section style={sectionStyle} data-section="tenant-filings">
+        <div style={sectionLabel}>New Filings (today)</div>
+        {briefing.isLoading && (
+          <div style={{ color: 'var(--rp-gold-lite)', fontSize: 12 }}>Loading…</div>
+        )}
+        {briefing.data && (
+          <>
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--rp-gold-lite)',
+                marginBottom: 8,
+                lineHeight: 1.5,
+              }}
+            >
+              {TENANT_WATCHLIST.map((t, i) => {
+                const n = tenantCounts[t] ?? 0
+                return (
+                  <span key={t}>
+                    {i > 0 ? ', ' : ''}
+                    <span style={{ color: n > 0 ? 'var(--rp-gold)' : 'var(--rp-gold-lite)', fontWeight: n > 0 ? 700 : 400 }}>
+                      {t.replace(/ Stores$/, '')} +{n}
+                    </span>
+                  </span>
+                )
+              })}
+            </div>
+            {tenantFilings.slice(0, 5).map((f) => (
+              <div key={f.case_no} style={cardStyle}>
+                <div style={{ fontWeight: 600, fontSize: 12 }}>{f.tenant}</div>
+                <div style={{ color: 'var(--rp-gold-lite)', fontSize: 11, marginTop: 2 }}>
+                  {f.case_no}
+                  {f.court ? ` · ${f.court}` : ''}
+                  {f.filed_at ? ` · filed ${f.filed_at}` : ''}
+                </div>
+              </div>
+            ))}
+            {tenantFilings.length === 0 && (
+              <div style={{ color: 'var(--rp-gold-lite)', fontSize: 11, fontStyle: 'normal' }}>
+                Nothing new today
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* 6. Expiring invitations */}
       <section style={{ ...sectionStyle, borderBottom: 'none' }} data-section="expiring">
         <div style={sectionLabel}>Expiring Invitations</div>
         {briefing.isLoading && (
