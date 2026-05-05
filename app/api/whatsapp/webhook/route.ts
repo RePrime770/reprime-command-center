@@ -13,16 +13,137 @@ type WebhookAccount = {
   id?: string | number | null
   phone?: string | null
   jid?: string | null
+  email?: string | null
+  full_name?: string | null
   account_id?: string | number | null
   [k: string]: unknown
 }
 
+/**
+ * Actual Timelines.ai webhook schema (captured from a live POST 2026-05-04):
+ *
+ *   { event_type, chat:{full_name,chat_url,chat_id,is_group,phone},
+ *     whatsapp_account:{full_name,email,phone},
+ *     message:{text,direction,origin,timestamp,message_uid,
+ *              sender:{full_name,phone}, recipient:{full_name,phone},
+ *              attachments:[{temporary_download_url,filename,size,mimetype}]} }
+ *
+ * The dashboard's existing TimelinesChat/TimelinesMessage types are wider —
+ * we normalize raw → typed below so downstream handler logic is unchanged.
+ */
+type RawAttachment = {
+  temporary_download_url?: string
+  filename?: string
+  size?: number
+  mimetype?: string
+}
+
+type RawTimelinesChat = {
+  full_name?: string
+  chat_url?: string
+  chat_id?: number
+  is_group?: boolean
+  phone?: string
+}
+
+type RawTimelinesMessage = {
+  text?: string
+  direction?: 'sent' | 'received'
+  origin?: string
+  timestamp?: string
+  message_uid?: string
+  sender?: { full_name?: string; phone?: string }
+  recipient?: { full_name?: string; phone?: string }
+  attachments?: RawAttachment[]
+}
+
 type WebhookPayload = {
-  message?: TimelinesMessage
-  chat?: TimelinesChat
-  whatsapp_account?: WebhookAccount
-  event?: string
   event_type?: string
+  event?: string
+  chat?: RawTimelinesChat
+  whatsapp_account?: WebhookAccount
+  message?: RawTimelinesMessage
+}
+
+/**
+ * Normalize Timelines' real schema into our internal TimelinesChat/TimelinesMessage
+ * types so resolvePanel + upsert logic don't need to know about the wire format.
+ * Returns null if the payload lacks message or chat (event-only pings).
+ */
+function normalizePayload(raw: WebhookPayload): {
+  chat: TimelinesChat
+  message: TimelinesMessage
+  account: WebhookAccount
+} | null {
+  if (!raw.message || !raw.chat) return null
+
+  const account = raw.whatsapp_account || {}
+  const fromMe = raw.message.direction === 'sent'
+  const firstAtt = raw.message.attachments?.[0]
+  const mimetype = firstAtt?.mimetype || ''
+  const messageType = firstAtt
+    ? mimetype.startsWith('image/') ? 'image'
+      : mimetype.startsWith('video/') ? 'video'
+      : mimetype.startsWith('audio/') ? 'audio'
+      : 'document'
+    : (raw.message.text ? 'text' : 'unknown')
+
+  const ourPhone = account.phone || ''
+  const remoteSender = raw.message.sender?.phone || ''
+  const remoteRecipient = raw.message.recipient?.phone || ''
+
+  // For inbound: sender = remote contact, recipient = us
+  // For outbound: sender = us, recipient = remote contact
+  const senderPhone = fromMe ? ourPhone : remoteSender
+  const recipientPhone = fromMe ? remoteRecipient : ourPhone
+
+  const message: TimelinesMessage = {
+    uid: raw.message.message_uid || '',
+    chat_id: raw.chat.chat_id || 0,
+    timestamp: raw.message.timestamp || '',
+    sender_phone: senderPhone,
+    sender_name: raw.message.sender?.full_name || '',
+    recipient_phone: recipientPhone,
+    recipient_name: raw.message.recipient?.full_name || '',
+    from_me: fromMe,
+    text: raw.message.text || '',
+    attachment_url: firstAtt?.temporary_download_url || null,
+    attachment_filename: firstAtt?.filename || null,
+    status: '',
+    origin: raw.message.origin || '',
+    has_attachment: !!firstAtt,
+    message_type: messageType,
+    reactions: { users: [], reactions: {}, total: 0 },
+    data: {},
+  }
+
+  // Group chats have empty chat.phone — synthesize a stable identifier
+  // so multiple groups don't collapse into a single thread row.
+  const chatPhone = raw.chat.phone && raw.chat.phone.trim().length > 0
+    ? raw.chat.phone
+    : (raw.chat.is_group && raw.chat.chat_id ? `group:${raw.chat.chat_id}` : '')
+
+  const chat: TimelinesChat = {
+    id: raw.chat.chat_id || 0,
+    name: raw.chat.full_name || '',
+    phone: chatPhone,
+    jid: '',
+    is_group: !!raw.chat.is_group,
+    closed: false,
+    read: true,
+    labels: [],
+    whatsapp_account_id: account.phone || '',
+    chat_url: raw.chat.chat_url || '',
+    created_timestamp: '',
+    last_message_uid: raw.message.message_uid || null,
+    last_message_timestamp: raw.message.timestamp || null,
+    unattended: false,
+    photo: null,
+    is_allowed_to_message: true,
+    group_members: [],
+  }
+
+  return { chat, message, account }
 }
 
 /** Match any string containing our account digits */
@@ -110,30 +231,30 @@ export async function POST(request: Request) {
   )
   console.log('[webhook] payload keys', Object.keys(payload as Record<string, unknown>))
 
-  const message = payload.message
-  const chat = payload.chat
-  const account = payload.whatsapp_account
+  const normalized = normalizePayload(payload)
 
   console.log('[webhook] received', {
     event: payload.event ?? payload.event_type ?? null,
-    hasMessage: !!message,
-    hasChat: !!chat,
-    hasAccount: !!account,
-    accountKeys: account ? Object.keys(account) : null,
-    messageKeys: message ? Object.keys(message as unknown as Record<string, unknown>) : null,
-    chatKeys: chat ? Object.keys(chat as unknown as Record<string, unknown>) : null,
-    messageUid: message?.uid ?? null,
-    chatPhone: chat?.phone ?? null,
-    chatJid: chat?.jid ?? null,
-    whatsappAccountId: chat?.whatsapp_account_id ?? null,
-    fromMe: message?.from_me ?? null,
-    chatIsGroup: chat?.is_group ?? null,
+    hasMessage: !!payload.message,
+    hasChat: !!payload.chat,
+    hasAccount: !!payload.whatsapp_account,
+    accountKeys: payload.whatsapp_account ? Object.keys(payload.whatsapp_account) : null,
+    messageKeys: payload.message ? Object.keys(payload.message as Record<string, unknown>) : null,
+    chatKeys: payload.chat ? Object.keys(payload.chat as Record<string, unknown>) : null,
+    normalized: !!normalized,
+    messageUid: normalized?.message.uid ?? null,
+    chatPhone: normalized?.chat.phone ?? null,
+    accountPhone: normalized?.account.phone ?? null,
+    fromMe: normalized?.message.from_me ?? null,
+    chatIsGroup: normalized?.chat.is_group ?? null,
   })
 
-  if (!message || !chat) {
-    console.log('[webhook] skipped — no message or chat in payload')
+  if (!normalized) {
+    console.log('[webhook] skipped — payload missing message or chat')
     return NextResponse.json({ ok: true, skipped: 'no message or chat' })
   }
+
+  const { chat, message, account } = normalized
 
   // Check dedup BEFORE setting key — only set after successful write
   const redis = getRedis()
