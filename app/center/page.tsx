@@ -1,5 +1,6 @@
 import Canvas from '@/components/center/Canvas'
 import Column from '@/components/center/Column'
+import ReminderToast from '@/components/center/ReminderToast'
 import TopStrip from '@/components/center/TopStrip'
 import VoiceShellFooter from '@/components/center/VoiceShellFooter'
 import PipelineColumn from '@/components/center/columns/PipelineColumn'
@@ -58,6 +59,7 @@ export default function CenterPage() {
           ),
         }}
       />
+      <ReminderToast />
     </>
   )
 }

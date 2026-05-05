@@ -10,6 +10,9 @@ const PUBLIC_PATHS = [
   '/api/phone/quo-webhook',
   '/invite',
   '/api/bookings/confirm',
+  // Vercel cron hits this without user cookies; CRON_SECRET bearer is the
+  // real auth gate inside the route handler.
+  '/api/bucket/fire-reminders',
 ]
 
 export async function middleware(request: NextRequest) {

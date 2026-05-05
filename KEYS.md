@@ -52,6 +52,7 @@ Last updated: 2026-05-04 (overnight build session)
 - QUO_WEBHOOK_SECRET → Vercel env var — Quo webhook signing secret (from Quo dashboard → Webhooks → Signing secret)
 - BLUEBUBBLES_WEBHOOK_SECRET → Vercel env var — secret header value set in BlueBubbles Server → Webhooks → x-bb-secret; choose any strong random string
 - BB_CALL_SECRET → Vercel env var — Bearer token for the call-log daemon hitting /api/phone/call-event; choose any strong random string
+- CRON_SECRET → Vercel env var — Bearer token Vercel Cron and any local invoker presents to gated cron endpoints (e.g. /api/cron/dispatch-alerts, /api/bucket/fire-reminders); choose any strong random string. Set in Vercel → Settings → Environment Variables. Without it, /api/bucket/fire-reminders returns 503.
 
 ### Pipedrive field keys
 Person custom fields (Pipedrive API hashed keys, NOT secrets, safe to commit):
