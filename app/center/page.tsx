@@ -9,6 +9,7 @@ import InboxColumn from '@/components/center/columns/InboxColumn'
 import PipelineColumn from '@/components/center/columns/PipelineColumn'
 import BucketColumn from '@/components/center/columns/BucketColumn'
 import BucketItemDetail from '@/components/center/BucketItemDetail'
+import InvestorCadenceWindow from '@/components/center/InvestorCadenceWindow'
 import InvestorProfileWindow from '@/components/center/InvestorProfileWindow'
 import SecretaryWindow from '@/components/center/windows/SecretaryWindow'
 import WindowManager from '@/components/center/windows/WindowManager'
@@ -80,6 +81,7 @@ export default function CenterPage() {
             />
           ),
           secretary: () => <SecretaryWindow />,
+          'investor-cadence': () => <InvestorCadenceWindow />,
         }}
       />
       <ReminderToast />
