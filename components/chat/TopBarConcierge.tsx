@@ -107,9 +107,9 @@ export default function TopBarConcierge({ activeThread }: Props) {
   const hasText = lang === 'en' ? en.trim().length > 0 : he.trim().length > 0
 
   const btnBase: React.CSSProperties = {
-    background: 'transparent',
-    borderRadius: 6,
-    padding: '0.45rem 1rem',
+    background: 'rgba(255, 204, 51, 0.03)',
+    borderRadius: 999,
+    padding: '0.55rem 1.15rem',
     fontSize: 13,
     fontWeight: 600,
     fontFamily: 'inherit',
@@ -117,6 +117,8 @@ export default function TopBarConcierge({ activeThread }: Props) {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 6,
+    transition: 'background 0.15s, box-shadow 0.15s',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
   }
 
   const isGroup = activeThread?.is_group === true
@@ -145,6 +147,16 @@ export default function TopBarConcierge({ activeThread }: Props) {
               color: a.color,
               cursor: isGroup ? 'not-allowed' : 'pointer',
               opacity: isGroup ? 0.4 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (isGroup) return
+              e.currentTarget.style.background = 'rgba(255, 204, 51, 0.08)'
+              e.currentTarget.style.boxShadow = `0 2px 12px ${a.color}33`
+            }}
+            onMouseLeave={(e) => {
+              if (isGroup) return
+              e.currentTarget.style.background = 'rgba(255, 204, 51, 0.03)'
+              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.18)'
             }}
           >
             {a.emoji} {a.label}

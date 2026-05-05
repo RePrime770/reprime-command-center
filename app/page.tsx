@@ -64,11 +64,11 @@ function ImportNamesButton() {
         onClick={() => inputRef.current?.click()}
         title="Import contact names from CSV (columns: phone, name)"
         style={{
-          background: 'transparent',
+          background: status === 'idle' ? 'rgba(255, 204, 51, 0.04)' : 'transparent',
           color,
           border: `1px solid ${color}`,
-          borderRadius: 6,
-          padding: '0.45rem 1rem',
+          borderRadius: 999,
+          padding: '0.55rem 1.15rem',
           fontSize: 13,
           fontWeight: 600,
           cursor: status === 'loading' ? 'not-allowed' : 'pointer',
@@ -76,6 +76,18 @@ function ImportNamesButton() {
           letterSpacing: '0.02em',
           opacity: status === 'loading' ? 0.6 : 1,
           flexShrink: 0,
+          transition: 'background 0.15s, box-shadow 0.15s, transform 0.1s',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+        }}
+        onMouseEnter={(e) => {
+          if (status === 'loading') return
+          e.currentTarget.style.background = 'rgba(255, 204, 51, 0.10)'
+          e.currentTarget.style.boxShadow = '0 2px 12px rgba(255, 204, 51, 0.18)'
+        }}
+        onMouseLeave={(e) => {
+          if (status === 'loading') return
+          e.currentTarget.style.background = 'rgba(255, 204, 51, 0.04)'
+          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.18)'
         }}
       >
         {status === 'loading' ? '⏳' : '📋'} Import Names
@@ -319,20 +331,52 @@ export default function Dashboard() {
           type="button"
           onClick={() => setShowTerminal(true)}
           style={{
-            background: 'transparent',
-            color: 'rgba(255, 204, 51,0.85)',
-            border: '1px solid rgba(255, 204, 51,0.45)',
-            borderRadius: 6,
-            padding: '0.45rem 1rem',
+            background: 'rgba(255, 204, 51, 0.04)',
+            color: 'rgba(255, 204, 51,0.92)',
+            border: '1px solid rgba(255, 204, 51,0.55)',
+            borderRadius: 999,
+            padding: '0.55rem 1.15rem',
             fontSize: 13,
             fontWeight: 600,
             cursor: 'pointer',
             fontFamily: 'inherit',
             letterSpacing: '0.02em',
             flexShrink: 0,
+            transition: 'background 0.15s, box-shadow 0.15s',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 204, 51, 0.10)'
+            e.currentTarget.style.boxShadow = '0 2px 12px rgba(255, 204, 51, 0.18)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 204, 51, 0.04)'
+            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.18)'
           }}
         >
           ✉ Terminal
+        </button>
+
+        {/* Meeting Request — placeholder until Track F ships the regular meeting variant */}
+        <button
+          type="button"
+          disabled
+          title="Meeting Request flow coming soon — uses the same Terminal design with regular-meeting copy"
+          style={{
+            background: 'rgba(255, 204, 51, 0.02)',
+            color: 'rgba(255, 204, 51, 0.45)',
+            border: '1px dashed rgba(255, 204, 51, 0.30)',
+            borderRadius: 999,
+            padding: '0.55rem 1.15rem',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'not-allowed',
+            fontFamily: 'inherit',
+            letterSpacing: '0.02em',
+            flexShrink: 0,
+          }}
+        >
+          🤝 Meeting Request
         </button>
 
         {/* Divider */}
