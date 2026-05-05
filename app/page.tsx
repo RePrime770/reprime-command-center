@@ -307,6 +307,25 @@ export default function Dashboard() {
   const [showSearch, setShowSearch] = useState(false)
   const [showEmail, setShowEmail] = useState(false)
   const [showBriefing, setShowBriefing] = useState(false)
+
+  // Auto-open Briefing once per local day (when dashboard first loads in the morning)
+  useEffect(() => {
+    try {
+      const KEY = 'briefing-last-shown-date'
+      const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD local-ish
+      const last = typeof window !== 'undefined' ? localStorage.getItem(KEY) : null
+      if (last !== today) {
+        // Defer briefly so the dashboard renders first
+        const timer = setTimeout(() => {
+          setShowBriefing(true)
+          localStorage.setItem(KEY, today)
+        }, 1200)
+        return () => clearTimeout(timer)
+      }
+    } catch {
+      // localStorage unavailable — silently skip
+    }
+  }, [])
   const [showCall, setShowCall] = useState(false)
 
   const select = useCallback(
