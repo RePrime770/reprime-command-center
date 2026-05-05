@@ -1,12 +1,13 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import CallButton from '@/components/chat/CallButton'
 import ChatList from '@/components/chat/ChatList'
 import InviteComposer from '@/components/chat/InviteComposer'
 import MessageView from '@/components/chat/MessageView'
 import ReplyBox from '@/components/chat/ReplyBox'
+import SearchModal from '@/components/chat/SearchModal'
 import TopBarConcierge from '@/components/chat/TopBarConcierge'
 import PipedriveCard from '@/components/sidebar/PipedriveCard'
 import TodayPanel from '@/components/sidebar/TodayPanel'
@@ -299,6 +300,7 @@ export default function Dashboard() {
   const [selections, setSelections] = useState<SelectionMap>({ '718': null, '305': null })
   const [activeThread, setActiveThread] = useState<DashboardThread | null>(null)
   const [showTerminal, setShowTerminal] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
 
   const select = useCallback(
     (panel: Panel) => (thread: DashboardThread | null) => {
@@ -307,6 +309,18 @@ export default function Dashboard() {
     },
     []
   )
+
+  // Global Ctrl+K / Cmd+K to open search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowSearch(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   return (
     <>
@@ -432,6 +446,70 @@ export default function Dashboard() {
           🤝 Meeting Request
         </button>
 
+        {/* Search button — opens global search across 305, 718, Investors */}
+        <button
+          type="button"
+          onClick={() => setShowSearch(true)}
+          title="Search across all chats (Ctrl+K)"
+          style={{
+            background: 'rgba(255, 204, 51, 0.04)',
+            color: 'rgba(255, 204, 51, 0.92)',
+            border: '1px solid rgba(255, 204, 51, 0.55)',
+            borderRadius: 999,
+            padding: '0.55rem 1.15rem',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            letterSpacing: '0.02em',
+            flexShrink: 0,
+            transition: 'background 0.15s, box-shadow 0.15s',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 204, 51, 0.10)'
+            e.currentTarget.style.boxShadow = '0 2px 12px rgba(255, 204, 51, 0.18)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 204, 51, 0.04)'
+            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.18)'
+          }}
+        >
+          🔍 Search
+        </button>
+
+        {/* Quick Note — opens the Notes flap */}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event('open-notes'))}
+          title="Quick note (opens the Notes flap)"
+          style={{
+            background: 'rgba(255, 204, 51, 0.04)',
+            color: 'rgba(255, 204, 51, 0.92)',
+            border: '1px solid rgba(255, 204, 51, 0.55)',
+            borderRadius: 999,
+            padding: '0.55rem 1.15rem',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            letterSpacing: '0.02em',
+            flexShrink: 0,
+            transition: 'background 0.15s, box-shadow 0.15s',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 204, 51, 0.10)'
+            e.currentTarget.style.boxShadow = '0 2px 12px rgba(255, 204, 51, 0.18)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 204, 51, 0.04)'
+            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.18)'
+          }}
+        >
+          📝 Note
+        </button>
+
         {/* Divider */}
         <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255, 204, 51,0.2)', flexShrink: 0 }} />
 
@@ -453,6 +531,22 @@ export default function Dashboard() {
           </span>
         )}
       </div>
+
+      <SearchModal
+        open={showSearch}
+        onClose={() => setShowSearch(false)}
+        onSelect={(thread) => {
+          // Open the thread in its panel. Investor threads — set on both
+          // panels so it shows up regardless of where the InvestorChatPanel
+          // happens to be. For 305/718 threads, set the matching panel.
+          if (thread.panel === '305' || thread.panel === '718') {
+            setSelections((prev) => ({ ...prev, [thread.panel]: thread }))
+            setActiveThread(thread)
+          } else {
+            setActiveThread(thread)
+          }
+        }}
+      />
 
       {showTerminal && (
         <div

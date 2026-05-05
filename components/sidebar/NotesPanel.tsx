@@ -167,6 +167,14 @@ interface ToastMsg {
 
 export default function NotesPanel() {
   const [open, setOpen] = useState(false)
+
+  // Allow other components (e.g. the top-bar Quick Note button) to pop the
+  // flap open by dispatching window.dispatchEvent(new Event('open-notes'))
+  useEffect(() => {
+    const handler = () => setOpen(true)
+    window.addEventListener('open-notes', handler)
+    return () => window.removeEventListener('open-notes', handler)
+  }, [])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState('')
