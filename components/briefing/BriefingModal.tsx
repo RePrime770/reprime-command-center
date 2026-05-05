@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import SpeakerButton from '@/components/chat/SpeakerButton'
 
 type Props = {
   open: boolean
@@ -61,6 +62,34 @@ function formatTime(iso: string): string {
   return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
 
+function buildNarrative(d: BriefingPayload): string {
+  const parts: string[] = []
+  if (d.meetings.count === 0) {
+    parts.push('No meetings today.')
+  } else {
+    const first = d.meetings.first
+    const time = first ? formatTime(first.startTime) : ''
+    const noun = d.meetings.count === 1 ? 'meeting' : 'meetings'
+    parts.push(`${d.meetings.count} ${noun} today${first ? `, first at ${time}` : ''}.`)
+  }
+  if (d.unread.total > 0) {
+    const inv = d.unread.by_panel.investors
+    parts.push(`${d.unread.total} unread${inv > 0 ? ` — ${inv} from investors` : ''}.`)
+  } else {
+    parts.push('Inbox is clear.')
+  }
+  if (d.expiring_invitations.count > 0) {
+    const noun = d.expiring_invitations.count === 1 ? 'invite expires' : 'invites expire'
+    parts.push(`${d.expiring_invitations.count} ${noun} within 24 hours.`)
+  }
+  if (d.recent_investors.length > 0) {
+    const top = d.recent_investors[0]
+    const name = top.contact_name || 'an investor'
+    parts.push(`Most recent investor message: ${name}.`)
+  }
+  return parts.join(' ')
+}
+
 function formatRelative(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -87,7 +116,7 @@ export default function BriefingModal({ open, onClose }: Props) {
     return () => window.removeEventListener('keydown', handler)
   }, [open, onClose])
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError } = useQuery<BriefingPayload>({
     queryKey: ['briefing', 'today'],
     queryFn: async (): Promise<BriefingPayload> => {
       const res = await fetch('/api/briefing/today', { cache: 'no-store' })
@@ -97,6 +126,8 @@ export default function BriefingModal({ open, onClose }: Props) {
     enabled: open,
     staleTime: 60_000,
   })
+
+  const narrative = useMemo(() => (data ? buildNarrative(data) : ''), [data])
 
   if (!open) return null
 
@@ -146,6 +177,16 @@ export default function BriefingModal({ open, onClose }: Props) {
 
           {data && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {/* Narrative summary + Listen */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: 'rgba(255, 204, 51, 0.06)', border: `1px solid ${GOLD}33`, padding: '12px 14px' }}>
+                <div style={{ flex: 1, color: TEXT, fontSize: 14, lineHeight: 1.55 }}>
+                  {narrative}
+                </div>
+                <div style={{ flexShrink: 0 }}>
+                  <SpeakerButton text={narrative} />
+                </div>
+              </div>
+
               {/* Stat row */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 <Stat label="Meetings" value={String(data.meetings.count)} sub={data.meetings.nextUp ? `Next: ${formatTime(data.meetings.nextUp.startTime)}` : (data.meetings.first ? `First: ${formatTime(data.meetings.first.startTime)}` : 'None')} />
