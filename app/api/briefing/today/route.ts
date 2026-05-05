@@ -1,10 +1,98 @@
 import { NextResponse } from 'next/server'
+import { Redis } from '@upstash/redis'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { getTodayEvents } from '@/lib/google/calendar'
+import {
+  listDeals,
+  getStageNameMap,
+  pipedriveDealUrl,
+  type PipedriveDeal,
+} from '@/lib/pipedrive/client'
 
 export const dynamic = 'force-dynamic'
 
 const ALLOWED_EMAIL = 'g@reprime.com'
+const ACTIVE_DEALS_CACHE_TTL = 300 // 5 min
+const ACTIVE_DEALS_CACHE_KEY = 'briefing:active-deals:v1'
+
+interface ActiveDeal {
+  id: number
+  title: string
+  value: number
+  currency: string
+  stage: string
+  stage_change_time: string | null
+  pipedrive_url: string
+}
+
+function getRedis(): Redis | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  if (!url || !token) return null
+  return new Redis({ url, token })
+}
+
+async function fetchActiveDeals(): Promise<ActiveDeal[]> {
+  const redis = getRedis()
+  if (redis) {
+    try {
+      const cached = await redis.get<ActiveDeal[]>(ACTIVE_DEALS_CACHE_KEY)
+      if (cached) return cached
+    } catch (err) {
+      console.error('[briefing] active_deals cache read failed', err)
+    }
+  }
+
+  // Pipedrive returns up to ~500 deals per page; sort=stage_change_time DESC
+  // surfaces freshly-moved deals first. Asking for a generous limit and then
+  // slicing gives us resilience to deals missing stage_change_time.
+  let raw: PipedriveDeal[] = []
+  try {
+    raw = await listDeals({
+      status: 'open',
+      limit: 50,
+      sort: 'stage_change_time DESC',
+    })
+  } catch (err) {
+    console.error('[briefing] active_deals fetch failed', err)
+    return []
+  }
+
+  let stageMap = new Map<number, string>()
+  try {
+    stageMap = await getStageNameMap()
+  } catch (err) {
+    console.error('[briefing] stages fetch failed', err)
+  }
+
+  const sorted = raw
+    .filter((d) => d.status === 'open')
+    .sort((a, b) => {
+      const at = a.stage_change_time ? new Date(a.stage_change_time).getTime() : 0
+      const bt = b.stage_change_time ? new Date(b.stage_change_time).getTime() : 0
+      return bt - at
+    })
+    .slice(0, 10)
+
+  const items: ActiveDeal[] = sorted.map((d) => ({
+    id: d.id,
+    title: d.title,
+    value: d.value ?? 0,
+    currency: d.currency ?? 'USD',
+    stage: stageMap.get(d.stage_id) ?? `Stage ${d.stage_id}`,
+    stage_change_time: d.stage_change_time ?? null,
+    pipedrive_url: pipedriveDealUrl(d.id),
+  }))
+
+  if (redis) {
+    try {
+      await redis.set(ACTIVE_DEALS_CACHE_KEY, items, { ex: ACTIVE_DEALS_CACHE_TTL })
+    } catch (err) {
+      console.error('[briefing] active_deals cache write failed', err)
+    }
+  }
+  return items
+}
 
 interface BriefingMeeting {
   id: string
@@ -48,6 +136,7 @@ interface BriefingResponse {
     }>
   }
   pending_followups: BriefingThread[]
+  active_deals: ActiveDeal[]
 }
 
 function findNextUpId(events: BriefingMeeting[]): string | null {
@@ -169,6 +258,9 @@ export async function GET() {
     console.error('[briefing] pending followups failed', err)
   }
 
+  // 6. Active Pipedrive deals (top 10 open by stage_change_time desc, 5-min cache)
+  const activeDeals = await fetchActiveDeals()
+
   const payload: BriefingResponse = {
     date: dateStr,
     meetings: {
@@ -187,6 +279,7 @@ export async function GET() {
       items: expiringItems,
     },
     pending_followups: pendingFollowups,
+    active_deals: activeDeals,
   }
 
   return NextResponse.json(payload)
