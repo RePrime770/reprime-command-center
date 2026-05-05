@@ -10,6 +10,8 @@ type Props = {
   onClose: () => void
   /** Called when user clicks a result. Caller decides how to navigate. */
   onSelect: (thread: DashboardThread) => void
+  /** Optional initial query — used when opened from voice ("search bay valley"). */
+  initialQuery?: string
 }
 
 const NAVY = '#0E3470'
@@ -62,8 +64,12 @@ function avatarLabel(t: DashboardThread): string {
   return ''
 }
 
-export default function SearchModal({ open, onClose, onSelect }: Props) {
-  const [q, setQ] = useState('')
+export default function SearchModal({ open, onClose, onSelect, initialQuery = '' }: Props) {
+  const [q, setQ] = useState(initialQuery)
+
+  useEffect(() => {
+    if (open) setQ(initialQuery)
+  }, [open, initialQuery])
 
   // Fetch all sources only when modal is open — saves bandwidth
   const { data: threads305 = [] } = useQuery({
