@@ -174,7 +174,14 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  return NextResponse.json({ items: result.data ?? [] })
+  // Defense in depth: re-apply hideSnoozed in JS so the multi-status path
+  // matches the open-only path. If the DB-level .or() filter ever drops
+  // (PostgREST + ISO timestamp edge cases), snoozed rows still won't leak.
+  return NextResponse.json({
+    items: hideSnoozed(
+      (result.data ?? []) as Array<{ due_at: string | null }>
+    ),
+  })
 }
 
 /**
