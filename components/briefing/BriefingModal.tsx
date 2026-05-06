@@ -3,6 +3,10 @@
 import { useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import SpeakerButton from '@/components/chat/SpeakerButton'
+import {
+  SuggestedFocusSection,
+  type SuggestedFocusItem,
+} from '@/components/center/SuggestedFocus'
 
 type Props = {
   open: boolean
@@ -62,6 +66,7 @@ interface BriefingPayload {
   expiring_invitations: { count: number; items: ExpiringInv[] }
   pending_followups: BriefingThread[]
   tenant_filings_today?: TenantFiling[]
+  suggested_focus?: SuggestedFocusItem[]
 }
 
 const NAVY = '#0E3470'
@@ -220,6 +225,11 @@ export default function BriefingModal({ open, onClose, onThreadClick }: Props) {
                   accent={data.expiring_invitations.count > 0 ? '#F59E0B' : '#25D366'}
                 />
               </div>
+
+              {/* Suggested focus — calendar-aware soft scheduling */}
+              {(data.suggested_focus?.length ?? 0) > 0 && (
+                <SuggestedFocusSection items={data.suggested_focus ?? []} />
+              )}
 
               {/* Today's meetings */}
               {data.meetings.items.length > 0 && (
