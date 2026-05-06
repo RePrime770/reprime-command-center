@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { bustBucketCache } from '@/lib/bucket/cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -148,6 +149,8 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
   }
 
+  void bustBucketCache()
+
   return NextResponse.json(data)
 }
 
@@ -179,5 +182,6 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext) {
       { status: 500 }
     )
   }
+  void bustBucketCache()
   return NextResponse.json({ ok: true })
 }

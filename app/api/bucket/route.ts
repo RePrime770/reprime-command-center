@@ -1,5 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import {
+  bustBucketCache,
+  isFresh,
+  readBucketOpenCache,
+  writeBucketOpenCache,
+} from '@/lib/bucket/cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -7,6 +13,8 @@ const ALLOWED_EMAIL = 'g@reprime.com'
 
 const VALID_STATUSES = ['open', 'doing', 'done', 'dropped'] as const
 type BucketStatus = (typeof VALID_STATUSES)[number]
+
+const QUERY_TIMEOUT_MS = 5000
 
 interface CreateBody {
   title?: string
@@ -25,12 +33,39 @@ function clampPriority(p: unknown): number {
 }
 
 /**
+ * Race a thenable against a timer. Returns null on timeout. Never throws —
+ * the caller decides what to do with null (return cached value, empty array,
+ * or surface a degraded payload).
+ */
+async function withTimeout<T>(p: PromiseLike<T>, ms: number, label: string): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeoutPromise = new Promise<null>((resolve) => {
+    timer = setTimeout(() => {
+      console.error(`[bucket] ${label} timed out after ${ms}ms`)
+      resolve(null)
+    }, ms)
+  })
+  try {
+    return await Promise.race([Promise.resolve(p), timeoutPromise])
+  } catch (err) {
+    console.error(`[bucket] ${label} failed`, err)
+    return null
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+/**
  * GET /api/bucket?status=open,doing
  *
  * List bucket items for the column. Default returns open + doing so the
  * "in flight" rows render together; ?status=done|dropped returns the
  * archive view. Order: priority ascending, then created_at descending,
  * matching the column's grouped layout.
+ *
+ * Hot-path cache: ?status=open is the kiosk's most-hit query and gets a
+ * 5-min Upstash cache with a 1-hour stale fallback. Other status combos
+ * skip the cache and go straight to Supabase under a 5s timeout.
  */
 export async function GET(request: NextRequest) {
   const supabase = await createServerClient()
@@ -49,24 +84,71 @@ export async function GET(request: NextRequest) {
     )
 
   const statuses = requested.length > 0 ? requested : ['open', 'doing']
+  const isOpenOnly = statuses.length === 1 && statuses[0] === 'open'
 
   const service = createServiceClient()
-  const { data, error } = await service
-    .from('bucket_items')
-    .select('*')
-    .in('status', statuses)
-    .order('priority', { ascending: true })
-    .order('created_at', { ascending: false })
-    .limit(500)
 
-  if (error) {
+  if (isOpenOnly) {
+    const cached = await readBucketOpenCache()
+    if (isFresh(cached)) {
+      return NextResponse.json({ items: cached!.items, cached: true })
+    }
+
+    const result = await withTimeout(
+      service
+        .from('bucket_items')
+        .select('*')
+        .eq('status', 'open')
+        .order('priority', { ascending: true })
+        .order('created_at', { ascending: false })
+        .limit(500),
+      QUERY_TIMEOUT_MS,
+      'list:open'
+    )
+
+    if (result === null) {
+      if (cached) {
+        return NextResponse.json({ items: cached.items, cached: true, stale: true })
+      }
+      return NextResponse.json({ items: [], degraded: true })
+    }
+    if (result.error) {
+      if (cached) {
+        return NextResponse.json({ items: cached.items, cached: true, stale: true })
+      }
+      return NextResponse.json(
+        { error: 'select_failed', message: result.error.message },
+        { status: 500 }
+      )
+    }
+    const items = result.data ?? []
+    await writeBucketOpenCache(items)
+    return NextResponse.json({ items })
+  }
+
+  const result = await withTimeout(
+    service
+      .from('bucket_items')
+      .select('*')
+      .in('status', statuses)
+      .order('priority', { ascending: true })
+      .order('created_at', { ascending: false })
+      .limit(500),
+    QUERY_TIMEOUT_MS,
+    `list:${statuses.join(',')}`
+  )
+
+  if (result === null) {
+    return NextResponse.json({ items: [], degraded: true })
+  }
+  if (result.error) {
     return NextResponse.json(
-      { error: 'select_failed', message: error.message },
+      { error: 'select_failed', message: result.error.message },
       { status: 500 }
     )
   }
 
-  return NextResponse.json({ items: data ?? [] })
+  return NextResponse.json({ items: result.data ?? [] })
 }
 
 /**
@@ -121,6 +203,9 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+
+  // Fire-and-forget; don't slow the POST if Redis is laggy.
+  void bustBucketCache()
 
   return NextResponse.json(data, { status: 201 })
 }
