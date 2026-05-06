@@ -55,6 +55,7 @@ Last updated: 2026-05-04 (overnight build session)
 - CRON_SECRET → Vercel env var — Bearer token Vercel Cron and any local invoker presents to gated cron endpoints (e.g. /api/cron/dispatch-alerts, /api/bucket/fire-reminders, /api/cron/inforuptcy-poll); choose any strong random string. Set in Vercel → Settings → Environment Variables. Without it, /api/bucket/fire-reminders returns 503.
 - INFORUPTCY_EMAIL → Vercel env var — value `g@floridastatetrust.com` (Investor Maverick plan, $99/mo, paid 2026-05-04). Used by `lib/inforuptcy/client.ts` Playwright login. Required for `/api/cron/inforuptcy-poll`.
 - INFORUPTCY_PASSWORD → Vercel env var — Inforuptcy.com account password. Lives in 1Password, NOT in repo. Required for `/api/cron/inforuptcy-poll`. Re-auth happens automatically via 6-hour Redis-cached cookie at key `inforuptcy:cookies:v1`.
+- SLACK_WEBHOOK_URL → Vercel env var — Slack incoming-webhook URL for Gideon's daily digest channel. Read by `lib/slack/client.ts` and `app/api/cron/slack-digest`. Generate at https://api.slack.com/apps → your app → Incoming Webhooks → Add New Webhook to Workspace. Optional: if absent, the digest cron returns `{ sent: false, reason: 'no_webhook' }` and exits cleanly.
 
 ### Pipedrive field keys
 Person custom fields (Pipedrive API hashed keys, NOT secrets, safe to commit):
