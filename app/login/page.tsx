@@ -1,6 +1,11 @@
-﻿'use client'
+'use client'
+
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { gold, navy, NAVY, status } from '@/lib/design-tokens'
+
+const ALLOWED_EMAIL = 'g@reprime.com'
+const FONT_STACK = "'Poppins', Arial, sans-serif"
 
 export default function Login() {
   const [sent, setSent] = useState(false)
@@ -12,7 +17,7 @@ export default function Login() {
     setError(null)
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithOtp({
-      email: 'g@reprime.com',
+      email: ALLOWED_EMAIL,
       options: {
         emailRedirectTo:
           typeof window !== 'undefined'
@@ -25,70 +30,203 @@ export default function Login() {
     else setSent(true)
   }
 
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' && !sent && !loading) submit()
+  }
+
   return (
     <main
+      onKeyDown={onKeyDown}
       style={{
         minHeight: '100vh',
-        background: '#0E3470',
+        background: `radial-gradient(ellipse at 50% 0%, rgba(255, 204, 51, 0.06), rgba(14, 52, 112, 0) 60%), ${NAVY}`,
         color: '#fff',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontFamily: 'Poppins, Arial, sans-serif',
+        fontFamily: FONT_STACK,
+        padding: '2rem 1rem',
       }}
     >
       <div
         style={{
-          maxWidth: 420,
+          maxWidth: 440,
           width: '100%',
-          padding: '2.5rem',
-          background: 'rgba(14, 52, 112, 0.85)',
-          border: '1px solid rgba(14, 52, 112, 0.70)',
-          borderRadius: 8,
+          padding: '2.5rem 2.25rem',
+          background: navy.surfaceDeep,
+          border: `1px solid ${gold[25]}`,
+          borderRadius: 12,
+          boxShadow:
+            '0 24px 64px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,204,51,0.04) inset',
+          backdropFilter: 'blur(8px)',
         }}
       >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginBottom: '1.25rem',
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/icon.svg"
+            alt="RePrime Terminal"
+            width={92}
+            height={92}
+            style={{
+              borderRadius: 8,
+              border: `1px solid ${gold[35]}`,
+            }}
+          />
+        </div>
+
         <h1
           style={{
             color: '#FFCC33',
             margin: 0,
-            fontSize: '1.75rem',
+            textAlign: 'center',
+            fontSize: '1.5rem',
             fontWeight: 600,
+            letterSpacing: '0.02em',
           }}
         >
-          RePrime Command Center
+          Command Center
         </h1>
-        <p style={{ color: '#FFCC33', marginTop: '1rem', fontSize: '0.95rem' }}>
-          Sign in to continue.
+        <p
+          style={{
+            color: gold[70],
+            margin: '0.5rem 0 0',
+            textAlign: 'center',
+            fontSize: '0.85rem',
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            fontWeight: 500,
+          }}
+        >
+          RePrime Group
         </p>
+
+        <div
+          style={{
+            height: 1,
+            background: `linear-gradient(to right, transparent, ${gold[25]}, transparent)`,
+            margin: '1.75rem 0',
+          }}
+        />
+
+        <label
+          htmlFor="email"
+          style={{
+            display: 'block',
+            color: gold[70],
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            marginBottom: '0.5rem',
+          }}
+        >
+          Email
+        </label>
+        <input
+          id="email"
+          type="email"
+          value={ALLOWED_EMAIL}
+          readOnly
+          aria-readonly="true"
+          title="Authorized email — fixed"
+          style={{
+            width: '100%',
+            padding: '0.85rem 1rem',
+            background: 'rgba(0,0,0,0.20)',
+            color: '#fff',
+            border: `1px solid ${gold[18]}`,
+            borderRadius: 6,
+            fontSize: '1rem',
+            fontFamily: FONT_STACK,
+            outline: 'none',
+            boxSizing: 'border-box',
+          }}
+        />
+
         {!sent ? (
           <button
+            type="button"
             onClick={submit}
             disabled={loading}
             style={{
-              marginTop: '2rem',
+              marginTop: '1.5rem',
               width: '100%',
-              padding: '0.85rem',
-              background: '#FFCC33',
-              color: '#0E3470',
+              padding: '1rem',
+              background: loading ? gold[55] : '#FFCC33',
+              color: NAVY,
               border: 'none',
-              borderRadius: 4,
+              borderRadius: 6,
               fontSize: '1rem',
-              fontWeight: 600,
+              fontWeight: 700,
+              letterSpacing: '0.04em',
               cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: FONT_STACK,
+              transition: 'background 120ms ease',
             }}
           >
-            {loading ? 'Sending...' : 'Send magic link to g@reprime.com'}
+            {loading ? 'Sending…' : 'Continue with magic link'}
           </button>
         ) : (
-          <p style={{ marginTop: '2rem', color: '#fff', fontSize: '0.95rem' }}>
-            Check your email at g@reprime.com.
-          </p>
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              marginTop: '1.5rem',
+              padding: '1rem',
+              background: gold[8],
+              border: `1px solid ${gold[35]}`,
+              borderRadius: 6,
+              color: '#FFCC33',
+              fontSize: '0.95rem',
+              textAlign: 'center',
+              lineHeight: 1.5,
+            }}
+          >
+            <strong style={{ display: 'block', marginBottom: 4 }}>
+              Check your inbox at {ALLOWED_EMAIL}.
+            </strong>
+            <span style={{ color: gold[70], fontSize: '0.85rem' }}>
+              Click the link to sign in. The link expires in one hour.
+            </span>
+          </div>
         )}
+
         {error && (
-          <p style={{ color: '#FF7474', marginTop: '1rem', fontSize: '0.85rem' }}>
+          <p
+            role="alert"
+            style={{
+              color: status.error,
+              marginTop: '1rem',
+              marginBottom: 0,
+              fontSize: '0.85rem',
+              textAlign: 'center',
+            }}
+          >
             {error}
           </p>
         )}
+
+        <p
+          style={{
+            color: gold[55],
+            fontSize: '0.7rem',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            textAlign: 'center',
+            marginTop: '2rem',
+            marginBottom: 0,
+            fontWeight: 500,
+          }}
+        >
+          Authorized for {ALLOWED_EMAIL} only
+        </p>
       </div>
     </main>
   )
