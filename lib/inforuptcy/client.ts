@@ -88,7 +88,12 @@ async function launchBrowser(): Promise<Browser> {
     process.env.VERCEL_ENV === 'preview'
 
   if (onServerless) {
+    // @sparticuz/chromium MAJOR pins to a Chromium MAJOR. Must match
+    // playwright-core's expected Chromium revision or CDP handshake fails
+    // with "Target page, context or browser has been closed" on launch.
+    // sparticuz 147.x ↔ playwright-core 1.59.x (Chromium 147).
     const sparticuz = (await import('@sparticuz/chromium')).default
+    sparticuz.setGraphicsMode = false
     return pwChromium.launch({
       args: sparticuz.args,
       executablePath: await sparticuz.executablePath(),

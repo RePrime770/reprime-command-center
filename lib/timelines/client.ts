@@ -1,3 +1,4 @@
+import { Redis } from '@upstash/redis'
 import type { Panel, TimelinesChat, TimelinesMessage } from './types'
 
 const BASE_URL = 'https://app.timelines.ai/integrations/api'
@@ -27,7 +28,31 @@ type TimelinesEnvelope<T> = {
 // caller fall back to DB cache (same path as 403/429 handling).
 const PER_PAGE_TIMEOUT_MS = 7000
 
-export async function getChats(panel: Panel, page = 1): Promise<TimelinesChat[]> {
+// Redis cache TTLs for getChats. The fresh window matches the upstream
+// rate-limit cooldown (~30s); the stale window is held longer so a
+// 429/timeout burst can still serve last-known-good data.
+const CHATS_FRESH_TTL_SECONDS = 30
+const CHATS_STALE_TTL_SECONDS = 300
+
+function getRedis(): Redis | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  if (!url || !token) return null
+  try {
+    return new Redis({ url, token })
+  } catch {
+    return null
+  }
+}
+
+function freshKey(panel: Panel, page: number) {
+  return `timelines:chats:${panel}:${page}`
+}
+function staleKey(panel: Panel, page: number) {
+  return `timelines:chats:${panel}:${page}:stale`
+}
+
+async function fetchChatsFromUpstream(panel: Panel, page: number): Promise<TimelinesChat[]> {
   const accountId = PANEL_ACCOUNT_MAP[panel]
   const url = `${BASE_URL}/chats?per_page=50&page=${page}&whatsapp_account_phone=${encodeURIComponent(accountId)}`
   const ctrl = new AbortController()
@@ -55,6 +80,77 @@ export async function getChats(panel: Panel, page = 1): Promise<TimelinesChat[]>
   }
   const json = (await res.json()) as TimelinesEnvelope<{ chats?: TimelinesChat[] }>
   return json.data?.chats ?? []
+}
+
+/**
+ * Fetch one page of chats with a 30s Redis cache. On a 429 / timeout the
+ * stale (5-minute) cache slot is returned instead of throwing — same
+ * stale-while-error contract documented in /api/whatsapp/threads, so the
+ * UI keeps rendering whatever Timelines last returned successfully.
+ *
+ * If Upstash isn't configured the function falls back to a direct fetch.
+ */
+export async function getChats(panel: Panel, page = 1): Promise<TimelinesChat[]> {
+  const redis = getRedis()
+  if (!redis) {
+    return fetchChatsFromUpstream(panel, page)
+  }
+
+  // 1. Try fresh cache first.
+  try {
+    const cached = await redis.get<TimelinesChat[]>(freshKey(panel, page))
+    if (Array.isArray(cached)) return cached
+  } catch (err) {
+    console.warn('[timelines.getChats] redis read failed (fresh)', {
+      panel,
+      page,
+      message: (err as Error).message,
+    })
+  }
+
+  // 2. Cache miss — call upstream.
+  try {
+    const chats = await fetchChatsFromUpstream(panel, page)
+    try {
+      await Promise.all([
+        redis.set(freshKey(panel, page), chats, { ex: CHATS_FRESH_TTL_SECONDS }),
+        redis.set(staleKey(panel, page), chats, { ex: CHATS_STALE_TTL_SECONDS }),
+      ])
+    } catch (writeErr) {
+      console.warn('[timelines.getChats] redis write failed', {
+        panel,
+        page,
+        message: (writeErr as Error).message,
+      })
+    }
+    return chats
+  } catch (err) {
+    const msg = (err as Error).message ?? ''
+    const isRateLimited = msg.includes('429') || msg.includes('Requests rate is over limit') || msg.includes('timeout')
+    if (!isRateLimited) throw err
+
+    // 3. Stale-while-error: serve last-known-good if we have it.
+    try {
+      const stale = await redis.get<TimelinesChat[]>(staleKey(panel, page))
+      if (Array.isArray(stale)) {
+        console.warn('[timelines.getChats] serving stale cache after upstream error', {
+          panel,
+          page,
+          err: msg.slice(0, 200),
+          staleCount: stale.length,
+        })
+        return stale
+      }
+    } catch (staleReadErr) {
+      console.warn('[timelines.getChats] redis read failed (stale)', {
+        panel,
+        page,
+        message: (staleReadErr as Error).message,
+      })
+    }
+    // No stale cache available — propagate so the route can fall back to DB.
+    throw err
+  }
 }
 
 /** Fetches ALL pages of chats (up to maxPages × 50) for a panel. */
