@@ -122,6 +122,33 @@ async function addToBucket(item: TriageItem): Promise<void> {
   }
 }
 
+/**
+ * useColumnCount — exposes the visible-item count for the kiosk header
+ * badge ("Inbox (5)"). Reuses the same React Query key as InboxColumn so
+ * the query is shared.
+ */
+export function useColumnCount(): number {
+  const account = 'g@reprime.com'
+  const [hiddenSenders] = useState<Set<string>>(() => loadHiddenSenders())
+  const { data } = useQuery<TriageResponse>({
+    queryKey: ['email-triage', account],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/email/triage?account=${encodeURIComponent(account)}&limit=20`,
+        { cache: 'no-store' },
+      )
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.message || json.error || `HTTP ${res.status}`)
+      return json as TriageResponse
+    },
+    refetchInterval: REFETCH_MS,
+  })
+  if (!data || 'error' in data) return 0
+  return (data.items || []).filter(
+    (it) => !hiddenSenders.has((it.from_address || '').toLowerCase()),
+  ).length
+}
+
 export default function InboxColumn() {
   const qc = useQueryClient()
   const [account, _setAccount] = useState('g@reprime.com')
@@ -261,8 +288,28 @@ export default function InboxColumn() {
           </div>
         )}
         {!isLoading && !isError && items.length === 0 && (
-          <div style={{ color: MUTED, fontSize: 13, padding: '8px 4px' }}>
-            Inbox is clean. Nothing scoring above 5 today.
+          <div style={{ padding: '8px 4px' }}>
+            <div style={{ color: MUTED, fontSize: 13, marginBottom: 8 }}>
+              Inbox is clear. Nothing scoring above 5 today.
+            </div>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              disabled={isRefetching}
+              style={{
+                background: 'rgba(255, 204, 51, 0.10)',
+                color: GOLD,
+                border: `1px solid ${GOLD}`,
+                borderRadius: 6,
+                padding: '6px 12px',
+                fontSize: 12,
+                fontWeight: 700,
+                fontFamily: 'inherit',
+                cursor: isRefetching ? 'wait' : 'pointer',
+              }}
+            >
+              {isRefetching ? 'Syncing…' : '↻ Sync now'}
+            </button>
           </div>
         )}
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>

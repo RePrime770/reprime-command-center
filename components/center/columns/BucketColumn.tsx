@@ -443,6 +443,29 @@ function BucketRow({
   )
 }
 
+// ── Hook: column count for the kiosk header badge ───────────────────────────
+
+/**
+ * useColumnCount — exposes the visible-item count for this column so the
+ * parent kiosk can render a header badge ("Bucket (5)"). Reuses the same
+ * React Query key as BucketColumn, so the query is shared (no extra fetch).
+ */
+export function useColumnCount(): number {
+  const list = useQuery({
+    queryKey: ['bucket', 'open-doing'],
+    queryFn: async (): Promise<ListPayload> => {
+      const res = await fetch('/api/bucket?status=open,doing', {
+        cache: 'no-store',
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return (await res.json()) as ListPayload
+    },
+    refetchInterval: REFETCH_MS,
+    staleTime: REFETCH_MS,
+  })
+  return list.data?.items.length ?? 0
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -638,9 +661,26 @@ export default function BucketColumn() {
       )}
       {!list.isLoading && !list.isError && total === 0 && (
         <section style={sectionStyle}>
-          <div style={{ color: 'var(--rp-gold-lite)', fontSize: 12 }}>
-            Bucket is empty. Type or speak to add.
+          <div style={{ color: 'var(--rp-gold-lite)', fontSize: 13, marginBottom: 8 }}>
+            Nothing in the bucket. Speak or type to add.
           </div>
+          <button
+            type="button"
+            onClick={() => inputRef.current?.focus()}
+            style={{
+              background: 'rgba(255, 204, 51, 0.10)',
+              color: 'var(--rp-gold)',
+              border: '1px solid var(--rp-gold)',
+              borderRadius: 6,
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+            }}
+          >
+            + Add
+          </button>
         </section>
       )}
 
