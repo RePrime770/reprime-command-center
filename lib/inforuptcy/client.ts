@@ -18,7 +18,10 @@ import { Redis } from '@upstash/redis'
 
 const COOKIE_KEY = 'inforuptcy:cookies:v1'
 const COOKIE_TTL_SECONDS = 6 * 60 * 60 // 6 hours
-const LOGIN_URL = 'https://www.inforuptcy.com/login'
+// Inforuptcy runs Drupal — the only working login surface is the user-portal
+// page with a destination query param. /login itself returns a 404 shell;
+// /users/sign_in and /sign_in trigger Cloudflare Turnstile.
+const LOGIN_URL = 'https://www.inforuptcy.com/user-portal?destination=login'
 const DASHBOARD_URL = 'https://www.inforuptcy.com/dashboard'
 const SEARCH_URL_BASE = 'https://www.inforuptcy.com/filings/search-court-filings'
 const PAGE_NAV_TIMEOUT_MS = 45_000
@@ -120,24 +123,36 @@ async function loginAndCaptureCookies(context: BrowserContext): Promise<Cookie[]
   const page = await context.newPage()
   await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: PAGE_NAV_TIMEOUT_MS })
 
-  // Inforuptcy's login form uses generic name="email" / name="password" inputs.
-  // We try common selectors defensively so a CSS rename doesn't break us.
-  const emailInput = page.locator('input[name="email"], input[type="email"]').first()
-  const passwordInput = page.locator('input[name="password"], input[type="password"]').first()
+  // Drupal user_login form on /user-portal: username field is name="name"
+  // (id="edit-name"), password is name="pass" (id="edit-pass"). The page
+  // also renders a sibling user_pass (forgot-password) form with its own
+  // submit button — scope our locators to #user-login so we don't grab the
+  // wrong control.
+  const loginForm = page.locator('form#user-login')
+  const emailInput = loginForm
+    .locator('input[name="name"], #edit-name, input[name="email"], input[type="email"]')
+    .first()
+  const passwordInput = loginForm
+    .locator('input[name="pass"], #edit-pass, input[name="password"], input[type="password"]')
+    .first()
   await emailInput.fill(email, { timeout: 15_000 })
   await passwordInput.fill(password, { timeout: 15_000 })
 
-  const submit = page
-    .locator('button[type="submit"], input[type="submit"], button:has-text("Sign in"), button:has-text("Log in")')
+  const submit = loginForm
+    .locator('input[type="submit"]#edit-submit, input[type="submit"][name="op"], button[type="submit"]')
     .first()
   await Promise.all([
-    page.waitForURL((url) => !url.toString().includes('/login'), { timeout: PAGE_NAV_TIMEOUT_MS }),
+    page.waitForURL((url) => !/\/user-portal(\b|\/|\?)/i.test(url.toString()), {
+      timeout: PAGE_NAV_TIMEOUT_MS,
+    }),
     submit.click(),
   ])
 
-  // Confirm we landed somewhere authenticated.
-  if (page.url().includes('/login')) {
-    throw new Error('inforuptcy_login_failed — still on /login after submit')
+  // Confirm we landed somewhere authenticated. Drupal will either redirect
+  // to /user/<uid>, /dashboard, or wherever destination= pointed; the only
+  // failure tell is staying on /user-portal.
+  if (/\/user-portal/i.test(page.url())) {
+    throw new Error('inforuptcy_login_failed — still on /user-portal after submit')
   }
 
   const cookies = await context.cookies()
@@ -152,8 +167,9 @@ async function navigateAuthenticated(
   const page = await context.newPage()
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: PAGE_NAV_TIMEOUT_MS })
   const finalUrl = page.url()
-  // Inforuptcy bounces unauthenticated requests to /login.
-  const needsReauth = /\/login(\b|\/|\?)/i.test(finalUrl)
+  // Inforuptcy bounces unauthenticated requests to /user-portal (the Drupal
+  // login surface). Older builds also used /login; keep both for safety.
+  const needsReauth = /\/(user-portal|login)(\b|\/|\?)/i.test(finalUrl)
   return { page, needsReauth }
 }
 
