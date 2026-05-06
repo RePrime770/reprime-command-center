@@ -85,58 +85,84 @@ export async function GET(request: NextRequest) {
 
   const statuses = requested.length > 0 ? requested : ['open', 'doing']
   const isOpenOnly = statuses.length === 1 && statuses[0] === 'open'
+  const includeSnoozed =
+    request.nextUrl.searchParams.get('include_snoozed') === 'true'
 
   const service = createServiceClient()
 
+  // Snooze semantics: setting due_at to a future timestamp hides the row
+  // until that time (per the action menu's Snooze 2/3 days handlers).
+  // Filter applied on EVERY read (both DB + cached) so snoozed rows stay
+  // hidden until they come due. include_snoozed=true bypasses for the
+  // archive / debugging views.
+  const nowIso = new Date().toISOString()
+  function hideSnoozed<T extends { due_at: string | null }>(items: T[]): T[] {
+    if (includeSnoozed) return items
+    return items.filter((it) => !it.due_at || it.due_at <= nowIso)
+  }
+
   if (isOpenOnly) {
-    const cached = await readBucketOpenCache()
+    const cached = await readBucketOpenCache<{ due_at: string | null }>()
     if (isFresh(cached)) {
-      return NextResponse.json({ items: cached!.items, cached: true })
+      return NextResponse.json({
+        items: hideSnoozed(cached!.items),
+        cached: true,
+      })
     }
 
-    const result = await withTimeout(
-      service
-        .from('bucket_items')
-        .select('*')
-        .eq('status', 'open')
-        .order('priority', { ascending: true })
-        .order('created_at', { ascending: false })
-        .limit(500),
-      QUERY_TIMEOUT_MS,
-      'list:open'
-    )
+    let q = service
+      .from('bucket_items')
+      .select('*')
+      .eq('status', 'open')
+      .order('priority', { ascending: true })
+      .order('created_at', { ascending: false })
+      .limit(500)
+    if (!includeSnoozed) {
+      q = q.or(`due_at.is.null,due_at.lte.${nowIso}`)
+    }
+    const result = await withTimeout(q, QUERY_TIMEOUT_MS, 'list:open')
 
     if (result === null) {
       if (cached) {
-        return NextResponse.json({ items: cached.items, cached: true, stale: true })
+        return NextResponse.json({
+          items: hideSnoozed(cached.items),
+          cached: true,
+          stale: true,
+        })
       }
       return NextResponse.json({ items: [], degraded: true })
     }
     if (result.error) {
       if (cached) {
-        return NextResponse.json({ items: cached.items, cached: true, stale: true })
+        return NextResponse.json({
+          items: hideSnoozed(cached.items),
+          cached: true,
+          stale: true,
+        })
       }
       return NextResponse.json(
         { error: 'select_failed', message: result.error.message },
         { status: 500 }
       )
     }
-    const items = result.data ?? []
+    const items = (result.data ?? []) as Array<{ due_at: string | null }>
+    // Cache the FULL result (including snoozed) so include_snoozed=true
+    // requests can reuse the same cache; filter on read.
     await writeBucketOpenCache(items)
-    return NextResponse.json({ items })
+    return NextResponse.json({ items: hideSnoozed(items) })
   }
 
-  const result = await withTimeout(
-    service
-      .from('bucket_items')
-      .select('*')
-      .in('status', statuses)
-      .order('priority', { ascending: true })
-      .order('created_at', { ascending: false })
-      .limit(500),
-    QUERY_TIMEOUT_MS,
-    `list:${statuses.join(',')}`
-  )
+  let q = service
+    .from('bucket_items')
+    .select('*')
+    .in('status', statuses)
+    .order('priority', { ascending: true })
+    .order('created_at', { ascending: false })
+    .limit(500)
+  if (!includeSnoozed) {
+    q = q.or(`due_at.is.null,due_at.lte.${nowIso}`)
+  }
+  const result = await withTimeout(q, QUERY_TIMEOUT_MS, `list:${statuses.join(',')}`)
 
   if (result === null) {
     return NextResponse.json({ items: [], degraded: true })
