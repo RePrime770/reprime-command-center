@@ -11,6 +11,17 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  // @sparticuz/chromium ships its Chromium binary as Brotli-compressed files
+  // in node_modules/@sparticuz/chromium/bin/*.br, loaded at runtime via fs
+  // (not require()) so @vercel/nft can't statically trace them. Result: the
+  // serverless function deploys without bin/ and chromium.executablePath()
+  // throws "input directory /var/task/bin does not exist". Force-include the
+  // bin/ directory for the only route that launches a headless browser.
+  // Both @sparticuz/chromium and playwright-core are already in Next 16's
+  // auto-externalized list, so no serverExternalPackages entry is needed.
+  outputFileTracingIncludes: {
+    '/api/cron/inforuptcy-poll': ['node_modules/@sparticuz/chromium/bin/**/*'],
+  },
 }
 
 export default withSentryConfig(nextConfig, {
