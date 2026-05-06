@@ -14,6 +14,11 @@ const PUBLIC_PATHS = [
   // real auth gate inside each route handler.
   '/api/bucket/fire-reminders',
   '/api/email/sync',
+  '/api/cron/inforuptcy-poll',
+  '/api/cron/slack-digest',
+  // Public health endpoint — read-only env presence + DB ping. No secrets in
+  // response. Used by extension4 / extension6 to verify deploys without auth.
+  '/api/health',
 ]
 
 export async function proxy(request: NextRequest) {
