@@ -61,6 +61,7 @@ Last updated: 2026-05-04 (overnight build session)
 - SENTRY_AUTH_TOKEN → Vercel env var — auth token used by `withSentryConfig` to upload source maps during build. Generate at https://sentry.io/settings/account/api/auth-tokens/ with scopes `project:releases` and `org:read`. Optional: builds still succeed without it, just without symbolicated stack traces in Sentry. Production-only recommended.
 - SENTRY_ORG → Vercel env var — Sentry org slug (visible in Sentry URL, e.g. `reprime`). Required only if `SENTRY_AUTH_TOKEN` is set.
 - SENTRY_PROJECT → Vercel env var — Sentry project slug (e.g. `reprime-command-center`). Required only if `SENTRY_AUTH_TOKEN` is set.
+- APOLLO_API_KEY → Vercel env var — Apollo.io API key for contact enrichment (free tier: 50 lookups/mo). Read by `lib/enrich/provider.ts`. Used by `POST /api/pipedrive/enrich` to fill missing email/company/role/linkedin on Pipedrive Persons. Optional: if absent, the endpoint returns `{ added: {}, reason: 'no_provider' }` and the system falls back to a stub. Generate at https://app.apollo.io/#/settings/integrations/api.
 
 ### Pipedrive field keys
 Person custom fields (Pipedrive API hashed keys, NOT secrets, safe to commit):
