@@ -34,12 +34,18 @@ async function pingDb(): Promise<{ reachable: boolean; latencyMs: number }> {
   const ctrl = new AbortController()
   const timeout = setTimeout(() => ctrl.abort(), DB_TIMEOUT_MS)
   try {
-    const res = await fetch(`${url}/rest/v1/?apikey=${encodeURIComponent(key)}`, {
-      method: 'GET',
-      headers: { apikey: key },
-      signal: ctrl.signal,
-      cache: 'no-store',
-    })
+    // Hit a real table (crew_members is small + always seeded with 6 rows
+    // per the 2026-05-05 migration). limit=0 returns an empty array fast,
+    // confirms the DB is reachable AND the schema is migrated.
+    const res = await fetch(
+      `${url}/rest/v1/crew_members?select=email&limit=0`,
+      {
+        method: 'GET',
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        signal: ctrl.signal,
+        cache: 'no-store',
+      }
+    )
     return { reachable: res.ok, latencyMs: Date.now() - start }
   } catch {
     return { reachable: false, latencyMs: Date.now() - start }
