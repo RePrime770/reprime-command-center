@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   useMutation,
   useQuery,
@@ -9,6 +9,21 @@ import {
 import { createClient } from '@/lib/supabase/client'
 
 const REFETCH_MS = 60_000
+
+// Realtime debounce — bucket_items receives a UPDATE event for every row
+// touch (snooze, done, drop, demo seed, smoke writes). Without a collapse
+// window each event triggered an independent invalidate → refetch storm
+// that pinned the main thread for 20-30s. 250ms is the longest delay the
+// kiosk's "feels live" budget tolerates while still collapsing bursts of
+// 5-50 events into a single refetch.
+const REALTIME_DEBOUNCE_MS = 250
+
+// React Query key for the visible list. Used by both the count hook and
+// the column itself so the query is shared. Exported as a named constant
+// so invalidations stay narrow — invalidating ['bucket'] (no second
+// segment) was hitting every detail window's ['bucket', 'detail', id]
+// query and the column at once, doubling the refetch volume per write.
+const LIST_QUERY_KEY = ['bucket', 'open-doing'] as const
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -294,7 +309,14 @@ function menuButtonStyle(active: boolean): React.CSSProperties {
 
 // ── Row ──────────────────────────────────────────────────────────────────────
 
-function BucketRow({
+// Memoized row — every snooze / done / drop mutates one row but the parent
+// list re-renders all of them. Without React.memo + a stable item identity
+// the freeze trace showed BucketRow as the dominant offender (50+ rows ×
+// per-row style object allocations × 5 priority groups). Cheap equality:
+// item reference is stable when React Query's structuralSharing keeps the
+// row unchanged, and onPatch/onRemind are stabilized by useCallback in
+// the parent.
+const BucketRow = memo(function BucketRow({
   item,
   onPatch,
   onRemind,
@@ -441,7 +463,7 @@ function BucketRow({
       </div>
     </div>
   )
-}
+})
 
 // ── Hook: column count for the kiosk header badge ───────────────────────────
 
@@ -452,7 +474,7 @@ function BucketRow({
  */
 export function useColumnCount(): number {
   const list = useQuery({
-    queryKey: ['bucket', 'open-doing'],
+    queryKey: LIST_QUERY_KEY,
     queryFn: async (): Promise<ListPayload> => {
       const res = await fetch('/api/bucket?status=open,doing', {
         cache: 'no-store',
@@ -472,9 +494,15 @@ export function useColumnCount(): number {
  * BucketColumn — Track B. Renders open + doing items grouped by priority.
  *
  * Realtime: subscribes to public.bucket_items via the browser Supabase
- * client and invalidates the React Query cache on every INSERT / UPDATE /
- * DELETE. Background polling at 60s is the fallback when Realtime is
- * disconnected.
+ * client and invalidates the open-doing list query on every INSERT /
+ * UPDATE / DELETE. Invalidations are debounced by REALTIME_DEBOUNCE_MS
+ * to collapse bursts (demo seed, smoke writes) into a single refetch.
+ * Background polling at 60s is the fallback when Realtime is disconnected.
+ *
+ * Mutation strategy: PATCH responses are written into the cache via
+ * setQueryData so the row update lands instantly; the Realtime broadcast
+ * arrives ~100ms later and the debounced invalidate is then a no-op
+ * because the data is already current.
  *
  * Click row → dispatches `center:open-window` for code3's WindowManager
  * (target='bucket-item', componentProps={ itemId, title }).
@@ -490,7 +518,7 @@ export default function BucketColumn() {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const list = useQuery({
-    queryKey: ['bucket', 'open-doing'],
+    queryKey: LIST_QUERY_KEY,
     queryFn: async (): Promise<ListPayload> => {
       const res = await fetch('/api/bucket?status=open,doing', {
         cache: 'no-store',
@@ -500,23 +528,38 @@ export default function BucketColumn() {
     },
     refetchInterval: REFETCH_MS,
     staleTime: REFETCH_MS,
+    // Keep row references stable across refetches when the underlying
+    // payload hasn't changed; React.memo on BucketRow depends on this
+    // to skip per-row work on every refetch.
+    structuralSharing: true,
   })
 
-  // Realtime subscription
+  // Realtime subscription with debounced invalidation. Each Realtime event
+  // used to fire its own invalidate → refetch; with the demo seed +
+  // smoke writes that produced 5-50 events back-to-back, the main thread
+  // was pinned for 20-30s. Collapse all events inside REALTIME_DEBOUNCE_MS
+  // into a single invalidate.
   useEffect(() => {
     const supabase = createClient()
+    let pending: ReturnType<typeof setTimeout> | null = null
+    const flush = () => {
+      pending = null
+      queryClient.invalidateQueries({ queryKey: LIST_QUERY_KEY })
+    }
     const channel = supabase
       .channel('bucket_items_realtime')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bucket_items' },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['bucket'] })
+          if (pending !== null) return
+          pending = setTimeout(flush, REALTIME_DEBOUNCE_MS)
         }
       )
       .subscribe()
 
     return () => {
+      if (pending !== null) clearTimeout(pending)
       void supabase.removeChannel(channel)
     }
   }, [queryClient])
@@ -536,7 +579,7 @@ export default function BucketColumn() {
     },
     onSuccess: () => {
       setDraft('')
-      queryClient.invalidateQueries({ queryKey: ['bucket'] })
+      queryClient.invalidateQueries({ queryKey: LIST_QUERY_KEY })
       // Refocus the input so rapid-fire dictation flows naturally.
       inputRef.current?.focus()
     },
@@ -555,12 +598,31 @@ export default function BucketColumn() {
       }
       return (await res.json()) as BucketItem
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bucket'] })
+    onSuccess: (data) => {
+      // Optimistically update the open-doing list with the server-confirmed
+      // row. Avoids waiting for the Realtime broadcast to refetch and
+      // eliminates the cache-bust + Realtime double work for snooze/done.
+      queryClient.setQueryData<ListPayload>(LIST_QUERY_KEY, (prev) => {
+        if (!prev) return prev
+        const next = prev.items.map((it) => (it.id === data.id ? data : it))
+        return { ...prev, items: next }
+      })
+      // Also keep any open detail window in sync.
+      queryClient.setQueryData<BucketItem>(['bucket', 'detail', data.id], data)
     },
   })
 
-  function remind(id: string) {
+  // Stable callbacks — BucketRow is React.memo'd so unstable refs would
+  // defeat the optimization and re-render every row on every parent
+  // render.
+  const handlePatch = useCallback(
+    (id: string, patch: Partial<BucketItem>) => {
+      patchMutation.mutate({ id, patch })
+    },
+    [patchMutation]
+  )
+
+  const handleRemind = useCallback((id: string) => {
     // Code5 owns this endpoint. We POST a minimal in_minutes payload —
     // if code5's contract drifts, this is the only place to update.
     fetch(`/api/bucket/${id}/remind`, {
@@ -570,7 +632,7 @@ export default function BucketColumn() {
     }).catch((err) => {
       console.error('[bucket] remind failed', err)
     })
-  }
+  }, [])
 
   function commitDraft() {
     const t = draft.trim()
@@ -701,8 +763,8 @@ export default function BucketColumn() {
             <BucketRow
               key={item.id}
               item={item}
-              onPatch={(id, patch) => patchMutation.mutate({ id, patch })}
-              onRemind={remind}
+              onPatch={handlePatch}
+              onRemind={handleRemind}
             />
           ))}
         </section>
