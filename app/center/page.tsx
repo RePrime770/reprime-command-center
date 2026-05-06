@@ -1,13 +1,13 @@
 'use client'
 
 import Canvas from '@/components/center/Canvas'
-import Column from '@/components/center/Column'
 import TopStrip from '@/components/center/TopStrip'
 import VoiceShellFooter from '@/components/center/VoiceShellFooter'
 import WindowManager from '@/components/center/windows/WindowManager'
 import WindowTaskbar from '@/components/center/windows/WindowTaskbar'
 import {
   COLUMN_SLOTS,
+  ColumnSlotRenderer,
   FOOTER_OVERLAYS,
   WINDOW_REGISTRY,
 } from '@/lib/center/slots'
@@ -33,10 +33,8 @@ export default function CenterPage() {
         }}
       >
         <Canvas>
-          {COLUMN_SLOTS.map(({ label, component: Component, fullBleed }) => (
-            <Column key={label} label={label} fullBleed={fullBleed}>
-              {Component ? <Component /> : null}
-            </Column>
+          {COLUMN_SLOTS.map((slot) => (
+            <ColumnSlotRenderer key={slot.label} slot={slot} />
           ))}
         </Canvas>
       </main>

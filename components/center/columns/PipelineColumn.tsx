@@ -234,6 +234,27 @@ function StatTile({
   )
 }
 
+// ── Hook: column count for the kiosk header badge ───────────────────────────
+
+/**
+ * useColumnCount — exposes today's meeting count for the kiosk header
+ * badge ("Pipeline (3)"). Reuses the same React Query key as
+ * PipelineColumn so the query is shared (no extra fetch).
+ */
+export function useColumnCount(): number {
+  const calendar = useQuery({
+    queryKey: ['calendar', 'today', 'pipeline-column'],
+    queryFn: async (): Promise<CalendarPayload> => {
+      const res = await fetch('/api/calendar/today', { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return (await res.json()) as CalendarPayload
+    },
+    refetchInterval: REFETCH_MS,
+    staleTime: REFETCH_MS,
+  })
+  return calendar.data?.events.length ?? 0
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -319,7 +340,31 @@ export default function PipelineColumn() {
           </div>
         )}
         {!calendar.isLoading && !calendar.isError && events.length === 0 && (
-          <div style={{ color: 'var(--rp-gold-lite)', fontSize: 12 }}>No meetings today</div>
+          <div>
+            <div style={{ color: 'var(--rp-gold-lite)', fontSize: 13, marginBottom: 8 }}>
+              Quiet day. No meetings on the calendar.
+            </div>
+            <a
+              href="https://calendar.google.com/calendar/u/0/r/eventedit"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-block',
+                background: 'rgba(255, 204, 51, 0.10)',
+                color: 'var(--rp-gold)',
+                border: '1px solid var(--rp-gold)',
+                borderRadius: 6,
+                padding: '6px 12px',
+                fontSize: 12,
+                fontWeight: 700,
+                fontFamily: 'inherit',
+                textDecoration: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              + Create event
+            </a>
+          </div>
         )}
         {events.map((ev) => (
           <div key={ev.id} style={cardStyle}>

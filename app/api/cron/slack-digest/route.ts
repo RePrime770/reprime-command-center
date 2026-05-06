@@ -28,8 +28,9 @@ export const dynamic = 'force-dynamic'
  * winter cron line and the digest is a soft signal, not a deadline.
  */
 
-const CADENCE_SNAPSHOT_KEY = 'slack-digest:cadence-status:v1'
-const CADENCE_API_PATH = '/api/investors/cadence'
+const CADENCE_SNAPSHOT_KEY = 'cadence:snapshot:yesterday'
+const CADENCE_SNAPSHOT_TTL = 60 * 60 * 25 // 25h — survives until tomorrow's run
+const CADENCE_CRON_API_PATH = '/api/cron/investor-cadence'
 
 interface BucketItem {
   id: string
@@ -63,6 +64,16 @@ interface CadenceItem {
   pipedrive_id: number
   name: string
   status: 'cold' | 'cooling' | 'warm' | 'hot'
+  lastOutboundAt: string | null
+  lastInboundAt: string | null
+}
+
+function daysSinceLabel(it: CadenceItem): string {
+  const ts = it.lastInboundAt ?? it.lastOutboundAt
+  if (!ts) return 'no contact on record'
+  const ms = Date.now() - new Date(ts).getTime()
+  const days = Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)))
+  return `${days}d silent`
 }
 
 function getRedis(): Redis | null {
@@ -75,19 +86,35 @@ function getRedis(): Redis | null {
 async function fetchNewlyColdInvestors(
   redis: Redis | null,
   origin: string,
+  cronSecret: string,
 ): Promise<{ items: CadenceItem[]; newlyCold: CadenceItem[] }> {
-  const items: CadenceItem[] = []
+  let items: CadenceItem[] = []
   let newlyCold: CadenceItem[] = []
-  try {
-    // The cadence endpoint requires Gideon auth via Supabase cookie, which
-    // isn't available to the cron runner. We re-implement a thin server-side
-    // pass against the same data instead — but for the digest we only need
-    // status deltas, so persisting the previous cadence map in Redis and
-    // diffing against this run is sufficient even if cadence isn't reachable.
-    // If a future cron-friendly cadence endpoint exists, swap this fetch in.
-    void origin
-  } catch (err) {
-    console.error('[slack-digest] cadence fetch failed', err)
+
+  if (origin) {
+    try {
+      const res = await fetch(`${origin}${CADENCE_CRON_API_PATH}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${cronSecret}`,
+          'content-type': 'application/json',
+        },
+        body: '{}',
+        cache: 'no-store',
+      })
+      if (res.ok) {
+        const json = (await res.json()) as { items?: CadenceItem[] }
+        items = json.items ?? []
+      } else {
+        console.error(
+          '[slack-digest] cadence fetch non-ok',
+          res.status,
+          (await res.text()).slice(0, 200),
+        )
+      }
+    } catch (err) {
+      console.error('[slack-digest] cadence fetch failed', err)
+    }
   }
 
   if (!redis) {
@@ -95,9 +122,8 @@ async function fetchNewlyColdInvestors(
   }
 
   try {
-    const previousMap = (await redis.get<Record<string, string>>(
-      CADENCE_SNAPSHOT_KEY,
-    )) ?? {}
+    const previousMap =
+      (await redis.get<Record<string, string>>(CADENCE_SNAPSHOT_KEY)) ?? {}
     if (items.length > 0) {
       const currentMap: Record<string, string> = {}
       for (const it of items) {
@@ -107,9 +133,9 @@ async function fetchNewlyColdInvestors(
         const prev = previousMap[String(it.pipedrive_id)]
         return it.status === 'cold' && prev && prev !== 'cold'
       })
-      // Persist current snapshot for tomorrow's diff. 48h TTL covers a
-      // missed day without poisoning the next valid run.
-      await redis.set(CADENCE_SNAPSHOT_KEY, currentMap, { ex: 60 * 60 * 48 })
+      await redis.set(CADENCE_SNAPSHOT_KEY, currentMap, {
+        ex: CADENCE_SNAPSHOT_TTL,
+      })
     }
   } catch (err) {
     console.error('[slack-digest] cadence delta failed', err)
@@ -170,7 +196,7 @@ function formatDigest(parts: {
   if (parts.newlyCold.length > 0) {
     lines.push(`\n*Investors gone cold (${parts.newlyCold.length})*`)
     for (const c of parts.newlyCold.slice(0, 10)) {
-      lines.push(`• ${c.name}`)
+      lines.push(`• ${c.name} — ${daysSinceLabel(c)}`)
     }
   }
 
@@ -277,7 +303,7 @@ export async function POST(request: NextRequest) {
   // 5. Investors that moved to cold since previous digest run.
   const redis = getRedis()
   const origin = request.nextUrl?.origin ?? ''
-  const { newlyCold } = await fetchNewlyColdInvestors(redis, origin)
+  const { newlyCold } = await fetchNewlyColdInvestors(redis, origin, expected)
   counts.newly_cold = newlyCold.length
 
   const { text, blocks } = formatDigest({

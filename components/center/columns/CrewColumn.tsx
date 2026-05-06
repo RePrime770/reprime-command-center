@@ -86,6 +86,27 @@ const labelStyle: React.CSSProperties = {
   marginBottom: 4,
 }
 
+// ── Hook: column count for the kiosk header badge ───────────────────────────
+
+/**
+ * useColumnCount — exposes the active crew count for the kiosk header
+ * badge ("Crew (6)"). Reuses the same React Query key as CrewColumn.
+ */
+export function useColumnCount(): number {
+  const crewQuery = useQuery({
+    queryKey: ['crew', 'active'],
+    queryFn: async (): Promise<CrewMemberRow[]> => {
+      const res = await fetch('/api/crew', { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json = (await res.json()) as CrewListResponse
+      return json.crew
+    },
+    refetchInterval: REFETCH_MS,
+    staleTime: REFETCH_MS,
+  })
+  return crewQuery.data?.length ?? 0
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 /**

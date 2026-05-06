@@ -1,12 +1,20 @@
 import type { ComponentType } from 'react'
-import type { ColumnProps } from '@/components/center/Column'
+import Column, { type ColumnProps } from '@/components/center/Column'
 import type { ComponentRegistry } from '@/components/center/windows/WindowManager'
 import type { InvestorProfileData } from '@/components/panels/InvestorProfile'
 
-import CrewColumn from '@/components/center/columns/CrewColumn'
-import InboxColumn from '@/components/center/columns/InboxColumn'
-import PipelineColumn from '@/components/center/columns/PipelineColumn'
-import BucketColumn from '@/components/center/columns/BucketColumn'
+import CrewColumn, {
+  useColumnCount as useCrewCount,
+} from '@/components/center/columns/CrewColumn'
+import InboxColumn, {
+  useColumnCount as useInboxCount,
+} from '@/components/center/columns/InboxColumn'
+import PipelineColumn, {
+  useColumnCount as usePipelineCount,
+} from '@/components/center/columns/PipelineColumn'
+import BucketColumn, {
+  useColumnCount as useBucketCount,
+} from '@/components/center/columns/BucketColumn'
 
 import BucketItemDetail from '@/components/center/BucketItemDetail'
 import InvestorCadenceWindow from '@/components/center/InvestorCadenceWindow'
@@ -28,14 +36,35 @@ export type ColumnSlot = {
   label: ColumnProps['label']
   component?: ComponentType
   fullBleed?: boolean
+  /**
+   * Hook that returns the visible-item count for the column header badge.
+   * Sharing the column's React Query key means no extra fetch.
+   */
+  useCount?: () => number
 }
 
 export const COLUMN_SLOTS: ColumnSlot[] = [
-  { label: 'Pipeline', component: PipelineColumn, fullBleed: true },
-  { label: 'Inbox', component: InboxColumn, fullBleed: true },
-  { label: 'Bucket', component: BucketColumn, fullBleed: true },
-  { label: 'Crew', component: CrewColumn },
+  { label: 'Pipeline', component: PipelineColumn, fullBleed: true, useCount: usePipelineCount },
+  { label: 'Inbox', component: InboxColumn, fullBleed: true, useCount: useInboxCount },
+  { label: 'Bucket', component: BucketColumn, fullBleed: true, useCount: useBucketCount },
+  { label: 'Crew', component: CrewColumn, useCount: useCrewCount },
 ]
+
+/**
+ * ColumnSlot renderer — calls each slot's count hook (so the badge updates
+ * live) and wraps the column component in <Column>. Lives here so
+ * page.tsx stays dumb layout chrome and slots.tsx remains the single
+ * mount-point file for the kiosk.
+ */
+export function ColumnSlotRenderer({ slot }: { slot: ColumnSlot }) {
+  const count = slot.useCount ? slot.useCount() : undefined
+  const Component = slot.component
+  return (
+    <Column label={slot.label} fullBleed={slot.fullBleed} count={count}>
+      {Component ? <Component /> : null}
+    </Column>
+  )
+}
 
 export const WINDOW_REGISTRY: ComponentRegistry = {
   'bucket-item': (props) => (

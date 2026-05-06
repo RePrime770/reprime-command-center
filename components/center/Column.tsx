@@ -22,6 +22,11 @@ export type ColumnProps = {
    * border and the label header still render.
    */
   fullBleed?: boolean
+  /**
+   * Optional live item count rendered as a small gold badge next to the
+   * label, e.g. "Bucket (5)". Hidden when 0 or undefined.
+   */
+  count?: number
 }
 
 /**
@@ -34,8 +39,9 @@ export type ColumnProps = {
  * track ships its own scrolling/padding (PipelineColumn does), pass
  * `fullBleed` to suppress the wrapper's body styles.
  */
-export default function Column({ label, children, fullBleed }: ColumnProps) {
+export default function Column({ label, children, fullBleed, count }: ColumnProps) {
   const accent = ACCENT[label] ?? 'var(--rp-gold)'
+  const showBadge = typeof count === 'number' && count > 0
 
   return (
     <section
@@ -70,9 +76,31 @@ export default function Column({ label, children, fullBleed }: ColumnProps) {
             fontWeight: 700,
             letterSpacing: '0.18em',
             textTransform: 'uppercase',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
           }}
         >
-          {label}
+          <span>{label}</span>
+          {showBadge && (
+            <span
+              aria-label={`${count} items`}
+              style={{
+                background: 'var(--c-investor)',
+                color: 'var(--rp-navy)',
+                borderRadius: 999,
+                padding: '1px 8px',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: 0,
+                lineHeight: 1.4,
+                minWidth: 22,
+                textAlign: 'center',
+              }}
+            >
+              {count}
+            </span>
+          )}
         </h2>
       </header>
 
