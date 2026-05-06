@@ -56,6 +56,11 @@ Last updated: 2026-05-04 (overnight build session)
 - INFORUPTCY_EMAIL → Vercel env var — value `g@floridastatetrust.com` (Investor Maverick plan, $99/mo, paid 2026-05-04). Used by `lib/inforuptcy/client.ts` Playwright login. Required for `/api/cron/inforuptcy-poll`.
 - INFORUPTCY_PASSWORD → Vercel env var — Inforuptcy.com account password. Lives in 1Password, NOT in repo. Required for `/api/cron/inforuptcy-poll`. Re-auth happens automatically via 6-hour Redis-cached cookie at key `inforuptcy:cookies:v1`.
 - SLACK_WEBHOOK_URL → Vercel env var — Slack incoming-webhook URL for Gideon's daily digest channel. Read by `lib/slack/client.ts` and `app/api/cron/slack-digest`. Generate at https://api.slack.com/apps → your app → Incoming Webhooks → Add New Webhook to Workspace. Optional: if absent, the digest cron returns `{ sent: false, reason: 'no_webhook' }` and exits cleanly.
+- SENTRY_DSN → Vercel env var — Sentry server/edge ingest URL for runtime error capture. Read by `sentry.server.config.ts` and `sentry.edge.config.ts`. **One-time setup (Gideon to do):** sign up free at https://sentry.io → create project type "Next.js" → name it `reprime-command-center` → copy the DSN from the "Configure" screen. Paste the same value into both `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` in Vercel → Settings → Environment Variables (Production + Preview). Optional: if absent, Sentry init is a no-op and the app runs normally.
+- NEXT_PUBLIC_SENTRY_DSN → Vercel env var — same DSN value as `SENTRY_DSN`, exposed to the browser bundle so `instrumentation-client.ts` can ship client-side errors. Required alongside `SENTRY_DSN`.
+- SENTRY_AUTH_TOKEN → Vercel env var — auth token used by `withSentryConfig` to upload source maps during build. Generate at https://sentry.io/settings/account/api/auth-tokens/ with scopes `project:releases` and `org:read`. Optional: builds still succeed without it, just without symbolicated stack traces in Sentry. Production-only recommended.
+- SENTRY_ORG → Vercel env var — Sentry org slug (visible in Sentry URL, e.g. `reprime`). Required only if `SENTRY_AUTH_TOKEN` is set.
+- SENTRY_PROJECT → Vercel env var — Sentry project slug (e.g. `reprime-command-center`). Required only if `SENTRY_AUTH_TOKEN` is set.
 
 ### Pipedrive field keys
 Person custom fields (Pipedrive API hashed keys, NOT secrets, safe to commit):

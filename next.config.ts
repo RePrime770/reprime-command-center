@@ -1,4 +1,5 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
+import { withSentryConfig } from '@sentry/nextjs'
 
 // Pin Turbopack's workspace root to this directory. Without this, Next 16 walks
 // up to C:\reprime-command-center\ (which has its own package-lock.json) and
@@ -10,6 +11,14 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
-};
+}
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  telemetry: false,
+})
