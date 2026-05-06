@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=2560, initial-scale=1">
+<title>/center/v2 — AFTER — research-driven kiosk rebuild</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&family=Cinzel:wght@600&family=EB+Garamond:ital,wght@1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0E3470;
+    --navy-deep: rgba(14, 52, 112, 0.85);
+    --navy-border: rgba(14, 52, 112, 0.70);
+    --gold: #FFCC33;
+    --gold-30: rgba(255, 204, 51, 0.30);
+    --gold-22: rgba(255, 204, 51, 0.22);
+    --gold-18: rgba(255, 204, 51, 0.18);
+    --gold-10: rgba(255, 204, 51, 0.10);
+    --gold-08: rgba(255, 204, 51, 0.08);
+    --cream: #F4EEE0;
+    --cream-top: #F8F0DA;
+    --cream-bottom: #EFE2C4;
+    --bronze-bold: #5A3F18;
+    --bronze-soft: #7A5A30;
+    --c-channel-305: #F0B400;
+    --c-channel-718: #25D366;
+    --c-channel-imsg: #0A84FF;
+    --c-channel-sms: #FF9500;
+    --c-investor: #FFCC33;
+    --c-live-now: #A855F7;
+    --c-warn: #F59E0B;
+    --c-fail: #EF4444;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--navy);
+    color: #E9EDEF;
+    font-family: 'Lexend', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .root { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ── BAND 1 ── HUD STRIP ─────────────────────────────────────── */
+  .hud {
+    flex-shrink: 0;
+    height: 96px;
+    background: var(--navy);
+    border-bottom: 1px solid var(--gold-22);
+    display: flex;
+    align-items: stretch;
+    padding: 0 16px;
+    gap: 12px;
+  }
+  .hud-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-right: 1px solid var(--gold-18);
+    padding: 0 12px;
+  }
+  .hud-section:last-child { border-right: 0; }
+
+  .legend {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    color: var(--gold);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0.7;
+    width: 220px;
+  }
+  .legend-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .swatch { display: inline-flex; align-items: center; gap: 4px; }
+  .swatch i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+
+  .kpi-row { display: flex; gap: 8px; }
+  .kpi {
+    width: 130px;
+    height: 72px;
+    background: var(--gold-08);
+    border: 1px solid var(--gold-30);
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .kpi .v {
+    font-family: 'Lexend', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .kpi .l {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+  .kpi.live { border-color: var(--c-live-now); }
+  .kpi.live .v, .kpi.live .l { color: var(--c-live-now); }
+  .kpi.warn { border-color: var(--c-warn); }
+  .kpi.warn .v, .kpi.warn .l { color: var(--c-warn); }
+  .kpi.fail { border-color: var(--c-fail); }
+  .kpi.fail .v, .kpi.fail .l { color: var(--c-fail); }
+
+  .actions { display: flex; gap: 8px; }
+  .action {
+    width: 64px;
+    height: 72px;
+    background: var(--gold-10);
+    border: 1px solid var(--gold-30);
+    border-radius: 8px;
+    color: var(--gold);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    font-family: 'Lexend', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+  .action .icon { font-size: 22px; line-height: 1; }
+  .action:hover { background: var(--gold-22); }
+
+  .identity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+  .identity .name {
+    color: var(--gold);
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+  }
+  .identity .health {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--c-channel-718);
+  }
+  .identity .gear {
+    width: 36px; height: 36px;
+    border: 1px solid var(--gold-30);
+    border-radius: 6px;
+    color: var(--gold);
+    background: transparent;
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  /* ── BAND 2 ── TILE GRID ─────────────────────────────────────── */
+  .canvas {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    padding: 16px;
+    overflow: hidden;
+  }
+
+  .canvas-main { display: flex; flex-direction: column; gap: 16px; min-height: 0; overflow: hidden; }
+
+  .tiles-section { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .section-head {
+    display: flex; align-items: baseline; gap: 12px;
+    color: var(--gold);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+  }
+  .section-head .count {
+    background: var(--gold);
+    color: var(--navy);
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+  }
+
+  .tile-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+  }
+  .tile {
+    background: var(--gold-08);
+    border: 1px solid var(--gold-22);
+    border-radius: 10px;
+    overflow: hidden;
+    height: 168px;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    transition: transform 0.12s, border-color 0.12s;
+  }
+  .tile:hover { transform: translateY(-2px); border-color: var(--gold); }
+  .tile-bar {
+    height: 5px;
+    background: var(--gold);
+    flex-shrink: 0;
+  }
+  .tile-body {
+    flex: 1;
+    padding: 14px 14px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: #E9EDEF;
+  }
+  .tile-name {
+    font-family: 'Lexend', sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    line-height: 1.2;
+    color: var(--gold);
+    margin-bottom: 4px;
+  }
+  .tile-sub {
+    font-size: 12px;
+    color: rgba(233, 237, 239, 0.75);
+    line-height: 1.45;
+  }
+  .tile-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: rgba(233, 237, 239, 0.6);
+    letter-spacing: 0.04em;
+  }
+  .tile-stage {
+    background: var(--gold-22);
+    color: var(--gold);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .tile.warn .tile-bar { background: var(--c-warn); }
+  .tile.warn .tile-stage { background: rgba(245, 158, 11, 0.22); color: var(--c-warn); }
+  .tile.fail .tile-bar { background: var(--c-fail); }
+  .tile.investor .tile-bar { background: var(--c-investor); }
+  .tile.live .tile-bar { background: var(--c-live-now); }
+  .tile.imsg .tile-bar { background: var(--c-channel-imsg); }
+  .tile.t305 .tile-bar { background: var(--c-channel-305); }
+  .tile.t718 .tile-bar { background: var(--c-channel-718); }
+
+  /* ── BAND 3 ── VOICE MIC HERO ────────────────────────────────── */
+  .mic-band {
+    flex-shrink: 0;
+    height: 220px;
+    background: var(--navy);
+    border-radius: 12px;
+    border: 1px solid var(--gold-22);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 0 32px;
+    gap: 16px;
+    position: relative;
+  }
+  .mic-side { display: flex; flex-direction: column; gap: 8px; }
+  .mic-side.right { align-items: flex-end; }
+  .mic-chip {
+    background: var(--gold-08);
+    border: 1px solid var(--gold-30);
+    border-radius: 999px;
+    padding: 8px 16px;
+    color: var(--gold);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    cursor: pointer;
+    width: fit-content;
+  }
+  .mic-chip.active { background: var(--gold); color: var(--navy); }
+
+  .mic-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .mic-circle {
+    width: 156px;
+    height: 156px;
+    border-radius: 50%;
+    background: var(--navy-deep);
+    border: 3px solid var(--gold);
+    box-shadow: 0 0 0 6px var(--gold-08), 0 0 32px rgba(255, 204, 51, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gold);
+    font-size: 64px;
+    cursor: pointer;
+    transition: transform 0.18s, box-shadow 0.18s;
+  }
+  .mic-circle:hover {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 8px var(--gold-22), 0 0 48px rgba(255, 204, 51, 0.28);
+  }
+  .mic-label {
+    font-family: 'Lexend', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .mic-hint {
+    font-family: 'Lexend', sans-serif;
+    font-size: 11px;
+    color: rgba(233, 237, 239, 0.55);
+    letter-spacing: 0.06em;
+  }
+
+  /* ── RIGHT RAIL — READING PANEL CREAM ─────────────────────────── */
+  .rail {
+    background: linear-gradient(180deg, var(--cream-top) 0%, var(--cream-bottom) 100%);
+    color: var(--navy);
+    border-radius: 12px;
+    border: 1px solid var(--gold-22);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .rail h3 {
+    font-family: 'Lexend', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    color: var(--bronze-bold);
+    margin-bottom: 6px;
+  }
+  .rail-block {
+    background: rgba(14, 52, 112, 0.04);
+    border: 1px solid rgba(14, 52, 112, 0.10);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--navy);
+  }
+  .rail-block.recommend { border-color: var(--c-investor); }
+  .rail-block p {
+    font-family: 'Lexend', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--navy);
+  }
+  .rail-block b { font-weight: 700; }
+  .listen {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid var(--bronze-soft);
+    color: var(--bronze-bold);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-family: 'Lexend', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.10em;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .rail-block .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .rail-btn {
+    background: var(--gold);
+    color: var(--navy);
+    border: 0;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-family: 'Lexend', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+  }
+  .rail-btn.alt { background: transparent; border: 1px solid var(--bronze-soft); color: var(--bronze-bold); }
+
+  /* ── BAND 4 ── WHATSAPP DOCK ─────────────────────────────────── */
+  .dock {
+    flex-shrink: 0;
+    height: 280px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    padding: 0 16px;
+    background: transparent;
+  }
+  .panel {
+    background: var(--navy);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--gold-22);
+  }
+  .panel-bar {
+    height: 6px;
+    background: var(--gold);
+  }
+  .panel-head {
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--navy-deep);
+    border-bottom: 1px solid var(--gold-18);
+  }
+  .panel-title {
+    font-family: 'Lexend', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--gold);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .panel-unread {
+    background: var(--c-fail);
+    color: #fff;
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .panel-body { flex: 1; overflow-y: auto; padding: 10px 12px; }
+  .panel.cream-body .panel-body {
+    background: linear-gradient(180deg, var(--cream-top) 0%, var(--cream-bottom) 100%);
+    color: var(--navy);
+  }
+  .panel.cream-body .thread .name { color: var(--bronze-bold); }
+  .panel.cream-body .thread .msg { color: var(--navy); }
+  .thread {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 204, 51, 0.10);
+    cursor: pointer;
+  }
+  .thread:hover { background: var(--gold-08); }
+  .thread .name {
+    font-family: 'Lexend', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--gold);
+  }
+  .thread .msg {
+    font-family: 'Lexend', sans-serif;
+    font-size: 12px;
+    line-height: 1.45;
+    color: rgba(233, 237, 239, 0.75);
+    margin-top: 2px;
+  }
+
+  .panel.t305 .panel-bar { background: var(--c-channel-305); }
+  .panel.t305 .panel-title { color: var(--c-channel-305); }
+  .panel.t718 .panel-bar { background: var(--c-channel-718); }
+  .panel.t718 .panel-title { color: var(--c-channel-718); }
+  .panel.imsg .panel-bar { background: var(--c-channel-imsg); }
+  .panel.imsg .panel-title { color: var(--c-channel-imsg); }
+  .panel.investor .panel-bar { background: var(--c-investor); }
+  .panel.investor .panel-title { color: var(--c-investor); }
+
+  /* ── BAND 5 ── BROWSER STRIP ─────────────────────────────────── */
+  .browser-strip {
+    flex-shrink: 0;
+    height: 44px;
+    background: var(--navy);
+    border-top: 1px solid var(--gold-22);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+  }
+  .browser-label {
+    color: var(--gold);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    margin-right: 12px;
+    opacity: 0.7;
+  }
+  .browser-chip {
+    background: var(--gold-08);
+    border: 1px solid var(--gold-30);
+    color: var(--gold);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-family: 'Lexend', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+  }
+  .browser-chip:hover { background: var(--gold-22); border-color: var(--gold); }
+
+  /* ── HINT BANNER ─────────────────────────────────────────────── */
+  .hint {
+    background: rgba(255, 204, 51, 0.95);
+    color: var(--navy);
+    font-family: 'Lexend', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    padding: 6px 14px;
+    border-radius: 999px;
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 99;
+  }
+
+  /* Brand wordmark accent in identity */
+  .wordmark {
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    color: var(--gold);
+    font-weight: 600;
+    letter-spacing: 0.145em;
+    margin-right: 6px;
+  }
+  .wordmark-by {
+    font-family: 'EB Garamond', serif;
+    font-style: italic;
+    font-size: 11px;
+    color: var(--gold);
+    opacity: 0.7;
+  }
+
+  /* Pulsing ring animation for the mic */
+  @keyframes pulse-ring {
+    0%, 100% { box-shadow: 0 0 0 6px var(--gold-08), 0 0 32px rgba(255, 204, 51, 0.18); }
+    50%      { box-shadow: 0 0 0 12px var(--gold-22), 0 0 56px rgba(255, 204, 51, 0.32); }
+  }
+  .mic-circle.idle { animation: pulse-ring 3s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<div class="root">
+
+  <div class="hint">AFTER — /center/v2 — research-driven kiosk</div>
+
+  <!-- ─── BAND 1: HUD ────────────────────────────────────────── -->
+  <div class="hud">
+
+    <div class="hud-section legend">
+      <div class="legend-row">
+        <span class="swatch"><i style="background: var(--c-channel-305);"></i>305</span>
+        <span class="swatch"><i style="background: var(--c-channel-718);"></i>718</span>
+        <span class="swatch"><i style="background: var(--c-channel-imsg);"></i>iMsg</span>
+      </div>
+      <div class="legend-row">
+        <span class="swatch"><i style="background: var(--c-investor);"></i>Inv</span>
+        <span class="swatch"><i style="background: var(--c-live-now);"></i>Live</span>
+        <span class="swatch"><i style="background: var(--c-warn);"></i>Warn</span>
+        <span class="swatch"><i style="background: var(--c-fail);"></i>Fail</span>
+      </div>
+    </div>
+
+    <div class="hud-section kpi-row">
+      <div class="kpi live"><div class="v">3</div><div class="l">Meetings</div></div>
+      <div class="kpi"><div class="v">4</div><div class="l">Investors</div></div>
+      <div class="kpi warn"><div class="v">12</div><div class="l">Unread</div></div>
+      <div class="kpi fail"><div class="v">2</div><div class="l">Expiring</div></div>
+      <div class="kpi"><div class="v">8</div><div class="l">Active deals</div></div>
+    </div>
+
+    <div class="hud-section actions">
+      <button class="action"><span class="icon">📰</span>Briefing</button>
+      <button class="action"><span class="icon">❄</span>Cadence</button>
+      <button class="action"><span class="icon">📋</span>Secretary</button>
+      <button class="action"><span class="icon">＋</span>New deal</button>
+      <button class="action"><span class="icon">📝</span>New note</button>
+      <button class="action"><span class="icon">⚙</span>Settings</button>
+    </div>
+
+    <div class="identity">
+      <span class="wordmark">TERMINAL</span><span class="wordmark-by">by RePrime</span>
+      <span class="health" title="All systems green"></span>
+      <span class="name">Gideon</span>
+      <button class="gear">⚙</button>
+    </div>
+  </div>
+
+  <!-- ─── BAND 2: CANVAS = TILE GRID + READING RAIL ──────────── -->
+  <div class="canvas">
+
+    <div class="canvas-main">
+
+      <!-- Active Deals tiles -->
+      <div class="tiles-section">
+        <div class="section-head">
+          Active deals
+          <span class="count">8</span>
+        </div>
+        <div class="tile-grid">
+
+          <div class="tile">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">Watermills</div>
+                <div class="tile-sub">$35M Boston note · Service FCU</div>
+              </div>
+              <div class="tile-meta"><span class="tile-stage">Closing</span><span>2h to call</span></div>
+            </div>
+          </div>
+
+          <div class="tile warn">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">Bay Valley</div>
+                <div class="tile-sub">Saginaw MI · retrade</div>
+              </div>
+              <div class="tile-meta"><span class="tile-stage">Retrade</span><span>4d cold</span></div>
+            </div>
+          </div>
+
+          <div class="tile">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">IGA Portfolio</div>
+                <div class="tile-sub">Jasper IN / Olney IL · $4.75M</div>
+              </div>
+              <div class="tile-meta"><span class="tile-stage">LOI</span><span>Houchens</span></div>
+            </div>
+          </div>
+
+          <div class="tile">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">Magna Electronics</div>
+                <div class="tile-sub">Southfield MI · $41.5M · 8.37%</div>
+              </div>
+              <div class="tile-meta"><span class="tile-stage">LOI v3</span><span>2h ago</span></div>
+            </div>
+          </div>
+
+          <div class="tile warn">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">Skylark Plaza</div>
+                <div class="tile-sub">Ocala · $5M small 2nd note</div>
+              </div>
+              <div class="tile-meta"><span class="tile-stage">Note</span><span>Turchi</span></div>
+            </div>
+          </div>
+
+          <div class="tile">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">Freeport Plaza</div>
+                <div class="tile-sub">IL · $6.9M</div>
+              </div>
+              <div class="tile-meta"><span class="tile-stage">Closed</span><span>1d ago</span></div>
+            </div>
+          </div>
+
+          <div class="tile fail">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">500 W Monroe</div>
+                <div class="tile-sub">Chicago NPL · $270M</div>
+              </div>
+              <div class="tile-meta"><span class="tile-stage">Blocked</span><span>escrow</span></div>
+            </div>
+          </div>
+
+          <div class="tile">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">Rochelle Commons</div>
+                <div class="tile-sub">IL · $2.5M as-is · Bealls LOI</div>
+              </div>
+              <div class="tile-meta"><span class="tile-stage">LOI</span><span>open</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Investor tiles -->
+      <div class="tiles-section">
+        <div class="section-head">
+          Coldest investors
+          <span class="count">6</span>
+        </div>
+        <div class="tile-grid">
+
+          <div class="tile investor">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">Doron Sagiv</div>
+                <div class="tile-sub">Gyro Capital</div>
+              </div>
+              <div class="tile-meta"><span>last reply 12d</span><span>★ open</span></div>
+            </div>
+          </div>
+
+          <div class="tile investor">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">Daniel Schuchalter</div>
+                <div class="tile-sub">Gyro · ex-Goldman CFO</div>
+              </div>
+              <div class="tile-meta"><span>last reply 9d</span><span>★ open</span></div>
+            </div>
+          </div>
+
+          <div class="tile investor">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">Yaron Sitbon</div>
+                <div class="tile-sub">BDO · Israel Division</div>
+              </div>
+              <div class="tile-meta"><span>last reply 6d</span><span>★ open</span></div>
+            </div>
+          </div>
+
+          <div class="tile investor">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">Amir Shenkman</div>
+                <div class="tile-sub">Gyro Capital</div>
+              </div>
+              <div class="tile-meta"><span>last reply 5d</span><span>★ open</span></div>
+            </div>
+          </div>
+
+          <div class="tile investor">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">Bryan Morjain</div>
+                <div class="tile-sub">Rok Lending · Watermills</div>
+              </div>
+              <div class="tile-meta"><span>active today</span><span>★ open</span></div>
+            </div>
+          </div>
+
+          <div class="tile investor">
+            <div class="tile-bar"></div>
+            <div class="tile-body">
+              <div>
+                <div class="tile-name">Ray Turchi</div>
+                <div class="tile-sub">FL retail portfolio</div>
+              </div>
+              <div class="tile-meta"><span>last reply 3d</span><span>★ open</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- VOICE MIC HERO -->
+      <div class="mic-band">
+        <div class="mic-side">
+          <button class="mic-chip active">2.0× speed</button>
+          <button class="mic-chip">EN</button>
+        </div>
+
+        <div class="mic-hero">
+          <div class="mic-circle idle">🎙</div>
+          <div class="mic-label">Hold space to talk</div>
+          <div class="mic-hint">Or click the mic. Or press Ctrl + Shift + V.</div>
+        </div>
+
+        <div class="mic-side right">
+          <button class="mic-chip">▶ Read briefing</button>
+          <button class="mic-chip">⚙ Voice settings</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ─── READING RAIL — CREAM ─────────────────────────────── -->
+    <aside class="rail">
+      <div>
+        <h3>Briefing</h3>
+        <div class="rail-block">
+          <p>Three meetings today. Next up at 9:30 — <b>Bay Valley investor sync</b>. Four investor messages waiting. Two invitations expire soon. Watermills is the only deal that needs you in the next two hours.</p>
+          <button class="listen">▶ Listen</button>
+        </div>
+      </div>
+
+      <div>
+        <h3>Recommended next step</h3>
+        <div class="rail-block recommend">
+          <p><b>Call Doron now.</b> He has not replied since Sunday. Gyro markup was promised tonight. Two minutes on WhatsApp will keep this on track.</p>
+          <div class="row">
+            <button class="rail-btn">Call Doron</button>
+            <button class="rail-btn alt">WhatsApp instead</button>
+            <button class="rail-btn alt">Wait — no action</button>
+          </div>
+          <button class="listen">▶ Listen</button>
+        </div>
+      </div>
+
+      <div>
+        <h3>Suggested focus</h3>
+        <div class="rail-block">
+          <p>You have a free gap from 10:00 to 11:00. Use it for the <b>Watermills closing checklist</b>. It is the only P1 in your bucket.</p>
+          <button class="listen">▶ Listen</button>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- ─── BAND 4: WHATSAPP DOCK ─────────────────────────────── -->
+  <div class="dock">
+
+    <div class="panel t305">
+      <div class="panel-bar"></div>
+      <div class="panel-head">
+        <div class="panel-title">305 · RePrime</div>
+        <div class="panel-unread">5</div>
+      </div>
+      <div class="panel-body">
+        <div class="thread"><div class="name">Bryan Morjain</div><div class="msg">Service FCU wants 9.25 floor — call when free</div></div>
+        <div class="thread"><div class="name">Steven Philipp</div><div class="msg">Magna LOI v3 ready, last bracket flagged</div></div>
+        <div class="thread"><div class="name">Bruce Smoler</div><div class="msg">500 W Monroe escrow language adjusted</div></div>
+      </div>
+    </div>
+
+    <div class="panel t718 cream-body">
+      <div class="panel-bar"></div>
+      <div class="panel-head">
+        <div class="panel-title">718 · Personal</div>
+        <div class="panel-unread" style="background: var(--c-channel-718);">2</div>
+      </div>
+      <div class="panel-body">
+        <div class="thread"><div class="name">Shely</div><div class="msg">Mushka asking when you land</div></div>
+        <div class="thread"><div class="name">Chaim</div><div class="msg">Tefillin still at office?</div></div>
+      </div>
+    </div>
+
+    <div class="panel imsg">
+      <div class="panel-bar"></div>
+      <div class="panel-head">
+        <div class="panel-title">iMessage</div>
+        <div class="panel-unread" style="background: var(--c-channel-imsg);">1</div>
+      </div>
+      <div class="panel-body">
+        <div class="thread"><div class="name">Yosef Yitzchok</div><div class="msg">Hi Abba — can you call after dinner?</div></div>
+      </div>
+    </div>
+
+    <div class="panel investor">
+      <div class="panel-bar"></div>
+      <div class="panel-head">
+        <div class="panel-title">★ Investors</div>
+        <div class="panel-unread">4</div>
+      </div>
+      <div class="panel-body">
+        <div class="thread"><div class="name">Doron Sagiv</div><div class="msg">Re: Gyro RePrime GP — markup tonight</div></div>
+        <div class="thread"><div class="name">Yaron Sitbon</div><div class="msg">Bituach for Israel division ready</div></div>
+        <div class="thread"><div class="name">Daniel Schuchalter</div><div class="msg">Confirmed for Wednesday call</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─── BAND 5: BROWSER STRIP ─────────────────────────────── -->
+  <div class="browser-strip">
+    <span class="browser-label">Embedded research</span>
+    <button class="browser-chip">Perplexity</button>
+    <button class="browser-chip">Pipedrive</button>
+    <button class="browser-chip">Gmail</button>
+    <button class="browser-chip">CoStar</button>
+    <button class="browser-chip">Inforuptcy</button>
+    <span style="margin-left: auto; opacity: 0.45; font-size: 11px; letter-spacing: 0.10em;">Click any tab to expand inline ▲</span>
+  </div>
+
+</div>
+</body>
+</html>
