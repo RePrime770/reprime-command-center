@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=2880, initial-scale=1">
+<title>/center/v2 — Font A/B test — Poppins vs Lexend vs OpenDyslexic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Lexend:wght@300;400;500;600;700;800&family=Cinzel:wght@600&family=EB+Garamond:ital,wght@1,400&display=swap" rel="stylesheet">
+<!-- OpenDyslexic — self-host fallback via CDN that ships the font -->
+<link href="https://fonts.cdnfonts.com/css/opendyslexic" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0E3470;
+    --navy-deep: rgba(14, 52, 112, 0.85);
+    --navy-border: rgba(14, 52, 112, 0.70);
+    --gold: #FFCC33;
+    --gold-30: rgba(255, 204, 51, 0.30);
+    --gold-22: rgba(255, 204, 51, 0.22);
+    --gold-18: rgba(255, 204, 51, 0.18);
+    --gold-10: rgba(255, 204, 51, 0.10);
+    --gold-08: rgba(255, 204, 51, 0.08);
+    --cream: #F4EEE0;
+    --cream-top: #F8F0DA;
+    --cream-bottom: #EFE2C4;
+    --bronze-bold: #5A3F18;
+    --bronze-soft: #7A5A30;
+    --c-channel-305: #F0B400;
+    --c-channel-718: #25D366;
+    --c-channel-imsg: #0A84FF;
+    --c-channel-sms: #FF9500;
+    --c-investor: #FFCC33;
+    --c-live-now: #A855F7;
+    --c-warn: #F59E0B;
+    --c-fail: #EF4444;
+
+    /* Per-half font slot — overridden by toggle script */
+    --font-left: 'Poppins', system-ui, sans-serif;
+    --font-right: 'Lexend', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #06183a;
+    color: #E9EDEF;
+    min-height: 100vh;
+    font-family: 'Poppins', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    overflow-x: hidden;
+  }
+
+  /* ── TOGGLE BAR ───────────────────────────────────────── */
+  .toggle-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--navy);
+    border-bottom: 2px solid var(--gold);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .toggle-bar h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 0.15em;
+    margin-right: 8px;
+  }
+  .toggle-bar h1 small {
+    font-family: 'EB Garamond', serif;
+    font-style: italic;
+    font-size: 12px;
+    opacity: 0.7;
+    letter-spacing: 0.05em;
+    margin-left: 4px;
+  }
+  .toggle-bar .label {
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+  .toggle-group { display: flex; gap: 8px; align-items: center; }
+  .toggle-group .group-label {
+    font-family: 'Poppins', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0.55;
+    margin-right: 4px;
+  }
+  .fbtn {
+    background: var(--gold-08);
+    border: 1px solid var(--gold-30);
+    color: var(--gold);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .fbtn:hover { background: var(--gold-22); border-color: var(--gold); }
+  .fbtn.active {
+    background: var(--gold);
+    color: var(--navy);
+    border-color: var(--gold);
+    font-weight: 700;
+  }
+  .fbtn.both {
+    background: transparent;
+    border: 1px dashed var(--gold-30);
+    color: var(--gold);
+  }
+  .fbtn.both:hover { background: var(--gold-10); border-style: solid; }
+  .toggle-bar .hint-txt {
+    margin-left: auto;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    color: rgba(255, 204, 51, 0.5);
+    letter-spacing: 0.06em;
+  }
+  .current-pair {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gold);
+    background: var(--navy-deep);
+    border: 1px solid var(--gold-22);
+    border-radius: 6px;
+    padding: 6px 12px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── SIDE-BY-SIDE FRAME ───────────────────────────────── */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    width: 100%;
+  }
+  .half {
+    border-right: 2px solid var(--gold);
+    overflow: hidden;
+    position: relative;
+  }
+  .half:last-child { border-right: 0; }
+  .half-label {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--gold);
+    color: var(--navy);
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    border-radius: 999px;
+    z-index: 50;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  }
+  .half-left .kiosk { font-family: var(--font-left); }
+  .half-right .kiosk { font-family: var(--font-right); }
+
+  /* ── KIOSK (per half) ─────────────────────────────────── */
+  .kiosk {
+    background: var(--navy);
+    color: #E9EDEF;
+    font-size: 14px;
+    line-height: 1.55;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 70px);
+    min-height: 1100px;
+  }
+
+  /* ── BAND 1 — HUD ─────────────────────────────────────── */
+  .kiosk .hud {
+    flex-shrink: 0;
+    height: 96px;
+    background: var(--navy);
+    border-bottom: 1px solid var(--gold-22);
+    display: flex;
+    align-items: stretch;
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .kiosk .hud-section {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-right: 1px solid var(--gold-18);
+    padding: 0 8px;
+  }
+  .kiosk .hud-section:last-child { border-right: 0; }
+
+  .kiosk .legend {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    color: var(--gold);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    opacity: 0.7;
+    width: 168px;
+  }
+  .kiosk .legend-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .kiosk .swatch { display: inline-flex; align-items: center; gap: 3px; }
+  .kiosk .swatch i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; }
+
+  .kiosk .kpi-row { display: flex; gap: 6px; }
+  .kiosk .kpi {
+    width: 88px;
+    height: 72px;
+    background: var(--gold-08);
+    border: 1px solid var(--gold-30);
+    border-radius: 8px;
+    padding: 6px 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .kiosk .kpi .v {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .kiosk .kpi .l {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+  .kiosk .kpi.live { border-color: var(--c-live-now); }
+  .kiosk .kpi.live .v, .kiosk .kpi.live .l { color: var(--c-live-now); }
+  .kiosk .kpi.warn { border-color: var(--c-warn); }
+  .kiosk .kpi.warn .v, .kiosk .kpi.warn .l { color: var(--c-warn); }
+  .kiosk .kpi.fail { border-color: var(--c-fail); }
+  .kiosk .kpi.fail .v, .kiosk .kpi.fail .l { color: var(--c-fail); }
+
+  .kiosk .actions { display: flex; gap: 5px; }
+  .kiosk .action {
+    width: 56px;
+    height: 72px;
+    background: var(--gold-10);
+    border: 1px solid var(--gold-30);
+    border-radius: 8px;
+    color: var(--gold);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .kiosk .action .icon { font-size: 18px; line-height: 1; }
+  .kiosk .action:hover { background: var(--gold-22); }
+
+  .kiosk .identity {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .kiosk .identity .name {
+    color: var(--gold);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+  }
+  .kiosk .identity .health {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--c-channel-718);
+  }
+  .kiosk .identity .gear {
+    width: 30px; height: 30px;
+    border: 1px solid var(--gold-30);
+    border-radius: 6px;
+    color: var(--gold);
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .kiosk .wordmark {
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    color: var(--gold);
+    font-weight: 600;
+    letter-spacing: 0.145em;
+    margin-right: 4px;
+  }
+  .kiosk .wordmark-by {
+    font-family: 'EB Garamond', serif;
+    font-style: italic;
+    font-size: 9px;
+    color: var(--gold);
+    opacity: 0.7;
+  }
+
+  /* ── BAND 2 — CANVAS = TILES + RAIL + COLUMNS ─────────── */
+  .kiosk .canvas {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1.4fr 0.7fr 0.7fr 0.85fr;
+    gap: 10px;
+    padding: 12px;
+    overflow: hidden;
+  }
+  .kiosk .col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Tiles section */
+  .kiosk .tiles-section { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  .kiosk .section-head {
+    display: flex; align-items: baseline; gap: 10px;
+    color: var(--gold);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .kiosk .section-head .count {
+    background: var(--gold);
+    color: var(--navy);
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .kiosk .tile-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .kiosk .tile {
+    background: var(--gold-08);
+    border: 1px solid var(--gold-22);
+    border-radius: 9px;
+    overflow: hidden;
+    height: 124px;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+  }
+  .kiosk .tile-bar { height: 4px; background: var(--gold); flex-shrink: 0; }
+  .kiosk .tile-body {
+    flex: 1;
+    padding: 10px 10px 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: #E9EDEF;
+  }
+  .kiosk .tile-name {
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1.2;
+    color: var(--gold);
+    margin-bottom: 3px;
+  }
+  .kiosk .tile-sub {
+    font-size: 10.5px;
+    color: rgba(233, 237, 239, 0.78);
+    line-height: 1.4;
+  }
+  .kiosk .tile-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9.5px;
+    color: rgba(233, 237, 239, 0.6);
+    letter-spacing: 0.04em;
+    align-items: center;
+  }
+  .kiosk .tile-stage {
+    background: var(--gold-22);
+    color: var(--gold);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 9.5px;
+    font-weight: 600;
+  }
+  .kiosk .tile.warn .tile-bar { background: var(--c-warn); }
+  .kiosk .tile.warn .tile-stage { background: rgba(245, 158, 11, 0.22); color: var(--c-warn); }
+  .kiosk .tile.fail .tile-bar { background: var(--c-fail); }
+  .kiosk .tile.investor .tile-bar { background: var(--c-investor); }
+
+  /* Briefing rail (cream) */
+  .kiosk .rail {
+    background: linear-gradient(180deg, var(--cream-top) 0%, var(--cream-bottom) 100%);
+    color: var(--navy);
+    border-radius: 10px;
+    border: 1px solid var(--gold-22);
+    padding: 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+  }
+  .kiosk .rail h3 {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--bronze-bold);
+    margin-bottom: 4px;
+  }
+  .kiosk .rail-block {
+    background: rgba(14, 52, 112, 0.04);
+    border: 1px solid rgba(14, 52, 112, 0.10);
+    border-radius: 8px;
+    padding: 10px 11px;
+  }
+  .kiosk .rail-block.recommend { border-color: var(--c-investor); }
+  .kiosk .rail-block p {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--navy);
+  }
+  .kiosk .rail-block b { font-weight: 700; }
+  .kiosk .listen {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: transparent;
+    border: 1px solid var(--bronze-soft);
+    color: var(--bronze-bold);
+    border-radius: 999px;
+    padding: 3px 9px;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+
+  /* Crew column */
+  .kiosk .crew-block, .kiosk .bucket-block, .kiosk .inbox-block {
+    background: var(--gold-08);
+    border: 1px solid var(--gold-22);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .kiosk .crew-block h3, .kiosk .bucket-block h3, .kiosk .inbox-block h3 {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--gold-18);
+  }
+  .kiosk .crew-list, .kiosk .bucket-list, .kiosk .inbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+    padding-top: 2px;
+  }
+  .kiosk .crew-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px dashed rgba(255, 204, 51, 0.10);
+  }
+  .kiosk .crew-row:last-child { border-bottom: 0; }
+  .kiosk .crew-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--gold-22); color: var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .kiosk .crew-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gold);
+    line-height: 1.2;
+  }
+  .kiosk .crew-role {
+    font-size: 10px;
+    color: rgba(233, 237, 239, 0.6);
+    line-height: 1.3;
+  }
+
+  .kiosk .bucket-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    padding: 5px 0;
+    border-bottom: 1px dashed rgba(255, 204, 51, 0.10);
+    font-size: 11.5px;
+    color: rgba(233, 237, 239, 0.85);
+    line-height: 1.4;
+  }
+  .kiosk .bucket-row:last-child { border-bottom: 0; }
+  .kiosk .bucket-row .pri {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .kiosk .pri.p1 { background: var(--c-fail); color: #fff; }
+  .kiosk .pri.p2 { background: var(--c-warn); color: var(--navy); }
+  .kiosk .pri.p3 { background: var(--gold-22); color: var(--gold); }
+
+  .kiosk .inbox-row {
+    padding: 6px 0 7px;
+    border-bottom: 1px dashed rgba(255, 204, 51, 0.10);
+    border-left: 3px solid var(--gold);
+    padding-left: 8px;
+    margin-left: -2px;
+  }
+  .kiosk .inbox-row:last-child { border-bottom: 0; }
+  .kiosk .inbox-row.t305  { border-left-color: var(--c-channel-305); }
+  .kiosk .inbox-row.t718  { border-left-color: var(--c-channel-718); }
+  .kiosk .inbox-row.imsg  { border-left-color: var(--c-channel-imsg); }
+  .kiosk .inbox-row.investor { border-left-color: var(--c-investor); }
+  .kiosk .inbox-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gold);
+    line-height: 1.2;
+  }
+  .kiosk .inbox-msg {
+    font-size: 10.5px;
+    color: rgba(233, 237, 239, 0.75);
+    line-height: 1.45;
+    margin-top: 2px;
+  }
+  .kiosk .inbox-time {
+    font-size: 9.5px;
+    color: rgba(233, 237, 239, 0.5);
+    margin-top: 2px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── BAND 3 — VOICE TRANSCRIPT LINE ───────────────────── */
+  .kiosk .voice-line {
+    flex-shrink: 0;
+    height: 38px;
+    background: var(--navy-deep);
+    border-top: 1px solid var(--gold-22);
+    border-bottom: 1px solid var(--gold-18);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 10px;
+  }
+  .kiosk .voice-mic {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--gold-08);
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .kiosk .voice-mic.live { background: var(--c-live-now); color: #fff; border-color: var(--c-live-now); }
+  .kiosk .voice-text {
+    font-size: 12.5px;
+    color: rgba(233, 237, 239, 0.85);
+    font-style: italic;
+    line-height: 1.3;
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .kiosk .voice-tag {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--c-live-now);
+    background: rgba(168, 85, 247, 0.18);
+    border: 1px solid rgba(168, 85, 247, 0.45);
+    padding: 2px 8px;
+    border-radius: 999px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  /* ── BAND 4 — WHATSAPP DOCK ───────────────────────────── */
+  .kiosk .dock {
+    flex-shrink: 0;
+    height: 178px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 10px 12px;
+    background: transparent;
+  }
+  .kiosk .panel {
+    background: var(--navy);
+    border-radius: 9px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--gold-22);
+  }
+  .kiosk .panel-bar { height: 5px; background: var(--gold); }
+  .kiosk .panel-head {
+    padding: 7px 11px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--navy-deep);
+    border-bottom: 1px solid var(--gold-18);
+  }
+  .kiosk .panel-title {
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--gold);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+  .kiosk .panel-unread {
+    background: var(--c-fail);
+    color: #fff;
+    border-radius: 999px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .kiosk .panel-body { flex: 1; overflow-y: auto; padding: 7px 9px; }
+  .kiosk .panel.cream-body .panel-body {
+    background: linear-gradient(180deg, var(--cream-top) 0%, var(--cream-bottom) 100%);
+    color: var(--navy);
+  }
+  .kiosk .panel.cream-body .thread .name { color: var(--bronze-bold); }
+  .kiosk .panel.cream-body .thread .msg { color: var(--navy); }
+  .kiosk .thread {
+    padding: 5px 7px;
+    border-bottom: 1px solid rgba(255, 204, 51, 0.10);
+  }
+  .kiosk .thread:last-child { border-bottom: 0; }
+  .kiosk .thread .name {
+    font-weight: 600;
+    font-size: 11.5px;
+    color: var(--gold);
+  }
+  .kiosk .thread .msg {
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: rgba(233, 237, 239, 0.75);
+    margin-top: 2px;
+  }
+  .kiosk .panel.t305 .panel-bar { background: var(--c-channel-305); }
+  .kiosk .panel.t305 .panel-title { color: var(--c-channel-305); }
+  .kiosk .panel.t718 .panel-bar { background: var(--c-channel-718); }
+  .kiosk .panel.t718 .panel-title { color: var(--c-channel-718); }
+  .kiosk .panel.imsg .panel-bar { background: var(--c-channel-imsg); }
+  .kiosk .panel.imsg .panel-title { color: var(--c-channel-imsg); }
+  .kiosk .panel.investor .panel-bar { background: var(--c-investor); }
+  .kiosk .panel.investor .panel-title { color: var(--c-investor); }
+
+  /* Side label inside half showing current font */
+  .font-tag {
+    position: absolute;
+    bottom: 12px;
+    right: 16px;
+    background: var(--navy-deep);
+    border: 1px solid var(--gold-30);
+    color: var(--gold);
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 999px;
+    z-index: 50;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="toggle-bar">
+  <h1>FONT TEST <small>by RePrime</small></h1>
+  <span class="label">Left half:</span>
+  <div class="toggle-group">
+    <span class="group-label">L</span>
+    <button class="fbtn active" data-side="left" data-font="Poppins">Poppins</button>
+    <button class="fbtn" data-side="left" data-font="Lexend">Lexend</button>
+    <button class="fbtn" data-side="left" data-font="OpenDyslexic">OpenDyslexic</button>
+  </div>
+  <span class="label">Right half:</span>
+  <div class="toggle-group">
+    <span class="group-label">R</span>
+    <button class="fbtn" data-side="right" data-font="Poppins">Poppins</button>
+    <button class="fbtn active" data-side="right" data-font="Lexend">Lexend</button>
+    <button class="fbtn" data-side="right" data-font="OpenDyslexic">OpenDyslexic</button>
+  </div>
+  <span class="label">Both:</span>
+  <div class="toggle-group">
+    <button class="fbtn both" data-side="both" data-font="Poppins">Poppins</button>
+    <button class="fbtn both" data-side="both" data-font="Lexend">Lexend</button>
+    <button class="fbtn both" data-side="both" data-font="OpenDyslexic">OpenDyslexic</button>
+  </div>
+  <span class="current-pair" id="pair-status">Poppins  ⇄  Lexend</span>
+  <span class="hint-txt">Default: Poppins ↔ Lexend · Click "Both" to compare against OpenDyslexic</span>
+</div>
+
+<div class="compare">
+
+<!-- ───────────────── LEFT HALF ───────────────── -->
+<div class="half half-left">
+  <div class="half-label" id="left-label">LEFT — Poppins</div>
+  <div class="kiosk">
+
+    <div class="hud">
+      <div class="hud-section legend">
+        <div class="legend-row">
+          <span class="swatch"><i style="background: var(--c-channel-305);"></i>305</span>
+          <span class="swatch"><i style="background: var(--c-channel-718);"></i>718</span>
+          <span class="swatch"><i style="background: var(--c-channel-imsg);"></i>iMsg</span>
+        </div>
+        <div class="legend-row">
+          <span class="swatch"><i style="background: var(--c-investor);"></i>Inv</span>
+          <span class="swatch"><i style="background: var(--c-live-now);"></i>Live</span>
+          <span class="swatch"><i style="background: var(--c-warn);"></i>Warn</span>
+          <span class="swatch"><i style="background: var(--c-fail);"></i>Fail</span>
+        </div>
+      </div>
+      <div class="hud-section kpi-row">
+        <div class="kpi live"><div class="v">3</div><div class="l">Meetings</div></div>
+        <div class="kpi"><div class="v">4</div><div class="l">Investors</div></div>
+        <div class="kpi warn"><div class="v">12</div><div class="l">Unread</div></div>
+        <div class="kpi fail"><div class="v">2</div><div class="l">Expiring</div></div>
+      </div>
+      <div class="hud-section actions">
+        <button class="action"><span class="icon">📰</span>Brief</button>
+        <button class="action"><span class="icon">❄</span>Cadence</button>
+        <button class="action"><span class="icon">📋</span>Sec.</button>
+        <button class="action"><span class="icon">＋</span>Deal</button>
+        <button class="action"><span class="icon">📝</span>Note</button>
+        <button class="action"><span class="icon">⚙</span>Set</button>
+      </div>
+      <div class="identity">
+        <span class="wordmark">TERMINAL</span><span class="wordmark-by">by RePrime</span>
+        <span class="health"></span>
+        <span class="name">Gideon</span>
+        <button class="gear">⚙</button>
+      </div>
+    </div>
+
+    <div class="canvas">
+
+      <!-- Column 1 — Tiles + Briefing -->
+      <div class="col">
+        <div class="tiles-section">
+          <div class="section-head">Active deals <span class="count">6</span></div>
+          <div class="tile-grid">
+            <div class="tile"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Watermills</div><div class="tile-sub">$35M Boston note · Service FCU</div></div><div class="tile-meta"><span class="tile-stage">Closing</span><span>2h to call</span></div></div></div>
+            <div class="tile warn"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Bay Valley</div><div class="tile-sub">Saginaw MI · retrade · Ashley</div></div><div class="tile-meta"><span class="tile-stage">Retrade</span><span>4d cold</span></div></div></div>
+            <div class="tile"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">IGA Portfolio</div><div class="tile-sub">Jasper IN / Olney IL · $4.75M</div></div><div class="tile-meta"><span class="tile-stage">LOI</span><span>Houchens</span></div></div></div>
+            <div class="tile"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Magna Electronics</div><div class="tile-sub">Southfield MI · $41.5M · 8.37%</div></div><div class="tile-meta"><span class="tile-stage">LOI v3</span><span>2h ago</span></div></div></div>
+            <div class="tile warn"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">FL Retail Portfolio</div><div class="tile-sub">Skylark · Palatka · Lake Wales</div></div><div class="tile-meta"><span class="tile-stage">Note</span><span>Turchi</span></div></div></div>
+            <div class="tile fail"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">500 W Monroe</div><div class="tile-sub">Chicago NPL · $270M</div></div><div class="tile-meta"><span class="tile-stage">Blocked</span><span>escrow</span></div></div></div>
+          </div>
+        </div>
+
+        <div class="tiles-section">
+          <div class="section-head">Coldest investors <span class="count">6</span></div>
+          <div class="tile-grid">
+            <div class="tile investor"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Doron Sagiv</div><div class="tile-sub">Gyro Capital · founder</div></div><div class="tile-meta"><span>last reply 12d</span><span>★ open</span></div></div></div>
+            <div class="tile investor"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Daniel Schuchalter</div><div class="tile-sub">Gyro · ex-Goldman CFO</div></div><div class="tile-meta"><span>last reply 9d</span><span>★ open</span></div></div></div>
+            <div class="tile investor"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Yaron Sitbon</div><div class="tile-sub">BDO · Israel Division</div></div><div class="tile-meta"><span>last reply 6d</span><span>★ open</span></div></div></div>
+            <div class="tile investor"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Amir Shenkman</div><div class="tile-sub">Gyro Capital</div></div><div class="tile-meta"><span>last reply 5d</span><span>★ open</span></div></div></div>
+            <div class="tile investor"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Bruce Smoler</div><div class="tile-sub">Escrow attorney · angel</div></div><div class="tile-meta"><span>active today</span><span>★ open</span></div></div></div>
+            <div class="tile investor"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Neil Bane</div><div class="tile-sub">Bane Realty Capital</div></div><div class="tile-meta"><span>last reply 3d</span><span>★ open</span></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 2 — Briefing rail (cream) -->
+      <div class="col">
+        <aside class="rail">
+          <div>
+            <h3>Briefing</h3>
+            <div class="rail-block">
+              <p>Three meetings today. Watermills closing call at 9:30 with Bryan and Service FCU — they want a 9.25 floor. Bay Valley is cold for four days and Ashley sublease language still needs Bruce. Magna LOI v3 sits with Steven; only the bracket on the cap is open. Doron has not replied since Sunday — Gyro markup was promised tonight. Skylark small second note moved to Tuesday. Mushka is on her way to the Kubota.</p>
+              <button class="listen">▶ Listen</button>
+            </div>
+          </div>
+          <div>
+            <h3>Recommended next step</h3>
+            <div class="rail-block recommend">
+              <p><b>Call Doron now.</b> Two minutes on WhatsApp keeps Gyro markup on the rails for tonight. Otherwise Wednesday call slips and Daniel will not have language to mark.</p>
+              <button class="listen">▶ Listen</button>
+            </div>
+          </div>
+          <div>
+            <h3>Suggested focus</h3>
+            <div class="rail-block">
+              <p>Free gap 10:00 to 11:00. Use it for the <b>Watermills closing checklist</b>. Only P1 in your bucket today.</p>
+              <button class="listen">▶ Listen</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Column 3 — Crew + Bucket -->
+      <div class="col">
+        <div class="crew-block">
+          <h3>Crew on duty</h3>
+          <div class="crew-list">
+            <div class="crew-row"><div class="crew-avatar">CA</div><div><div class="crew-name">Chaim Abrahams</div><div class="crew-role">Co-founder · ops + relationships</div></div></div>
+            <div class="crew-row"><div class="crew-avatar">SP</div><div><div class="crew-name">Steven Philipp</div><div class="crew-role">AI / email automation</div></div></div>
+            <div class="crew-row"><div class="crew-avatar">AY</div><div><div class="crew-name">Adir Yonasi</div><div class="crew-role">VP investor relations</div></div></div>
+            <div class="crew-row"><div class="crew-avatar">BS</div><div><div class="crew-name">Bruce Smoler</div><div class="crew-role">Escrow attorney</div></div></div>
+            <div class="crew-row"><div class="crew-avatar">AM</div><div><div class="crew-name">Amelia McMurray</div><div class="crew-role">Executive assistant</div></div></div>
+            <div class="crew-row"><div class="crew-avatar">SB</div><div><div class="crew-name">Shirel Ben-Haroush</div><div class="crew-role">SVP & partner</div></div></div>
+          </div>
+        </div>
+        <div class="bucket-block">
+          <h3>Today's bucket</h3>
+          <div class="bucket-list">
+            <div class="bucket-row"><span class="pri p1">P1</span><span>Watermills closing checklist — sign off on FCU 9.25 floor</span></div>
+            <div class="bucket-row"><span class="pri p1">P1</span><span>Call Doron — Gyro markup tonight</span></div>
+            <div class="bucket-row"><span class="pri p2">P2</span><span>Bay Valley retrade — push Bruce on Ashley sublease</span></div>
+            <div class="bucket-row"><span class="pri p2">P2</span><span>Magna LOI v3 — close last bracket with Steven</span></div>
+            <div class="bucket-row"><span class="pri p2">P2</span><span>500 W Monroe — escrow language adjusted, send to Chicago</span></div>
+            <div class="bucket-row"><span class="pri p3">P3</span><span>IGA Portfolio — Houchens guarantee draft</span></div>
+            <div class="bucket-row"><span class="pri p3">P3</span><span>Rochelle Commons — Bealls LOI confirmation</span></div>
+            <div class="bucket-row"><span class="pri p3">P3</span><span>Mushka — Kubota delivery confirmation</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 4 — Inbox -->
+      <div class="col">
+        <div class="inbox-block">
+          <h3>Inbox · top 6</h3>
+          <div class="inbox-list">
+            <div class="inbox-row investor"><div class="inbox-name">★ Doron Sagiv</div><div class="inbox-msg">Re: Gyro RePrime GP — markup tonight, will call you back after Mincha</div><div class="inbox-time">9 min ago · Investor</div></div>
+            <div class="inbox-row t305"><div class="inbox-name">Bryan Morjain</div><div class="inbox-msg">Service FCU wants 9.25 floor — call when free, before 11</div><div class="inbox-time">22 min ago · 305</div></div>
+            <div class="inbox-row imsg"><div class="inbox-name">Yosef Yitzchok</div><div class="inbox-msg">Hi Abba — can you call after dinner? Class question</div><div class="inbox-time">38 min ago · iMessage</div></div>
+            <div class="inbox-row t718"><div class="inbox-name">Shely</div><div class="inbox-msg">Mushka asking when you land — Safta wants pictures</div><div class="inbox-time">1h ago · 718</div></div>
+            <div class="inbox-row investor"><div class="inbox-name">★ Yaron Sitbon</div><div class="inbox-msg">Bituach for Israel division ready for review, sending PDF</div><div class="inbox-time">2h ago · Investor</div></div>
+            <div class="inbox-row t305"><div class="inbox-name">Bruce Smoler</div><div class="inbox-msg">500 W Monroe escrow language adjusted, version 4 attached</div><div class="inbox-time">3h ago · 305</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Voice transcript line -->
+    <div class="voice-line">
+      <div class="voice-mic live">🎙</div>
+      <div class="voice-text">"Pull up Bay Valley last week and tell me where Bruce left the Ashley sublease language…"</div>
+      <span class="voice-tag">Live</span>
+    </div>
+
+    <!-- WhatsApp dock -->
+    <div class="dock">
+      <div class="panel t305">
+        <div class="panel-bar"></div>
+        <div class="panel-head"><div class="panel-title">305 · RePrime</div><div class="panel-unread" style="background: var(--c-channel-305); color: var(--navy);">5</div></div>
+        <div class="panel-body">
+          <div class="thread"><div class="name">Bryan Morjain</div><div class="msg">Service FCU wants 9.25 floor — call when free</div></div>
+          <div class="thread"><div class="name">Steven Philipp</div><div class="msg">Magna LOI v3 ready, last bracket flagged</div></div>
+          <div class="thread"><div class="name">Bruce Smoler</div><div class="msg">500 W Monroe escrow language adjusted</div></div>
+        </div>
+      </div>
+      <div class="panel t718 cream-body">
+        <div class="panel-bar"></div>
+        <div class="panel-head"><div class="panel-title">718 · Personal</div><div class="panel-unread" style="background: var(--c-channel-718);">2</div></div>
+        <div class="panel-body">
+          <div class="thread"><div class="name">Shely</div><div class="msg">Mushka asking when you land</div></div>
+          <div class="thread"><div class="name">Chaim</div><div class="msg">Tefillin still at office?</div></div>
+        </div>
+      </div>
+      <div class="panel imsg">
+        <div class="panel-bar"></div>
+        <div class="panel-head"><div class="panel-title">iMessage</div><div class="panel-unread" style="background: var(--c-channel-imsg);">1</div></div>
+        <div class="panel-body">
+          <div class="thread"><div class="name">Yosef Yitzchok</div><div class="msg">Hi Abba — can you call after dinner?</div></div>
+        </div>
+      </div>
+      <div class="panel investor">
+        <div class="panel-bar"></div>
+        <div class="panel-head"><div class="panel-title">★ Investors</div><div class="panel-unread" style="background: var(--c-investor); color: var(--navy);">4</div></div>
+        <div class="panel-body">
+          <div class="thread"><div class="name">Doron Sagiv</div><div class="msg">Re: Gyro RePrime GP — markup tonight</div></div>
+          <div class="thread"><div class="name">Yaron Sitbon</div><div class="msg">Bituach for Israel division ready</div></div>
+          <div class="thread"><div class="name">Daniel Schuchalter</div><div class="msg">Confirmed for Wednesday call</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="font-tag" id="left-tag">Poppins</div>
+</div>
+
+<!-- ───────────────── RIGHT HALF ───────────────── -->
+<div class="half half-right">
+  <div class="half-label" id="right-label">RIGHT — Lexend</div>
+  <div class="kiosk">
+
+    <div class="hud">
+      <div class="hud-section legend">
+        <div class="legend-row">
+          <span class="swatch"><i style="background: var(--c-channel-305);"></i>305</span>
+          <span class="swatch"><i style="background: var(--c-channel-718);"></i>718</span>
+          <span class="swatch"><i style="background: var(--c-channel-imsg);"></i>iMsg</span>
+        </div>
+        <div class="legend-row">
+          <span class="swatch"><i style="background: var(--c-investor);"></i>Inv</span>
+          <span class="swatch"><i style="background: var(--c-live-now);"></i>Live</span>
+          <span class="swatch"><i style="background: var(--c-warn);"></i>Warn</span>
+          <span class="swatch"><i style="background: var(--c-fail);"></i>Fail</span>
+        </div>
+      </div>
+      <div class="hud-section kpi-row">
+        <div class="kpi live"><div class="v">3</div><div class="l">Meetings</div></div>
+        <div class="kpi"><div class="v">4</div><div class="l">Investors</div></div>
+        <div class="kpi warn"><div class="v">12</div><div class="l">Unread</div></div>
+        <div class="kpi fail"><div class="v">2</div><div class="l">Expiring</div></div>
+      </div>
+      <div class="hud-section actions">
+        <button class="action"><span class="icon">📰</span>Brief</button>
+        <button class="action"><span class="icon">❄</span>Cadence</button>
+        <button class="action"><span class="icon">📋</span>Sec.</button>
+        <button class="action"><span class="icon">＋</span>Deal</button>
+        <button class="action"><span class="icon">📝</span>Note</button>
+        <button class="action"><span class="icon">⚙</span>Set</button>
+      </div>
+      <div class="identity">
+        <span class="wordmark">TERMINAL</span><span class="wordmark-by">by RePrime</span>
+        <span class="health"></span>
+        <span class="name">Gideon</span>
+        <button class="gear">⚙</button>
+      </div>
+    </div>
+
+    <div class="canvas">
+
+      <!-- Column 1 — Tiles + Briefing -->
+      <div class="col">
+        <div class="tiles-section">
+          <div class="section-head">Active deals <span class="count">6</span></div>
+          <div class="tile-grid">
+            <div class="tile"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Watermills</div><div class="tile-sub">$35M Boston note · Service FCU</div></div><div class="tile-meta"><span class="tile-stage">Closing</span><span>2h to call</span></div></div></div>
+            <div class="tile warn"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Bay Valley</div><div class="tile-sub">Saginaw MI · retrade · Ashley</div></div><div class="tile-meta"><span class="tile-stage">Retrade</span><span>4d cold</span></div></div></div>
+            <div class="tile"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">IGA Portfolio</div><div class="tile-sub">Jasper IN / Olney IL · $4.75M</div></div><div class="tile-meta"><span class="tile-stage">LOI</span><span>Houchens</span></div></div></div>
+            <div class="tile"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Magna Electronics</div><div class="tile-sub">Southfield MI · $41.5M · 8.37%</div></div><div class="tile-meta"><span class="tile-stage">LOI v3</span><span>2h ago</span></div></div></div>
+            <div class="tile warn"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">FL Retail Portfolio</div><div class="tile-sub">Skylark · Palatka · Lake Wales</div></div><div class="tile-meta"><span class="tile-stage">Note</span><span>Turchi</span></div></div></div>
+            <div class="tile fail"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">500 W Monroe</div><div class="tile-sub">Chicago NPL · $270M</div></div><div class="tile-meta"><span class="tile-stage">Blocked</span><span>escrow</span></div></div></div>
+          </div>
+        </div>
+
+        <div class="tiles-section">
+          <div class="section-head">Coldest investors <span class="count">6</span></div>
+          <div class="tile-grid">
+            <div class="tile investor"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Doron Sagiv</div><div class="tile-sub">Gyro Capital · founder</div></div><div class="tile-meta"><span>last reply 12d</span><span>★ open</span></div></div></div>
+            <div class="tile investor"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Daniel Schuchalter</div><div class="tile-sub">Gyro · ex-Goldman CFO</div></div><div class="tile-meta"><span>last reply 9d</span><span>★ open</span></div></div></div>
+            <div class="tile investor"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Yaron Sitbon</div><div class="tile-sub">BDO · Israel Division</div></div><div class="tile-meta"><span>last reply 6d</span><span>★ open</span></div></div></div>
+            <div class="tile investor"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Amir Shenkman</div><div class="tile-sub">Gyro Capital</div></div><div class="tile-meta"><span>last reply 5d</span><span>★ open</span></div></div></div>
+            <div class="tile investor"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Bruce Smoler</div><div class="tile-sub">Escrow attorney · angel</div></div><div class="tile-meta"><span>active today</span><span>★ open</span></div></div></div>
+            <div class="tile investor"><div class="tile-bar"></div><div class="tile-body"><div><div class="tile-name">Neil Bane</div><div class="tile-sub">Bane Realty Capital</div></div><div class="tile-meta"><span>last reply 3d</span><span>★ open</span></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 2 — Briefing rail (cream) -->
+      <div class="col">
+        <aside class="rail">
+          <div>
+            <h3>Briefing</h3>
+            <div class="rail-block">
+              <p>Three meetings today. Watermills closing call at 9:30 with Bryan and Service FCU — they want a 9.25 floor. Bay Valley is cold for four days and Ashley sublease language still needs Bruce. Magna LOI v3 sits with Steven; only the bracket on the cap is open. Doron has not replied since Sunday — Gyro markup was promised tonight. Skylark small second note moved to Tuesday. Mushka is on her way to the Kubota.</p>
+              <button class="listen">▶ Listen</button>
+            </div>
+          </div>
+          <div>
+            <h3>Recommended next step</h3>
+            <div class="rail-block recommend">
+              <p><b>Call Doron now.</b> Two minutes on WhatsApp keeps Gyro markup on the rails for tonight. Otherwise Wednesday call slips and Daniel will not have language to mark.</p>
+              <button class="listen">▶ Listen</button>
+            </div>
+          </div>
+          <div>
+            <h3>Suggested focus</h3>
+            <div class="rail-block">
+              <p>Free gap 10:00 to 11:00. Use it for the <b>Watermills closing checklist</b>. Only P1 in your bucket today.</p>
+              <button class="listen">▶ Listen</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Column 3 — Crew + Bucket -->
+      <div class="col">
+        <div class="crew-block">
+          <h3>Crew on duty</h3>
+          <div class="crew-list">
+            <div class="crew-row"><div class="crew-avatar">CA</div><div><div class="crew-name">Chaim Abrahams</div><div class="crew-role">Co-founder · ops + relationships</div></div></div>
+            <div class="crew-row"><div class="crew-avatar">SP</div><div><div class="crew-name">Steven Philipp</div><div class="crew-role">AI / email automation</div></div></div>
+            <div class="crew-row"><div class="crew-avatar">AY</div><div><div class="crew-name">Adir Yonasi</div><div class="crew-role">VP investor relations</div></div></div>
+            <div class="crew-row"><div class="crew-avatar">BS</div><div><div class="crew-name">Bruce Smoler</div><div class="crew-role">Escrow attorney</div></div></div>
+            <div class="crew-row"><div class="crew-avatar">AM</div><div><div class="crew-name">Amelia McMurray</div><div class="crew-role">Executive assistant</div></div></div>
+            <div class="crew-row"><div class="crew-avatar">SB</div><div><div class="crew-name">Shirel Ben-Haroush</div><div class="crew-role">SVP & partner</div></div></div>
+          </div>
+        </div>
+        <div class="bucket-block">
+          <h3>Today's bucket</h3>
+          <div class="bucket-list">
+            <div class="bucket-row"><span class="pri p1">P1</span><span>Watermills closing checklist — sign off on FCU 9.25 floor</span></div>
+            <div class="bucket-row"><span class="pri p1">P1</span><span>Call Doron — Gyro markup tonight</span></div>
+            <div class="bucket-row"><span class="pri p2">P2</span><span>Bay Valley retrade — push Bruce on Ashley sublease</span></div>
+            <div class="bucket-row"><span class="pri p2">P2</span><span>Magna LOI v3 — close last bracket with Steven</span></div>
+            <div class="bucket-row"><span class="pri p2">P2</span><span>500 W Monroe — escrow language adjusted, send to Chicago</span></div>
+            <div class="bucket-row"><span class="pri p3">P3</span><span>IGA Portfolio — Houchens guarantee draft</span></div>
+            <div class="bucket-row"><span class="pri p3">P3</span><span>Rochelle Commons — Bealls LOI confirmation</span></div>
+            <div class="bucket-row"><span class="pri p3">P3</span><span>Mushka — Kubota delivery confirmation</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 4 — Inbox -->
+      <div class="col">
+        <div class="inbox-block">
+          <h3>Inbox · top 6</h3>
+          <div class="inbox-list">
+            <div class="inbox-row investor"><div class="inbox-name">★ Doron Sagiv</div><div class="inbox-msg">Re: Gyro RePrime GP — markup tonight, will call you back after Mincha</div><div class="inbox-time">9 min ago · Investor</div></div>
+            <div class="inbox-row t305"><div class="inbox-name">Bryan Morjain</div><div class="inbox-msg">Service FCU wants 9.25 floor — call when free, before 11</div><div class="inbox-time">22 min ago · 305</div></div>
+            <div class="inbox-row imsg"><div class="inbox-name">Yosef Yitzchok</div><div class="inbox-msg">Hi Abba — can you call after dinner? Class question</div><div class="inbox-time">38 min ago · iMessage</div></div>
+            <div class="inbox-row t718"><div class="inbox-name">Shely</div><div class="inbox-msg">Mushka asking when you land — Safta wants pictures</div><div class="inbox-time">1h ago · 718</div></div>
+            <div class="inbox-row investor"><div class="inbox-name">★ Yaron Sitbon</div><div class="inbox-msg">Bituach for Israel division ready for review, sending PDF</div><div class="inbox-time">2h ago · Investor</div></div>
+            <div class="inbox-row t305"><div class="inbox-name">Bruce Smoler</div><div class="inbox-msg">500 W Monroe escrow language adjusted, version 4 attached</div><div class="inbox-time">3h ago · 305</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="voice-line">
+      <div class="voice-mic live">🎙</div>
+      <div class="voice-text">"Pull up Bay Valley last week and tell me where Bruce left the Ashley sublease language…"</div>
+      <span class="voice-tag">Live</span>
+    </div>
+
+    <div class="dock">
+      <div class="panel t305">
+        <div class="panel-bar"></div>
+        <div class="panel-head"><div class="panel-title">305 · RePrime</div><div class="panel-unread" style="background: var(--c-channel-305); color: var(--navy);">5</div></div>
+        <div class="panel-body">
+          <div class="thread"><div class="name">Bryan Morjain</div><div class="msg">Service FCU wants 9.25 floor — call when free</div></div>
+          <div class="thread"><div class="name">Steven Philipp</div><div class="msg">Magna LOI v3 ready, last bracket flagged</div></div>
+          <div class="thread"><div class="name">Bruce Smoler</div><div class="msg">500 W Monroe escrow language adjusted</div></div>
+        </div>
+      </div>
+      <div class="panel t718 cream-body">
+        <div class="panel-bar"></div>
+        <div class="panel-head"><div class="panel-title">718 · Personal</div><div class="panel-unread" style="background: var(--c-channel-718);">2</div></div>
+        <div class="panel-body">
+          <div class="thread"><div class="name">Shely</div><div class="msg">Mushka asking when you land</div></div>
+          <div class="thread"><div class="name">Chaim</div><div class="msg">Tefillin still at office?</div></div>
+        </div>
+      </div>
+      <div class="panel imsg">
+        <div class="panel-bar"></div>
+        <div class="panel-head"><div class="panel-title">iMessage</div><div class="panel-unread" style="background: var(--c-channel-imsg);">1</div></div>
+        <div class="panel-body">
+          <div class="thread"><div class="name">Yosef Yitzchok</div><div class="msg">Hi Abba — can you call after dinner?</div></div>
+        </div>
+      </div>
+      <div class="panel investor">
+        <div class="panel-bar"></div>
+        <div class="panel-head"><div class="panel-title">★ Investors</div><div class="panel-unread" style="background: var(--c-investor); color: var(--navy);">4</div></div>
+        <div class="panel-body">
+          <div class="thread"><div class="name">Doron Sagiv</div><div class="msg">Re: Gyro RePrime GP — markup tonight</div></div>
+          <div class="thread"><div class="name">Yaron Sitbon</div><div class="msg">Bituach for Israel division ready</div></div>
+          <div class="thread"><div class="name">Daniel Schuchalter</div><div class="msg">Confirmed for Wednesday call</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="font-tag" id="right-tag">Lexend</div>
+</div>
+
+</div>
+
+<script>
+  (function(){
+    const FONT_STACKS = {
+      'Poppins':      "'Poppins', system-ui, sans-serif",
+      'Lexend':       "'Lexend', system-ui, sans-serif",
+      'OpenDyslexic': "'OpenDyslexic', 'Open Dyslexic', 'Comic Sans MS', system-ui, sans-serif"
+    };
+
+    const state = { left: 'Poppins', right: 'Lexend' };
+
+    const root = document.documentElement;
+    const leftLabel  = document.getElementById('left-label');
+    const rightLabel = document.getElementById('right-label');
+    const leftTag    = document.getElementById('left-tag');
+    const rightTag   = document.getElementById('right-tag');
+    const pairStatus = document.getElementById('pair-status');
+
+    function applyFonts() {
+      root.style.setProperty('--font-left',  FONT_STACKS[state.left]);
+      root.style.setProperty('--font-right', FONT_STACKS[state.right]);
+      leftLabel.textContent  = 'LEFT — ' + state.left;
+      rightLabel.textContent = 'RIGHT — ' + state.right;
+      leftTag.textContent  = state.left;
+      rightTag.textContent = state.right;
+      pairStatus.textContent = state.left + '  ⇄  ' + state.right;
+      // Sync active button states
+      document.querySelectorAll('.fbtn').forEach(btn => {
+        const side = btn.dataset.side;
+        const font = btn.dataset.font;
+        if (side === 'both') {
+          // "both" buttons are momentary — never persistently active
+          btn.classList.remove('active');
+        } else {
+          btn.classList.toggle('active', state[side] === font);
+        }
+      });
+    }
+
+    document.querySelectorAll('.fbtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const side = btn.dataset.side;
+        const font = btn.dataset.font;
+        if (side === 'both') {
+          state.left = font;
+          state.right = font;
+        } else {
+          state[side] = font;
+        }
+        applyFonts();
+      });
+    });
+
+    applyFonts();
+  })();
+</script>
+
+</body>
+</html>
