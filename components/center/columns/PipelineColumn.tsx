@@ -4,6 +4,10 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import MeetingNowBanner from '@/components/sidebar/MeetingNowBanner'
 import SpeakerButton from '@/components/chat/SpeakerButton'
+import {
+  SuggestedFocusMiniCard,
+  type SuggestedFocusItem,
+} from '@/components/center/SuggestedFocus'
 
 const REFETCH_MS = 60_000
 
@@ -73,6 +77,7 @@ interface BriefingPayload {
   pending_followups: unknown[]
   active_deals?: ActiveDeal[]
   tenant_filings_today?: TenantFiling[]
+  suggested_focus?: SuggestedFocusItem[]
 }
 
 interface CalendarEvent {
@@ -280,6 +285,7 @@ export default function PipelineColumn() {
     }
     return counts
   }, [tenantFilings])
+  const suggestedFocus = briefing.data?.suggested_focus ?? []
 
   return (
     <div
@@ -296,6 +302,10 @@ export default function PipelineColumn() {
       <div data-section="now">
         <MeetingNowBanner />
       </div>
+
+      {/* 1b. Suggested focus — sits above Today so a free gap suggestion is
+          the first thing visible after the Now banner. */}
+      <SuggestedFocusMiniCard items={suggestedFocus} />
 
       {/* 2. Today's calendar — vertical list */}
       <section style={sectionStyle} data-section="today">

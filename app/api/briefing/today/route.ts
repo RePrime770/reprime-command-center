@@ -8,6 +8,12 @@ import {
   pipedriveDealUrl,
   type PipedriveDeal,
 } from '@/lib/pipedrive/client'
+import {
+  computeSuggestedFocus,
+  type CalendarBlock,
+  type BucketCandidate,
+  type SuggestedFocus,
+} from '@/lib/center/soft-schedule'
 
 export const dynamic = 'force-dynamic'
 
@@ -98,6 +104,7 @@ interface BriefingMeeting {
   id: string
   title: string
   startTime: string
+  endTime: string
   zoomLink: string | null
 }
 
@@ -147,6 +154,7 @@ interface BriefingResponse {
   pending_followups: BriefingThread[]
   active_deals: ActiveDeal[]
   tenant_filings_today: TenantFiling[]
+  suggested_focus: SuggestedFocus[]
 }
 
 /**
@@ -224,6 +232,7 @@ export async function GET() {
         id: e.id,
         title: e.title,
         startTime: e.startTime,
+        endTime: e.endTime,
         zoomLink: e.zoomLink,
       }))
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
@@ -321,6 +330,28 @@ export async function GET() {
     console.error('[briefing] tenant_filings_today failed', err)
   }
 
+  // 8. Suggested focus: pair top open bucket items with free calendar gaps
+  // ≥ 90 min between now and 18:00 CT. Skip on Shabbat. Pure-function lib;
+  // see lib/center/soft-schedule.ts.
+  let suggestedFocus: SuggestedFocus[] = []
+  try {
+    const { data: bucketRows } = await svc
+      .from('bucket_items')
+      .select('id, title, priority, created_at')
+      .eq('status', 'open')
+      .order('priority', { ascending: true })
+      .order('created_at', { ascending: true })
+      .limit(3)
+    const candidates: BucketCandidate[] = ((bucketRows ?? []) as Array<{ id: string; title: string; priority: number }>)
+      .map((r) => ({ id: r.id, title: r.title, priority: r.priority }))
+    const blocks: CalendarBlock[] = meetings
+      .filter((m) => Boolean(m.endTime))
+      .map((m) => ({ startTime: m.startTime, endTime: m.endTime }))
+    suggestedFocus = computeSuggestedFocus(blocks, candidates, new Date())
+  } catch (err) {
+    console.error('[briefing] suggested_focus failed', err)
+  }
+
   const payload: BriefingResponse = {
     date: dateStr,
     meetings: {
@@ -341,6 +372,7 @@ export async function GET() {
     pending_followups: pendingFollowups,
     active_deals: activeDeals,
     tenant_filings_today: tenantFilings,
+    suggested_focus: suggestedFocus,
   }
 
   return NextResponse.json(payload)
