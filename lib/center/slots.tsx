@@ -20,6 +20,7 @@ import BucketItemDetail from '@/components/center/BucketItemDetail'
 import InvestorCadenceWindow from '@/components/center/InvestorCadenceWindow'
 import InvestorProfileWindow from '@/components/center/InvestorProfileWindow'
 import SecretaryWindow from '@/components/center/windows/SecretaryWindow'
+import SettingsWindow from '@/components/center/SettingsWindow'
 
 import ReminderToast from '@/components/center/ReminderToast'
 import VoiceModalsHost from '@/components/center/VoiceModalsHost'
@@ -83,6 +84,7 @@ export const WINDOW_REGISTRY: ComponentRegistry = {
   ),
   secretary: () => <SecretaryWindow />,
   'investor-cadence': () => <InvestorCadenceWindow />,
+  settings: () => <SettingsWindow />,
 }
 
 export const FOOTER_OVERLAYS: ComponentType[] = [
