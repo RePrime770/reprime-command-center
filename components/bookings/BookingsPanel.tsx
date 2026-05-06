@@ -342,7 +342,7 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
       style={{
         background: NAVY_DEEP,
         color: TEXT,
-        fontFamily: 'Poppins, Arial, sans-serif',
+        fontFamily: 'var(--rp-font-body)',
         border: `1px solid ${BORDER}`,
         borderRadius: '8px',
         padding: '1.5rem 1.75rem',

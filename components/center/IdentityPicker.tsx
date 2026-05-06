@@ -200,7 +200,7 @@ export function IdentityPicker() {
       style={{
         position: 'relative',
         width: SLOT_WIDTH,
-        fontFamily: 'Poppins, Arial, sans-serif',
+        fontFamily: 'var(--rp-font-body)',
       }}
     >
       <button

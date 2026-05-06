@@ -24,6 +24,7 @@ import SettingsWindow from '@/components/center/SettingsWindow'
 
 import ReminderToast from '@/components/center/ReminderToast'
 import VoiceModalsHost from '@/components/center/VoiceModalsHost'
+import SettingsApplier from '@/components/center/SettingsApplier'
 
 /**
  * Mount points for the /center kiosk.
@@ -90,4 +91,5 @@ export const WINDOW_REGISTRY: ComponentRegistry = {
 export const FOOTER_OVERLAYS: ComponentType[] = [
   ReminderToast,
   VoiceModalsHost,
+  SettingsApplier,
 ]

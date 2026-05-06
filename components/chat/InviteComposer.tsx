@@ -110,7 +110,7 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
         alignItems: 'center',
         justifyContent: 'center',
         padding: '1rem',
-        fontFamily: 'Poppins, Arial, sans-serif',
+        fontFamily: 'var(--rp-font-body)',
       }}
     >
       <div

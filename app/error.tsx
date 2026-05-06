@@ -16,7 +16,7 @@ export default function Error({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontFamily: 'Poppins, Arial, sans-serif',
+        fontFamily: 'var(--rp-font-body)',
       }}
     >
       <div

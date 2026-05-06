@@ -86,7 +86,7 @@ export default function InvestorProfileBody({
         height: '100%',
         background: NAVY,
         overflowY: 'auto',
-        fontFamily: "'Poppins', sans-serif",
+        fontFamily: 'var(--rp-font-body)',
         color: TEXT,
         boxSizing: 'border-box',
       }}
@@ -124,7 +124,7 @@ export default function InvestorProfileBody({
                 textTransform: 'uppercase',
                 cursor: 'pointer',
                 padding: '6px 10px',
-                fontFamily: "'Poppins', sans-serif",
+                fontFamily: 'var(--rp-font-body)',
               }}
             >
               ↗ Open as window
@@ -311,7 +311,7 @@ export default function InvestorProfileBody({
               background: 'transparent',
               border: 'none',
               borderBottom: activeTab === t.key ? `2px solid ${GOLD}` : '2px solid transparent',
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: 'var(--rp-font-body)',
             }}
           >
             {t.label}
@@ -417,7 +417,7 @@ export default function InvestorProfileBody({
             </div>
             <div
               style={{
-                fontFamily: "'Poppins', sans-serif",
+                fontFamily: 'var(--rp-font-body)',
                 fontSize: 15,
                 lineHeight: 1.75,
                 fontWeight: 400,
@@ -470,7 +470,7 @@ export default function InvestorProfileBody({
             </div>
             <div
               style={{
-                fontFamily: "'Poppins', sans-serif",
+                fontFamily: 'var(--rp-font-body)',
                 fontSize: 21,
                 color: GOLD,
                 fontWeight: 700,
@@ -483,7 +483,7 @@ export default function InvestorProfileBody({
             </div>
             <div
               style={{
-                fontFamily: "'Poppins', sans-serif",
+                fontFamily: 'var(--rp-font-body)',
                 fontSize: 14,
                 color: '#e8e8e8',
                 lineHeight: 1.75,
@@ -518,7 +518,7 @@ export default function InvestorProfileBody({
                         ? `0.5px solid ${GOLD}`
                         : `0.5px solid ${gold[45]}`,
                       padding: '11px 18px',
-                      fontFamily: "'Poppins', sans-serif",
+                      fontFamily: 'var(--rp-font-body)',
                       fontSize: 12,
                       fontWeight: isPrimary ? 700 : 600,
                       letterSpacing: '0.10em',
@@ -643,7 +643,7 @@ export default function InvestorProfileBody({
                     cursor: 'pointer',
                     letterSpacing: '0.08em',
                     textTransform: 'uppercase',
-                    fontFamily: "'Poppins', sans-serif",
+                    fontFamily: 'var(--rp-font-body)',
                   }}
                 >
                   Remind
@@ -658,7 +658,7 @@ export default function InvestorProfileBody({
                     cursor: 'pointer',
                     letterSpacing: '0.08em',
                     textTransform: 'uppercase',
-                    fontFamily: "'Poppins', sans-serif",
+                    fontFamily: 'var(--rp-font-body)',
                   }}
                 >
                   Mark done
@@ -674,7 +674,7 @@ export default function InvestorProfileBody({
               color: GOLD,
               border: `0.5px dashed ${gold[45]}`,
               padding: '10px 14px',
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: 'var(--rp-font-body)',
               fontSize: 11,
               fontWeight: 600,
               letterSpacing: '0.10em',
@@ -718,7 +718,7 @@ export default function InvestorProfileBody({
                   border: `0.5px solid ${gold[45]}`,
                   color: GOLD,
                   padding: '12px 14px',
-                  fontFamily: "'Poppins', sans-serif",
+                  fontFamily: 'var(--rp-font-body)',
                   fontSize: 12,
                   fontWeight: 600,
                   letterSpacing: '0.10em',
@@ -739,7 +739,7 @@ export default function InvestorProfileBody({
               border: '0.5px solid rgba(255,107,107,0.4)',
               color: '#ff6b6b',
               padding: '12px 14px',
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: 'var(--rp-font-body)',
               fontSize: 12,
               fontWeight: 600,
               letterSpacing: '0.10em',
@@ -805,7 +805,7 @@ export default function InvestorProfileBody({
             border: '1px solid rgba(255, 204, 51, 0.25)',
             color: GOLD,
             padding: '12px 14px',
-            fontFamily: "'Poppins', sans-serif",
+            fontFamily: 'var(--rp-font-body)',
             fontSize: 13,
             lineHeight: 1.6,
             resize: 'vertical',
@@ -958,7 +958,7 @@ function HeaderActionButton({
         border: `0.5px solid ${gold[45]}`,
         color: GOLD,
         padding: '12px 14px',
-        fontFamily: "'Poppins', sans-serif",
+        fontFamily: 'var(--rp-font-body)',
         fontSize: 12,
         fontWeight: 600,
         letterSpacing: '0.10em',
@@ -1053,7 +1053,7 @@ function ScheduleReminderModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontFamily: "'Poppins', sans-serif",
+        fontFamily: 'var(--rp-font-body)',
       }}
     >
       <div
@@ -1228,7 +1228,7 @@ function Toast({ text, onDismiss }: { text: string; onDismiss: () => void }) {
         border: `1px solid ${GOLD}`,
         color: GOLD,
         padding: '14px 22px',
-        fontFamily: "'Poppins', sans-serif",
+        fontFamily: 'var(--rp-font-body)',
         fontSize: 13,
         fontWeight: 600,
         letterSpacing: '0.04em',

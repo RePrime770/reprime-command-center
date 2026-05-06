@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, initial-scale=1">
+<title>/center — BEFORE — current 4-column kiosk</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0E3470;
+    --gold: #FFCC33;
+    --c-channel-305: #F0B400;
+    --c-channel-718: #25D366;
+    --c-channel-imsg: #0A84FF;
+    --c-investor: #FFCC33;
+    --c-warn: #F59E0B;
+    --c-fail: #EF4444;
+    --c-live-now: #A855F7;
+    --rp-surface: rgba(14, 52, 112, 0.55);
+    --rp-border: rgba(255, 204, 51, 0.18);
+    --rp-white: #E9EDEF;
+    --rp-gold-lite: rgba(255, 204, 51, 0.65);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--navy);
+    color: var(--rp-white);
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .label { color: var(--gold); font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 8px; }
+  .strip { position: sticky; top: 0; height: 64px; background: rgba(14, 52, 112, 0.96); border-bottom: 1px solid rgba(255, 204, 51, 0.22); display: flex; align-items: center; padding: 0 16px; gap: 12px; }
+  .strip .legend { flex: 1; min-width: 0; opacity: 0.6; font-size: 11px; letter-spacing: 0.10em; text-transform: uppercase; }
+  .pill { background: rgba(255, 204, 51, 0.10); color: var(--gold); border: 1px solid rgba(255, 204, 51, 0.45); border-radius: 999px; padding: 6px 18px; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+  .pill.gear { width: 36px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+
+  .canvas { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 1px; background: rgba(255, 204, 51, 0.06); height: calc(100vh - 64px - 96px); }
+  .col { background: var(--rp-surface); border-top: 3px solid var(--gold); display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .col.inbox { border-top-color: var(--c-warn); }
+  .col.bucket { border-top-color: var(--c-live-now); }
+  .col.crew { border-top-color: var(--c-channel-718); }
+  .col header { background: rgba(14, 52, 112, 0.96); padding: 12px 16px; border-bottom: 1px solid rgba(255, 204, 51, 0.18); }
+  .col h2 { color: var(--gold); font-size: 13px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
+  .col .body { flex: 1; overflow-y: auto; padding: 12px 16px; }
+  .section { padding: 0.85rem 0; border-bottom: 1px solid var(--rp-border); }
+  .section:first-child { padding-top: 0; }
+  .card { background: var(--rp-surface); border: 1px solid var(--rp-border); border-radius: 6px; padding: 0.55rem 0.75rem; margin-bottom: 6px; font-size: 13px; }
+  .stat-row { display: flex; gap: 6px; margin-top: 8px; }
+  .stat { flex: 1; background: var(--rp-surface); border: 1px solid var(--gold); border-radius: 6px; padding: 0.5rem 0.6rem; text-align: center; }
+  .stat .v { font-size: 22px; font-weight: 700; color: var(--gold); }
+  .stat .l { font-size: 10px; color: var(--rp-gold-lite); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+  .stat.live { border-color: var(--c-live-now); }
+  .stat.live .v { color: var(--c-live-now); }
+  .stat.inv { border-color: var(--c-investor); }
+  .stat.inv .v { color: var(--c-investor); }
+  .stat.warn { border-color: var(--c-warn); }
+  .stat.warn .v { color: var(--c-warn); }
+  .stat.fail { border-color: var(--c-fail); }
+  .stat.fail .v { color: var(--c-fail); }
+
+  .footer { position: sticky; bottom: 0; height: 96px; background: rgba(14, 52, 112, 0.96); border-top: 1px solid rgba(255, 204, 51, 0.22); display: flex; align-items: center; justify-content: center; }
+  .voice-shell { display: flex; align-items: center; gap: 16px; opacity: 0.6; }
+  .voice-shell .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--gold); }
+  .voice-shell .text { color: var(--gold); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+  .root { display: flex; flex-direction: column; height: 100vh; }
+
+  .badge { background: var(--c-investor); color: var(--navy); border-radius: 999px; padding: 1px 8px; font-size: 11px; font-weight: 700; margin-left: 6px; }
+
+  .hint { background: rgba(0,0,0,0.55); color: #fff; font-size: 12px; letter-spacing: 0.06em; padding: 4px 10px; border: 1px solid rgba(255, 204, 51, 0.45); position: fixed; top: 12px; right: 12px; z-index: 99; }
+</style>
+</head>
+<body>
+<div class="root">
+  <div class="hint">BEFORE — current /center — 4 equal text columns</div>
+  <div class="strip">
+    <div class="legend">Legend: 305 amber · 718 green · iMessage blue · investor gold · warn amber · fail red</div>
+    <button class="pill">Briefing</button>
+    <button class="pill">Secretary</button>
+    <button class="pill">Cadence <span class="badge">3 cold</span></button>
+    <button class="pill gear">⚙</button>
+  </div>
+
+  <div class="canvas">
+    <!-- Pipeline -->
+    <section class="col">
+      <header><h2>Pipeline</h2></header>
+      <div class="body">
+        <div class="section">
+          <div class="label">Today</div>
+          <div class="card"><b>9:30 AM</b> · Bay Valley investor sync</div>
+          <div class="card"><b>11:00 AM</b> · Bryan Morjain — Watermills</div>
+          <div class="card"><b>2:00 PM</b> · Druk Group call</div>
+        </div>
+        <div class="section">
+          <div class="label">Briefing</div>
+          <p>3 meetings today. Next up: Bay Valley investor sync at 9:30 AM. 4 unread from investors. 2 invitations expiring soon.</p>
+          <div class="stat-row">
+            <div class="stat live"><div class="v">3</div><div class="l">Meetings</div></div>
+            <div class="stat inv"><div class="v">4</div><div class="l">Investors</div></div>
+            <div class="stat warn"><div class="v">12</div><div class="l">Unread</div></div>
+            <div class="stat fail"><div class="v">2</div><div class="l">Expiring</div></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="label">Active Deals</div>
+          <div class="card"><b>Watermills Apartments</b> · $35M</div>
+          <div class="card"><b>Bay Valley Shopping</b> · $12.4M</div>
+          <div class="card"><b>IGA Portfolio</b> · $4.75M</div>
+          <div class="card"><b>Magna Electronics</b> · $41.5M</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Inbox -->
+    <section class="col inbox">
+      <header><h2>Inbox <span class="badge" style="background: var(--c-warn);">7</span></h2></header>
+      <div class="body">
+        <div class="card"><b>Doron Sagiv</b><br>Re: Gyro RePrime GP — sending markup tonight</div>
+        <div class="card"><b>Bryan Morjain</b><br>Service FCU note — they want a 9.25 floor</div>
+        <div class="card"><b>Ray Turchi</b><br>Skylark Plaza — 2nd note still open</div>
+        <div class="card"><b>Steven Philipp</b><br>Magna LOI v3 ready</div>
+        <div class="card"><b>Bruce Smoler</b><br>500 W Monroe escrow language</div>
+      </div>
+    </section>
+
+    <!-- Bucket -->
+    <section class="col bucket">
+      <header><h2>Bucket <span class="badge">5</span></h2></header>
+      <div class="body">
+        <div class="card"><b>P1 — Now</b> · Watermills closing checklist · due in 2h</div>
+        <div class="card"><b>P2 — High</b> · Bay Valley retrade memo · due tomorrow</div>
+        <div class="card"><b>P3 — Normal</b> · IGA Houchens guarantee call</div>
+        <div class="card"><b>P3 — Normal</b> · Freeport tax bill follow-up</div>
+        <div class="card"><b>P4 — Later</b> · Magna survey order</div>
+      </div>
+    </section>
+
+    <!-- Crew -->
+    <section class="col crew">
+      <header><h2>Crew</h2></header>
+      <div class="body">
+        <div class="card"><b>Chaim Abrahams</b><br>Co-Founder · last sync 1h ago</div>
+        <div class="card"><b>Steven Philipp</b><br>AI/Email · drafting Magna LOI</div>
+        <div class="card"><b>Adir Yonasi</b><br>VP IR · investor side</div>
+        <div class="card"><b>Bruce Smoler</b><br>Escrow attorney</div>
+        <div class="card"><b>Mushka Gratsiani</b><br>Head of AI Research</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="footer">
+    <div class="voice-shell">
+      <span class="dot"></span>
+      <span class="text">Voice shell — minimal footer dot</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

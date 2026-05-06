@@ -144,6 +144,15 @@ const TARGETS: Record<string, TargetResolver> = {
     defaultWidth: 720,
     defaultHeight: 640,
   }),
+  // Deal folder — opened from /center/v2 DealTile clicks. Renders the
+  // DealFolderWindow component (registered in app/center/v2/page.tsx so v1
+  // doesn't pick it up automatically).
+  'deal-folder': (o) => ({
+    title: o.title ?? 'Deal',
+    kind: { type: 'component', key: 'deal-folder', props: o.componentProps },
+    defaultWidth: 880,
+    defaultHeight: 700,
+  }),
 }
 
 const INITIAL: StoreSnapshot = {

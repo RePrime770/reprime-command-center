@@ -23,7 +23,7 @@ export default function GlobalError({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontFamily: 'Poppins, Arial, sans-serif',
+          fontFamily: 'var(--rp-font-body)',
         }}
       >
         <div style={{ textAlign: 'center', padding: '2rem' }}>

@@ -1,9 +1,20 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+/* Body font is loaded via next/font in app/layout.tsx (Lexend) — no @import
+   needed. Poppins remains in the body fallback stack for graceful degradation
+   on legacy embeds. Terminal-recipient pages keep their locked Playfair design
+   and load their own font where they live. */
 
 :root {
   /* RePrime brand — Imperial Gold migration (May 3, 2026).
      One gold #FFCC33, one navy #0E3470. Hierarchy via opacity, never via new hex.
      JS source of truth: lib/design-tokens.ts                                  */
+
+  /* Typography — Lexend body font, dyslexia-optimized.
+     Source of truth: lib/design-tokens.ts (typography.body / typography.fontStack).
+     Lexend is loaded via next/font in app/layout.tsx and exposed as
+     --font-lexend; --rp-font-body wires it into global body CSS with a
+     Poppins-and-system fallback chain. */
+  --rp-font-body: var(--font-lexend), 'Lexend', 'Poppins', system-ui,
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
 
   --rp-navy: #0E3470;
   --rp-gold: #FFCC33;                              /* Imperial Gold */
@@ -57,7 +68,7 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; }
-body { font-family: 'Poppins', Arial, sans-serif; }
+body { font-family: var(--rp-font-body); }
 [lang="he"], [dir="rtl"] { direction: rtl; }
 
 /* InvestorProfile — readable notes textarea (faint gold on navy) */
