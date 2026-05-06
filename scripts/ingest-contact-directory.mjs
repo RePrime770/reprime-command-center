@@ -16,6 +16,18 @@ import XLSX from 'xlsx'
 import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
 
+// Auto-load .env.local from worktree root
+try {
+  const envText = readFileSync(new URL('../.env.local', import.meta.url), 'utf8')
+  for (const line of envText.split(/\r?\n/)) {
+    const m = line.match(/^([A-Z0-9_]+)\s*=\s*(.*)$/i)
+    if (!m) continue
+    let v = m[2]
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1)
+    if (!process.env[m[1]]) process.env[m[1]] = v
+  }
+} catch {}
+
 const XLSX_PATH = '_terminal-design-reference/investor-data/RePrime_Final_Audited_Files.xlsx'
 const SHEET = 'NonInvestors_Final'
 const BATCH = 100
