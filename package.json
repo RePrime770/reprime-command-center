@@ -9,7 +9,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "smoke:cron": "node scripts/smoke-cron.mjs"
+    "smoke:cron": "node scripts/smoke-cron.mjs",
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "seed:clean": "node scripts/seed-demo.mjs --clean"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
