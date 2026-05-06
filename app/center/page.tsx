@@ -1,3 +1,5 @@
+'use client'
+
 import Canvas from '@/components/center/Canvas'
 import Column from '@/components/center/Column'
 import ReminderToast from '@/components/center/ReminderToast'
@@ -15,8 +17,6 @@ import SecretaryWindow from '@/components/center/windows/SecretaryWindow'
 import WindowManager from '@/components/center/windows/WindowManager'
 import WindowTaskbar from '@/components/center/windows/WindowTaskbar'
 import type { InvestorProfileData } from '@/components/panels/InvestorProfile'
-
-export const dynamic = 'force-dynamic'
 
 /**
  * /center — RePrime Command Center kiosk shell.
