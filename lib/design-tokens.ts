@@ -93,3 +93,35 @@ export const status = {
   amber:   '#FFBC7D',
   teal:    '#009080',
 } as const
+
+/**
+ * Typography tokens — single source of truth for the body font stack.
+ *
+ * Switched from Poppins to Lexend on May 5, 2026 on peer-reviewed dyslexia
+ * evidence (Shaver-Troup studies; BDA 2023 endorsement). Settings panel
+ * retains a per-session font override. Lexend is loaded via next/font in
+ * app/layout.tsx and exposed as the CSS variable --font-lexend; globals.css
+ * wires it into body via --rp-font-body with a Poppins fallback for
+ * graceful degradation. Terminal-recipient pages keep their locked Playfair
+ * design and are not affected by this token.
+ *
+ * Consumers that previously read a Poppins token name should keep importing
+ * `body` (the alias is stable) — the value resolves to the active Lexend
+ * stack at runtime.
+ */
+export const typography = {
+  /** Body / "Poppins-style" alias. Stable name, Lexend value. */
+  body: 'var(--rp-font-body)',
+  /** Explicit Lexend reference for callers that want to bypass the alias. */
+  lexend: 'var(--font-lexend), Lexend, sans-serif',
+  /** Full fallback chain — match the body stack for parity. */
+  fontStack:
+    'var(--font-lexend), Lexend, Poppins, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+} as const
+
+/**
+ * Stable alias preserved for any historical consumer that was reading a
+ * "poppins" token name. Now points at the Lexend body stack so existing
+ * imports keep working without code changes.
+ */
+export const POPPINS = typography.body

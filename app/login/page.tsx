@@ -5,7 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 import { gold, navy, NAVY, status } from '@/lib/design-tokens'
 
 const ALLOWED_EMAIL = 'g@reprime.com'
-const FONT_STACK = "'Poppins', Arial, sans-serif"
+// Body font alias — points at the global Lexend stack via globals.css
+// (--rp-font-body). Includes a Poppins fallback for graceful degradation.
+const FONT_STACK = 'var(--rp-font-body)'
 
 export default function Login() {
   const [sent, setSent] = useState(false)

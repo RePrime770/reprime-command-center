@@ -23,6 +23,15 @@ export type TtsSpeed = 1.0 | 1.5 | 2.0 | 2.5
 export type MicKey = 'spacebar' | 'ctrl-shift-v'
 export type ToastDuration = 8 | 12 | 20 | 'sticky'
 export type ThemeMode = 'dark' | 'light'
+/**
+ * Body font choice for the kiosk. Default is `lexend` (May 5, 2026 switch
+ * on peer-reviewed dyslexia evidence). `poppins` is kept as a per-session
+ * override for callers who want to compare or fall back. The picker is
+ * always visible; Lexend is the default state across new installs.
+ */
+export type FontChoice = 'lexend' | 'poppins'
+export type LetterSpacing = 'normal' | 'wide' | 'wider'
+export type ReadingPanelTint = 'cream' | 'navy'
 
 export interface CenterSettings {
   columns: Record<ColumnKey, boolean>
@@ -35,6 +44,9 @@ export interface CenterSettings {
   }
   display: {
     theme: ThemeMode
+    font: FontChoice
+    letterSpacing: LetterSpacing
+    readingPanelTint: ReadingPanelTint
   }
 }
 
@@ -42,7 +54,12 @@ export const DEFAULT_SETTINGS: CenterSettings = {
   columns: { pipeline: true, inbox: true, bucket: true, crew: true },
   voice: { ttsSpeed: 2.0, micKey: 'spacebar' },
   notifications: { reminderToast: 12 },
-  display: { theme: 'dark' },
+  display: {
+    theme: 'dark',
+    font: 'lexend',
+    letterSpacing: 'normal',
+    readingPanelTint: 'cream',
+  },
 }
 
 function readSettings(): CenterSettings {
@@ -99,6 +116,20 @@ const TOAST_OPTIONS: { value: ToastDuration; label: string }[] = [
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'dark', label: 'Dark (kiosk)' },
   { value: 'light', label: 'Light' },
+]
+
+const FONT_OPTIONS: { value: FontChoice; label: string }[] = [
+  { value: 'lexend', label: 'Lexend (default)' },
+  { value: 'poppins', label: 'Poppins' },
+]
+const LETTER_SPACING_OPTIONS: { value: LetterSpacing; label: string }[] = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'wide', label: 'Wide' },
+  { value: 'wider', label: 'Wider' },
+]
+const READING_TINT_OPTIONS: { value: ReadingPanelTint; label: string }[] = [
+  { value: 'cream', label: 'Cream (default)' },
+  { value: 'navy', label: 'Navy' },
 ]
 
 export default function SettingsWindow() {
@@ -158,6 +189,33 @@ export default function SettingsWindow() {
   const setTheme = useCallback(
     (value: ThemeMode) => {
       update((prev) => ({ ...prev, display: { ...prev.display, theme: value } }))
+    },
+    [update],
+  )
+
+  const setFont = useCallback(
+    (value: FontChoice) => {
+      update((prev) => ({ ...prev, display: { ...prev.display, font: value } }))
+    },
+    [update],
+  )
+
+  const setLetterSpacing = useCallback(
+    (value: LetterSpacing) => {
+      update((prev) => ({
+        ...prev,
+        display: { ...prev.display, letterSpacing: value },
+      }))
+    },
+    [update],
+  )
+
+  const setReadingTint = useCallback(
+    (value: ReadingPanelTint) => {
+      update((prev) => ({
+        ...prev,
+        display: { ...prev.display, readingPanelTint: value },
+      }))
     },
     [update],
   )
@@ -293,6 +351,49 @@ export default function SettingsWindow() {
                     label={opt.label}
                     active={settings.display.theme === opt.value}
                     onClick={() => setTheme(opt.value)}
+                  />
+                ))}
+              </ButtonRow>
+            </Section>
+
+            <Section
+              title="Font"
+              hint="Lexend is the default — built for dyslexic readers. Poppins is the previous default; pick it any time you want to compare."
+            >
+              <ButtonRow>
+                {FONT_OPTIONS.map((opt) => (
+                  <BigToggle
+                    key={opt.value}
+                    label={opt.label}
+                    active={settings.display.font === opt.value}
+                    onClick={() => setFont(opt.value)}
+                  />
+                ))}
+              </ButtonRow>
+              <SubLabel style={{ marginTop: 14 }}>Letter spacing</SubLabel>
+              <ButtonRow>
+                {LETTER_SPACING_OPTIONS.map((opt) => (
+                  <BigToggle
+                    key={opt.value}
+                    label={opt.label}
+                    active={settings.display.letterSpacing === opt.value}
+                    onClick={() => setLetterSpacing(opt.value)}
+                  />
+                ))}
+              </ButtonRow>
+            </Section>
+
+            <Section
+              title="Reading panels"
+              hint="Cream tint is the default — easier on the eye for sentence-length reading. Navy keeps the trader-grade look."
+            >
+              <ButtonRow>
+                {READING_TINT_OPTIONS.map((opt) => (
+                  <BigToggle
+                    key={opt.value}
+                    label={opt.label}
+                    active={settings.display.readingPanelTint === opt.value}
+                    onClick={() => setReadingTint(opt.value)}
                   />
                 ))}
               </ButtonRow>

@@ -28,7 +28,10 @@ export default function CenterLayout({ children }: { children: ReactNode }) {
         background:
           'linear-gradient(180deg, #0E3470 0%, #0E3470 60%, rgba(8, 30, 64, 1) 100%)',
         color: '#F5EFD8',
-        fontFamily: "'Poppins', Arial, sans-serif",
+        // Inherit the global Lexend stack (--rp-font-body) — switched from
+        // Poppins on May 5, 2026 (see memory/font_and_tts_standard.md). Body
+        // CSS in globals.css already wires Lexend with a Poppins fallback.
+        fontFamily: 'inherit',
         overflow: 'hidden',
       }}
     >

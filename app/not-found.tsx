@@ -10,7 +10,7 @@ export default function NotFound() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontFamily: 'Poppins, Arial, sans-serif',
+        fontFamily: 'var(--rp-font-body)',
       }}
     >
       <div

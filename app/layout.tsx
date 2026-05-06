@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Lexend } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 
@@ -11,6 +11,20 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Lexend — the dyslexia-optimized body font for the kiosk and the rest of the
+// internal dashboard. Switched May 5, 2026 from Poppins on peer-reviewed
+// dyslexia evidence (Shaver-Troup; BDA 2023). Poppins remains in the CSS
+// fallback stack for graceful degradation. Terminal-recipient pages (the
+// invitation flow) keep their locked Playfair design — those are not loaded
+// here. See lib/design-tokens.ts for the body alias and globals.css for the
+// CSS variable wiring.
+const lexend = Lexend({
+  variable: "--font-lexend",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -34,7 +48,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${lexend.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
