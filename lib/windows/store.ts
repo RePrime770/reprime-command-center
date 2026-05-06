@@ -138,6 +138,12 @@ const TARGETS: Record<string, TargetResolver> = {
     defaultWidth: 880,
     defaultHeight: 720,
   }),
+  settings: (o) => ({
+    title: o.title ?? 'Settings',
+    kind: { type: 'component', key: 'settings', props: o.componentProps },
+    defaultWidth: 720,
+    defaultHeight: 640,
+  }),
 }
 
 const INITIAL: StoreSnapshot = {

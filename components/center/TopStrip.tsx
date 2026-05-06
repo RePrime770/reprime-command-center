@@ -67,6 +67,15 @@ export default function TopStrip() {
     )
   }
 
+  function openSettings() {
+    if (typeof window === 'undefined') return
+    window.dispatchEvent(
+      new CustomEvent('center:open-window', {
+        detail: { target: 'settings' },
+      }),
+    )
+  }
+
   return (
     <div
       style={{
@@ -184,6 +193,31 @@ export default function TopStrip() {
               {coldCount} cold
             </span>
           )}
+        </button>
+
+        <button
+          type="button"
+          onClick={openSettings}
+          title="Open Settings"
+          aria-label="Open Settings"
+          style={{
+            background: 'rgba(255, 204, 51, 0.10)',
+            color: '#FFCC33',
+            border: '1px solid rgba(255, 204, 51, 0.45)',
+            borderRadius: 999,
+            width: 36,
+            height: 32,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'inherit',
+            fontSize: 16,
+            lineHeight: 1,
+            cursor: 'pointer',
+            flexShrink: 0,
+          }}
+        >
+          {'⚙'}
         </button>
 
         <HealthPill />
