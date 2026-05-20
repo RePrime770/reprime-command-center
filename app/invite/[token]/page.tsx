@@ -285,9 +285,26 @@ function PageShell({ children, fontClasses }: { children: React.ReactNode, fontC
 // Main page
 // ────────────────────────────────────────────────────────────────────────────
 
-export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
+export default async function InvitePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>
+  searchParams: Promise<{ attendee?: string; sent?: string }>
+}) {
   const { token } = await params
+  const sp = await searchParams
   const { invitation, reason } = await loadInvitation(token)
+
+  const attendeeStatus = sp?.attendee
+  const attendeeSent = sp?.sent ? parseInt(sp.sent, 10) : 0
+  const attendeeBanner = attendeeStatus === 'ok' && attendeeSent > 0
+    ? `✓ Invitation sent to ${attendeeSent} colleague${attendeeSent === 1 ? '' : 's'}. Check their inbox (and spam, just in case).`
+    : attendeeStatus === 'partial'
+      ? `Partial send — ${attendeeSent} reached, some failed. They should check spam first.`
+      : attendeeStatus === 'missing'
+        ? 'Add at least one email address.'
+        : null
 
   const fontClasses = `${cinzel.variable} ${ebGaramond.variable} ${playfair.variable}`
 
@@ -335,6 +352,25 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     return (
       <PageShell fontClasses={fontClasses}>
         <TerminalHeader />
+
+        {/* Attendee-send confirmation banner — surfaces ?attendee=ok&sent=N from the
+            add-attendee 303 redirect so the recipient sees clear feedback. */}
+        {attendeeBanner && (
+          <div style={{
+            margin: '14px 18px 0',
+            padding: '12px 16px',
+            background: attendeeStatus === 'ok' ? `rgba(34, 197, 94, 0.12)` : `rgba(${GOLD_RGB}, 0.12)`,
+            border: `1px solid ${attendeeStatus === 'ok' ? 'rgba(34, 197, 94, 0.65)' : `rgba(${GOLD_RGB}, 0.50)`}`,
+            borderRadius: 4,
+            color: attendeeStatus === 'ok' ? '#86efac' : GOLD,
+            fontFamily: FONT_BODY,
+            fontSize: '14px',
+            lineHeight: 1.5,
+            textAlign: 'center',
+          }}>
+            {attendeeBanner}
+          </div>
+        )}
 
         {/* CREAM LETTER BUBBLE */}
         <div style={{ padding: '18px 12px 14px' }}>
