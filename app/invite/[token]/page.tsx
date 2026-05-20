@@ -339,7 +339,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         {/* CREAM LETTER BUBBLE */}
         <div style={{ padding: '18px 12px 14px' }}>
           <div style={{ position: 'relative' }}>
-            <svg viewBox="0 0 480 320" width="100%" style={{ display: 'block', filter: 'drop-shadow(0 4px 14px rgba(0, 0, 0, 0.22))' }}>
+            <svg viewBox="0 0 480 460" width="100%" style={{ display: 'block', filter: 'drop-shadow(0 4px 14px rgba(0, 0, 0, 0.22))' }}>
               <defs>
                 <linearGradient id="bubble-bg" x1="0%" y1="0%" x2="0%" y2="100%">
                   <stop offset="0%" stopColor="#F8F0DA" />
@@ -347,7 +347,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
                 </linearGradient>
               </defs>
               <path
-                d="M 18,28 L 215,28 C 222,28 234,2 240,1 C 246,2 258,28 265,28 L 462,28 Q 480,28 480,46 L 480,302 Q 480,320 462,320 L 18,320 Q 0,320 0,302 L 0,46 Q 0,28 18,28 Z"
+                d="M 18,28 L 215,28 C 222,28 234,2 240,1 C 246,2 258,28 265,28 L 462,28 Q 480,28 480,46 L 480,442 Q 480,460 462,460 L 18,460 Q 0,460 0,442 L 0,46 Q 0,28 18,28 Z"
                 fill="url(#bubble-bg)"
                 stroke={`rgba(${GOLD_RGB}, 0.30)`}
                 strokeWidth="1"
@@ -355,10 +355,10 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
             </svg>
             <div style={{
               position: 'absolute',
-              top: '36px',
-              left: '18px',
-              right: '18px',
-              bottom: '22px',
+              top: '6%',
+              left: '6%',
+              right: '6%',
+              bottom: '4%',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'flex-start',
@@ -366,39 +366,39 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
             }}>
               <div style={{
                 fontFamily: FONT_NAME,
-                fontSize: '12px',
+                fontSize: '17px',
                 color: BRONZE_SOFT,
                 fontStyle: 'italic',
-                marginBottom: '14px',
+                marginBottom: '16px',
                 lineHeight: 1.4,
               }}>
                 A confirmation from <span style={{ fontWeight: 600, color: BRONZE_BOLD }}>Gideon Gratsiani</span>
               </div>
               <div style={{
                 fontFamily: FONT_NAME,
-                fontSize: '22px',
+                fontSize: '30px',
                 color: BRONZE_BOLD,
                 fontWeight: 600,
                 fontStyle: 'italic',
-                marginBottom: '10px',
+                marginBottom: '12px',
               }}>
                 {firstName} —
               </div>
               <div style={{
                 fontFamily: FONT_NAME,
-                fontSize: '14px',
+                fontSize: '21px',
                 color: NAVY,
-                lineHeight: 1.6,
+                lineHeight: 1.55,
                 fontStyle: 'italic',
               }}>
                 Your {isTerminal ? 'introduction' : 'meeting'} is set.
               </div>
               <div style={{
                 fontFamily: FONT_NAME,
-                fontSize: '22px',
+                fontSize: '28px',
                 color: NAVY,
                 fontWeight: 600,
-                margin: '14px 0 2px',
+                margin: '16px 0 4px',
                 letterSpacing: '-0.01em',
                 lineHeight: 1.15,
               }}>
@@ -406,7 +406,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
               </div>
               <div style={{
                 fontFamily: FONT_NAME,
-                fontSize: '22px',
+                fontSize: '28px',
                 color: NAVY,
                 fontWeight: 600,
                 lineHeight: 1.15,
@@ -416,21 +416,21 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
               </div>
               <div style={{
                 fontFamily: FONT_NAME,
-                fontSize: '13px',
+                fontSize: '19px',
                 color: NAVY,
-                lineHeight: 1.55,
+                lineHeight: 1.5,
                 fontStyle: 'italic',
-                marginTop: '14px',
+                marginTop: '18px',
               }}>
                 Looking forward to showing you what I&apos;ve been building.
               </div>
               <div style={{
                 fontFamily: FONT_NAME,
-                fontSize: '14px',
+                fontSize: '22px',
                 color: BRONZE_BOLD,
                 fontStyle: 'italic',
                 fontWeight: 600,
-                marginTop: '12px',
+                marginTop: '14px',
               }}>
                 — Gideon
               </div>
@@ -489,15 +489,15 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         <div style={{ padding: '0 32px 18px' }}>
           <div style={{
             fontFamily: FONT_BODY,
-            fontSize: '9px',
+            fontSize: '14px',
             letterSpacing: '0.24em',
             textIndent: '0.24em',
             color: GOLD,
             textTransform: 'uppercase',
             fontWeight: 600,
             textAlign: 'center',
-            marginBottom: '11px',
-            opacity: 0.7,
+            marginBottom: '14px',
+            opacity: 0.80,
           }}>
             Add to your calendar
           </div>
@@ -563,11 +563,11 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
             style={{
               fontFamily: FONT_NAME,
               fontStyle: 'italic',
-              fontSize: '13px',
+              fontSize: '17px',
               color: GOLD,
-              lineHeight: 1.5,
+              lineHeight: 1.55,
               textDecoration: 'none',
-              opacity: 0.85,
+              opacity: 0.90,
             }}
           >
             Need a different time?<br />
@@ -750,11 +750,11 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
 // ────────────────────────────────────────────────────────────────────────────
 
 const calBtnStyle: React.CSSProperties = {
-  border: `0.5px solid rgba(${GOLD_RGB}, 0.35)`,
-  padding: '10px 6px',
+  border: `0.5px solid rgba(${GOLD_RGB}, 0.40)`,
+  padding: '14px 8px',
   textAlign: 'center',
   fontFamily: FONT_BODY,
-  fontSize: '9px',
+  fontSize: '14px',
   color: GOLD,
   letterSpacing: '0.10em',
   textTransform: 'uppercase',
@@ -772,14 +772,14 @@ function MdRow({ keyText, valText, href }: { keyText: string; valText: string; h
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: '6px 0',
-      borderBottom: `0.5px dashed rgba(${GOLD_RGB}, 0.12)`,
+      padding: '10px 0',
+      borderBottom: `0.5px dashed rgba(${GOLD_RGB}, 0.14)`,
     }}>
-      <span style={{ fontFamily: FONT_BODY, fontSize: '11px', color: GOLD, letterSpacing: '0.04em', opacity: 0.65 }}>{keyText}</span>
+      <span style={{ fontFamily: FONT_BODY, fontSize: '16px', color: GOLD, letterSpacing: '0.04em', opacity: 0.70 }}>{keyText}</span>
       {href ? (
-        <a href={href} style={{ fontFamily: FONT_BODY, fontSize: '11px', color: GOLD, fontWeight: 500, textDecoration: 'none' }}>{valText}</a>
+        <a href={href} style={{ fontFamily: FONT_BODY, fontSize: '16px', color: GOLD, fontWeight: 500, textDecoration: 'none' }}>{valText}</a>
       ) : (
-        <span style={{ fontFamily: FONT_BODY, fontSize: '11px', color: GOLD, fontWeight: 500 }}>{valText}</span>
+        <span style={{ fontFamily: FONT_BODY, fontSize: '16px', color: GOLD, fontWeight: 500 }}>{valText}</span>
       )}
     </div>
   )
