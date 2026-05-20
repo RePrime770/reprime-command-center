@@ -277,6 +277,20 @@ export async function POST(request: Request) {
     await pageGideonCritical(`Bookings: Zoom meeting create failed for ${firstName}`, { token, slot, err: (err as Error).message })
   }
 
+  // Captain hotfix 2026-05-19: if dynamic Zoom create failed, fall back to
+  // STATIC_ZOOM_FALLBACK_URL (Gideon's personal scheduler/PMI link). This
+  // keeps the booking flow whole — calendar invite, confirmation email,
+  // WhatsApp + PagerDuty downstream all use the fallback URL, recipient
+  // never sees a half-broken page.
+  if (!zoomJoinUrl) {
+    const staticFallback = process.env.STATIC_ZOOM_FALLBACK_URL
+    if (staticFallback) {
+      zoomJoinUrl = staticFallback
+      zoomMeetingId = 'static'
+      errors.push({ step: '2_zoom_static_fallback_used', message: 'Dynamic create failed; using STATIC_ZOOM_FALLBACK_URL' })
+    }
+  }
+
   // Step 3: persist Zoom IDs
   if (zoomMeetingId && zoomJoinUrl) {
     try {

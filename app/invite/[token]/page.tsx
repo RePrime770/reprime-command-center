@@ -55,6 +55,32 @@ async function loadAvailableSlots(): Promise<SlotGroup[]> {
   }
 }
 
+/**
+ * Group a flat list of proposed_slots (from the invitation row) into SlotGroups
+ * keyed by Chicago date. Lets the booking page work without Google Calendar OAuth.
+ * Captain hotfix 2026-05-19 — see _ops-context for context.
+ */
+function groupProposedSlotsByDate(slots: Array<{ iso: string; display: string }>): SlotGroup[] {
+  const TZ = 'America/Chicago'
+  const dateFmt = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: TZ,
+  })
+  const labelFmt = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', timeZone: TZ,
+  })
+  const byDate = new Map<string, SlotGroup>()
+  for (const slot of slots) {
+    const d = new Date(slot.iso)
+    if (isNaN(d.getTime())) continue
+    const dateStr = dateFmt.format(d)
+    if (!byDate.has(dateStr)) {
+      byDate.set(dateStr, { date: dateStr, label: labelFmt.format(d), times: [] })
+    }
+    byDate.get(dateStr)!.times.push(slot)
+  }
+  return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date))
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -109,7 +135,12 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
 
   const displayName = invitation.contact_name || invitation.contact_first_name || 'Guest'
   const isTerminal = invitation.meeting_type !== 'meeting'
-  const slotGroups = await loadAvailableSlots()
+  // Captain hotfix 2026-05-19: prefer per-invite proposed_slots if present
+  // (bypasses Google Calendar OAuth dependency). Falls back to live Calendar
+  // freebusy if invitation was minted without proposed_slots.
+  const slotGroups = invitation.proposed_slots && invitation.proposed_slots.length > 0
+    ? groupProposedSlotsByDate(invitation.proposed_slots)
+    : await loadAvailableSlots()
 
   return (
     <main style={{
