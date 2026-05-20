@@ -1,3 +1,4 @@
+import { after } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createMeeting } from '@/lib/zoom/client'
@@ -291,31 +292,30 @@ export async function POST(request: Request) {
     }
   }
 
-  // Captain hotfix 2026-05-20: parallelize Steps 3-9 to cut the post-click
-  // latency from ~3-4s to ~1-2s (max(any single step) instead of sum). Step 2
-  // (Zoom create) must finish first because Steps 4/6/7/8/9 need the URL.
-  // Step 5 still chains after Step 4 inside its own task.
-  const parallelTasks: Promise<void>[] = []
-
-  // Task A — persist Zoom IDs (Step 3)
+  // Captain hotfix 2026-05-20: persist Zoom URL inline (the recipient page
+  // needs it on render), then push all OTHER side-effects (Calendar invite,
+  // confirmation email, WhatsApp confirmation, PagerDuty schedule, Pipedrive
+  // activity) to next/server `after()` so they run AFTER the 303 redirect
+  // ships. Net: ~3-4s critical path → ~1-2s (Zoom create + Zoom persist).
   if (zoomMeetingId && zoomJoinUrl) {
-    parallelTasks.push((async () => {
-      try {
-        const { error } = await supabase
-          .from('invitations')
-          .update({ zoom_meeting_id: zoomMeetingId, zoom_join_url: zoomJoinUrl })
-          .eq('id', token)
-        if (error) throw new Error(error.message)
-      } catch (err) {
-        errors.push({ step: '3_persist_zoom', message: (err as Error).message })
-        await pageGideonCritical(`Bookings: failed to persist Zoom IDs for ${firstName}`, { token, zoom_id: zoomMeetingId, err: (err as Error).message })
-      }
-    })())
+    try {
+      const { error } = await supabase
+        .from('invitations')
+        .update({ zoom_meeting_id: zoomMeetingId, zoom_join_url: zoomJoinUrl })
+        .eq('id', token)
+      if (error) throw new Error(error.message)
+    } catch (err) {
+      errors.push({ step: '3_persist_zoom', message: (err as Error).message })
+      void pageGideonCritical(`Bookings: failed to persist Zoom IDs for ${firstName}`, { token, zoom_id: zoomMeetingId, err: (err as Error).message })
+    }
   }
+
+  // Build the background-work bundle. Runs via after() after the redirect ships.
+  const backgroundTasks: Promise<void>[] = []
 
   // Task B — create Calendar event → then persist calendar id (Steps 4 + 5 chained)
   if (zoomJoinUrl) {
-    parallelTasks.push((async () => {
+    backgroundTasks.push((async () => {
       try {
         const start = new Date(slot.iso)
         const end = new Date(start.getTime() + 30 * 60 * 1000)
@@ -349,9 +349,9 @@ export async function POST(request: Request) {
     })())
   }
 
-  // Task C — send confirmation email + ICS (Step 6) — runs in parallel
+  // Task C — send confirmation email + ICS (Step 6) — runs in background
   if (inv.contact_email && zoomJoinUrl) {
-    parallelTasks.push((async () => {
+    backgroundTasks.push((async () => {
     try {
       const start = new Date(slot.iso)
       const end = new Date(start.getTime() + 30 * 60 * 1000)
@@ -419,9 +419,9 @@ Founder, RePrime Group`
     })())
   }
 
-  // Task D — WhatsApp confirmation (Step 7) — runs in parallel
+  // Task D — WhatsApp confirmation (Step 7) — runs in background
   if (inv.contact_phone && zoomJoinUrl) {
-    parallelTasks.push((async () => {
+    backgroundTasks.push((async () => {
       try {
         const chatId = await findChatIdForPhone('305', inv.contact_phone!)
         if (chatId) {
@@ -441,8 +441,8 @@ Founder, RePrime Group`
     })())
   }
 
-  // Task E — PagerDuty T-10 + T-1 schedule (Step 8) — runs in parallel
-  parallelTasks.push((async () => {
+  // Task E — PagerDuty T-10 + T-1 schedule (Step 8) — runs in background
+  backgroundTasks.push((async () => {
   try {
     const redis = getRedis()
     if (!redis) throw new Error('upstash_not_configured')
@@ -475,9 +475,9 @@ Founder, RePrime Group`
   }
   })())
 
-  // Task F — Pipedrive activity (Step 9) — runs in parallel
+  // Task F — Pipedrive activity (Step 9) — runs in background
   if (inv.contact_pipedrive_id) {
-    parallelTasks.push((async () => {
+    backgroundTasks.push((async () => {
     try {
       const slotDate = new Date(slot.iso)
       const yyyy = slotDate.getFullYear()
@@ -503,12 +503,16 @@ Founder, RePrime Group`
     })())
   }
 
-  // Wait for all parallel tasks to finish before responding
-  await Promise.allSettled(parallelTasks)
-
-  if (errors.length > 0) {
-    console.error('[bookings.confirm] partial failures', { token, errors })
-  }
+  // Push all background work to next/server after(). These run AFTER the
+  // 303 redirect ships to the recipient, so the page lands in ~1-2s instead
+  // of waiting for Calendar + Email + WhatsApp + PagerDuty + Pipedrive (all
+  // of which can take another 1-2s combined).
+  after(async () => {
+    await Promise.allSettled(backgroundTasks)
+    if (errors.length > 0) {
+      console.error('[bookings.confirm] post-response partial failures', { token, errors })
+    }
+  })
 
   // Captain hotfix 2026-05-20: instead of returning a bespoke "Locked in"
   // HTML page (which drifted from the locked Screen 3 design), 303-redirect
