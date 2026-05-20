@@ -211,6 +211,15 @@ export default async function OGImage({ params }: { params: Promise<{ token: str
       width: 1200,
       height: 630,
       fonts: fonts.length > 0 ? fonts : undefined,
+      // Captain hotfix 2026-05-20: cache the rendered OG card at Vercel's
+      // edge for 24 hours, with stale-while-revalidate up to 30 days. First
+      // fetch (~2-4s cold render: font fetch + Satori) primes the cache;
+      // subsequent fetches return instantly. WhatsApp's link preview fetcher
+      // gets a fast response on send, so the gold card actually shows up
+      // in the chat instead of being skipped on a timeout.
+      headers: {
+        'Cache-Control': 'public, immutable, no-transform, s-maxage=86400, stale-while-revalidate=2592000',
+      },
     }
   )
 }
