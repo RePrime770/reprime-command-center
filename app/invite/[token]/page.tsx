@@ -339,7 +339,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         {/* CREAM LETTER BUBBLE */}
         <div style={{ padding: '18px 12px 14px' }}>
           <div style={{ position: 'relative' }}>
-            <svg viewBox="0 0 480 460" width="100%" style={{ display: 'block', filter: 'drop-shadow(0 4px 14px rgba(0, 0, 0, 0.22))' }}>
+            <svg viewBox="0 0 480 580" width="100%" style={{ display: 'block', filter: 'drop-shadow(0 4px 14px rgba(0, 0, 0, 0.22))' }}>
               <defs>
                 <linearGradient id="bubble-bg" x1="0%" y1="0%" x2="0%" y2="100%">
                   <stop offset="0%" stopColor="#F8F0DA" />
@@ -347,7 +347,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
                 </linearGradient>
               </defs>
               <path
-                d="M 18,28 L 215,28 C 222,28 234,2 240,1 C 246,2 258,28 265,28 L 462,28 Q 480,28 480,46 L 480,442 Q 480,460 462,460 L 18,460 Q 0,460 0,442 L 0,46 Q 0,28 18,28 Z"
+                d="M 18,28 L 215,28 C 222,28 234,2 240,1 C 246,2 258,28 265,28 L 462,28 Q 480,28 480,46 L 480,562 Q 480,580 462,580 L 18,580 Q 0,580 0,562 L 0,46 Q 0,28 18,28 Z"
                 fill="url(#bubble-bg)"
                 stroke={`rgba(${GOLD_RGB}, 0.30)`}
                 strokeWidth="1"
@@ -451,15 +451,15 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
             Add Attendee
           </div>
           <div style={{
-            fontFamily: FONT_NAME,
-            fontStyle: 'italic',
-            fontSize: '15px',
-            color: `rgba(${GOLD_RGB}, 0.70)`,
+            fontFamily: FONT_BODY,
+            fontSize: '14px',
+            color: `rgba(${GOLD_RGB}, 0.72)`,
             textAlign: 'center',
-            marginBottom: '14px',
-            lineHeight: 1.4,
+            marginBottom: '16px',
+            lineHeight: 1.5,
+            fontWeight: 400,
           }}>
-            Want to bring a colleague? Add their email — separate multiple addresses with a comma.
+            Bringing a colleague? Add their email below. For more than one, separate with commas.
           </div>
           <form action={`/api/invitations/add-attendee`} method="POST">
             <input type="hidden" name="token" value={token} />
