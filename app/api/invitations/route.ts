@@ -16,12 +16,27 @@ type CreateBody = {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user || user.email !== 'g@reprime.com') {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  // Captain hotfix 2026-05-20: switched from cookie-based g@reprime.com check
+  // to X-Captain-Token header so the Chrome Extension can mint directly via
+  // fetch() from any origin (no need to be on the dashboard tab with an
+  // active Supabase session). Token lives in process.env.CAPTAIN_API_TOKEN.
+  // Cookie auth still works as a fallback for the dashboard composer.
+  const captainToken = request.headers.get('x-captain-token') || request.headers.get('X-Captain-Token')
+  const expectedToken = process.env.CAPTAIN_API_TOKEN
+  const tokenOk = captainToken && expectedToken && captainToken === expectedToken
+
+  if (!tokenOk) {
+    // Fall back to cookie auth (legacy path for the dashboard composer)
+    const supabase = await createServerClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user || user.email !== 'g@reprime.com') {
+      return NextResponse.json(
+        { error: 'unauthorized', message: 'Provide X-Captain-Token header or sign in as g@reprime.com' },
+        { status: 401 }
+      )
+    }
   }
 
   let payload: CreateBody

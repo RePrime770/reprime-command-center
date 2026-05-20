@@ -12,6 +12,9 @@ const PUBLIC_PATHS = [
   '/api/bookings/confirm',
   // Recipient-facing — Screen 3 Add Attendee + reschedule + .ics download
   '/api/invitations/add-attendee',
+  // Captain hotfix 2026-05-20: Chrome Extension mints invites via X-Captain-Token
+  // header. Endpoint itself enforces the token check; middleware just lets it through.
+  '/api/invitations',
   // Vercel cron hits these without user cookies; CRON_SECRET bearer is the
   // real auth gate inside each route handler.
   '/api/bucket/fire-reminders',
