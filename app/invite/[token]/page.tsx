@@ -20,17 +20,18 @@ const ebGaramond = EB_Garamond({
 })
 const playfair = Playfair_Display({
   subsets: ['latin'],
-  weight: ['400', '700'],
+  weight: ['400', '600', '700'],
   style: ['normal', 'italic'],
   variable: '--rp-font-playfair',
   display: 'swap',
 })
 
 // Locked brand tokens — sourced from dashboard/lib/design-tokens.ts.
-// One gold (#FFCC33 Imperial Gold), one navy (#0E3470 Brand Navy). Hierarchy via opacity.
 const NAVY = '#0E3470'
 const GOLD = '#FFCC33'
 const GOLD_RGB = '255, 204, 51'
+const BRONZE_BOLD = '#5A3F18'
+const BRONZE_SOFT = '#7A5A30'
 
 const FONT_NAME = `var(--rp-font-playfair), 'Playfair Display', Georgia, serif`
 const FONT_TERMINAL = `var(--rp-font-cinzel), Cinzel, 'Trajan Pro', Georgia, serif`
@@ -52,22 +53,27 @@ interface Invitation {
   meeting_type: 'terminal' | 'meeting' | null
   view_count: number | null
   first_opened_at: string | null
+  confirmed_slot_iso: string | null
+  zoom_meeting_id: string | null
+  zoom_join_url: string | null
+  zoom_passcode: string | null
+  calendar_event_id: string | null
 }
 
-async function loadInvitation(token: string): Promise<{ invitation: Invitation | null; reason: 'not_found' | 'used' | 'expired' | null }> {
+async function loadInvitation(token: string): Promise<{ invitation: Invitation | null; reason: 'not_found' | 'expired' | 'cancelled' | null }> {
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('invitations')
-    .select('contact_first_name, contact_name, proposed_slots, status, expires_at, meeting_type, view_count, first_opened_at')
+    .select('contact_first_name, contact_name, proposed_slots, status, expires_at, meeting_type, view_count, first_opened_at, confirmed_slot_iso, zoom_meeting_id, zoom_join_url, zoom_passcode, calendar_event_id')
     .eq('id', token)
     .maybeSingle()
   if (error || !data) return { invitation: null, reason: 'not_found' }
   const inv = data as Invitation
-  if (inv.status !== 'sent') return { invitation: inv, reason: 'used' }
+  if (inv.status === 'cancelled') return { invitation: inv, reason: 'cancelled' }
   if (inv.expires_at && new Date(inv.expires_at).getTime() < Date.now()) {
     return { invitation: inv, reason: 'expired' }
   }
-  // Track this open — fire and move on (non-blocking via void)
+  // Track this open — fire and move on (non-blocking)
   void supabase.from('invitations').update({
     view_count: (inv.view_count ?? 0) + 1,
     first_opened_at: inv.first_opened_at ?? new Date().toISOString(),
@@ -91,11 +97,6 @@ async function loadAvailableSlots(): Promise<SlotGroup[]> {
   }
 }
 
-/**
- * Group flat proposed_slots into SlotGroups keyed by Chicago date.
- * Lets the booking page work without Google Calendar OAuth.
- * Captain hotfix 2026-05-19.
- */
 function groupProposedSlotsByDate(slots: Array<{ iso: string; display: string }>): SlotGroup[] {
   const TZ = 'America/Chicago'
   const dateFmt = new Intl.DateTimeFormat('en-CA', {
@@ -115,6 +116,28 @@ function groupProposedSlotsByDate(slots: Array<{ iso: string; display: string }>
     byDate.get(dateStr)!.times.push(slot)
   }
   return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date))
+}
+
+/** Render a Zoom URL into a short label (zoom.us/j/...) without the full path. */
+function shortZoomUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    const segs = u.pathname.split('/').filter(Boolean)
+    return `${u.hostname.replace(/^www\./, '')}/${segs[0] ?? ''}/…`
+  } catch {
+    return 'zoom.us/j/…'
+  }
+}
+
+/** Format Zoom meeting ID into "###  ####  ####" groups. */
+function formatMeetingId(id: string | null | undefined): string | null {
+  if (!id) return null
+  const digits = id.replace(/\D/g, '')
+  if (digits.length < 9) return id
+  // Common 10-11 digit Zoom IDs render as "###-####-####" or "###  ####  ####"
+  if (digits.length === 10) return `${digits.slice(0, 3)} ${digits.slice(3, 7)} ${digits.slice(7)}`
+  if (digits.length === 11) return `${digits.slice(0, 3)} ${digits.slice(3, 7)} ${digits.slice(7)}`
+  return digits
 }
 
 export async function generateMetadata({
@@ -150,39 +173,420 @@ export async function generateMetadata({
   }
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Reusable subcomponents
+// ────────────────────────────────────────────────────────────────────────────
+
+function GoldSpindle() {
+  return (
+    <div style={{ height: '7px', width: '70%', margin: '0 auto' }}>
+      <svg viewBox="0 0 460 7" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
+        <defs>
+          <linearGradient id="r-spindle" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"  stopColor={GOLD} stopOpacity={0} />
+            <stop offset="6%"  stopColor={GOLD} stopOpacity={1} />
+            <stop offset="94%" stopColor={GOLD} stopOpacity={1} />
+            <stop offset="100%" stopColor={GOLD} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <rect x="0" y="2.5" width="460" height="2" fill="url(#r-spindle)" />
+      </svg>
+    </div>
+  )
+}
+
+function TerminalHeader() {
+  return (
+    <div style={{ padding: '22px 32px 18px', textAlign: 'center', borderBottom: `1px solid rgba(${GOLD_RGB}, 0.18)` }}>
+      <GoldSpindle />
+      <div style={{
+        fontFamily: FONT_TERMINAL,
+        fontSize: '26px',
+        letterSpacing: '0.145em',
+        textIndent: '0.145em',
+        color: GOLD,
+        fontWeight: 600,
+        margin: '11px 0',
+        textTransform: 'uppercase',
+      }}>
+        Terminal
+      </div>
+      <GoldSpindle />
+    </div>
+  )
+}
+
+function TerminalFooter() {
+  return (
+    <div style={{
+      padding: '18px 32px',
+      borderTop: `1px solid rgba(${GOLD_RGB}, 0.18)`,
+      textAlign: 'center',
+    }}>
+      <div style={{
+        fontFamily: FONT_NAME,
+        fontSize: '14px',
+        color: GOLD,
+        fontWeight: 600,
+        letterSpacing: '0.10em',
+        textIndent: '0.10em',
+      }}>
+        TERMINAL
+      </div>
+      <div style={{
+        fontFamily: FONT_BY,
+        fontStyle: 'italic',
+        fontSize: '11px',
+        color: GOLD,
+        marginTop: '3px',
+        opacity: 0.75,
+      }}>
+        by RePrime
+      </div>
+      <div style={{
+        fontFamily: FONT_BODY,
+        fontSize: '8px',
+        color: GOLD,
+        marginTop: '10px',
+        letterSpacing: '0.06em',
+        opacity: 0.55,
+      }}>
+        This invitation was sent personally. Reply directly to Gideon.
+      </div>
+    </div>
+  )
+}
+
+function PageShell({ children, fontClasses }: { children: React.ReactNode, fontClasses: string }) {
+  return (
+    <main className={fontClasses} style={{
+      minHeight: '100vh',
+      background: '#DDD9D2',
+      padding: '24px 16px',
+      display: 'flex',
+      justifyContent: 'center',
+      fontFamily: FONT_BODY,
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: 460,
+        background: NAVY,
+        border: `1px solid rgba(${GOLD_RGB}, 0.22)`,
+        borderRadius: '2px',
+        overflow: 'hidden',
+      }}>
+        {children}
+      </div>
+    </main>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Main page
+// ────────────────────────────────────────────────────────────────────────────
+
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   const { invitation, reason } = await loadInvitation(token)
 
   const fontClasses = `${cinzel.variable} ${ebGaramond.variable} ${playfair.variable}`
 
+  // ── Hard-failure states ────────────────────────────────────────────────────
   if (!invitation || reason) {
     const message =
-      reason === 'used' ? 'This invitation has already been used.'
+      reason === 'cancelled' ? 'This invitation was cancelled.'
       : reason === 'expired' ? 'This invitation has expired.'
       : 'This invitation link is not valid.'
     return (
-      <main className={fontClasses} style={{ minHeight: '100vh', background: NAVY, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', fontFamily: FONT_BODY }}>
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ color: `rgba(${GOLD_RGB}, 0.55)`, fontSize: '0.65rem', letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: '1.5rem' }}>RePrime Group</p>
-          <p style={{ color: GOLD, fontSize: '1.1rem', letterSpacing: '0.04em', fontStyle: 'italic', fontFamily: FONT_NAME }}>{message}</p>
+      <PageShell fontClasses={fontClasses}>
+        <TerminalHeader />
+        <div style={{ padding: '40px 32px 32px', textAlign: 'center' }}>
+          <p style={{ color: GOLD, fontSize: '15px', letterSpacing: '0.02em', fontStyle: 'italic', fontFamily: FONT_NAME }}>
+            {message}
+          </p>
+          <p style={{ color: `rgba(${GOLD_RGB}, 0.70)`, fontSize: '12px', marginTop: '14px', fontFamily: FONT_NAME, fontStyle: 'italic' }}>
+            Reply to the original message and I&apos;ll sort it out.
+          </p>
         </div>
-      </main>
+        <TerminalFooter />
+      </PageShell>
     )
   }
 
   const displayName = invitation.contact_name || invitation.contact_first_name || 'Guest'
+  const firstName = invitation.contact_first_name || displayName.split(' ')[0] || 'there'
   const isTerminal = invitation.meeting_type !== 'meeting'
+
+  // ── CONFIRMED state → Screen 3 (cream letter + meeting details) ───────────
+  if (invitation.status === 'confirmed' && invitation.confirmed_slot_iso) {
+    const slotDate = new Date(invitation.confirmed_slot_iso)
+    const TZ = 'America/Chicago'
+    const dayLine = new Intl.DateTimeFormat('en-US', {
+      weekday: 'long', month: 'long', day: 'numeric', timeZone: TZ,
+    }).format(slotDate)
+    const timeLine = new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric', minute: '2-digit', timeZone: TZ,
+    }).format(slotDate) + ' Central'
+
+    const zoomUrl = invitation.zoom_join_url
+    const meetingIdFormatted = formatMeetingId(invitation.zoom_meeting_id)
+    const zoomShort = zoomUrl ? shortZoomUrl(zoomUrl) : null
+
+    return (
+      <PageShell fontClasses={fontClasses}>
+        <TerminalHeader />
+
+        {/* CREAM LETTER BUBBLE */}
+        <div style={{ padding: '18px 12px 14px' }}>
+          <div style={{ position: 'relative' }}>
+            <svg viewBox="0 0 480 320" width="100%" style={{ display: 'block', filter: 'drop-shadow(0 4px 14px rgba(0, 0, 0, 0.22))' }}>
+              <defs>
+                <linearGradient id="bubble-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#F8F0DA" />
+                  <stop offset="100%" stopColor="#EFE2C4" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M 18,28 L 215,28 C 222,28 234,2 240,1 C 246,2 258,28 265,28 L 462,28 Q 480,28 480,46 L 480,302 Q 480,320 462,320 L 18,320 Q 0,320 0,302 L 0,46 Q 0,28 18,28 Z"
+                fill="url(#bubble-bg)"
+                stroke={`rgba(${GOLD_RGB}, 0.30)`}
+                strokeWidth="1"
+              />
+            </svg>
+            <div style={{
+              position: 'absolute',
+              top: '36px',
+              left: '18px',
+              right: '18px',
+              bottom: '22px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-start',
+              textAlign: 'center',
+            }}>
+              <div style={{
+                fontFamily: FONT_NAME,
+                fontSize: '12px',
+                color: BRONZE_SOFT,
+                fontStyle: 'italic',
+                marginBottom: '14px',
+                lineHeight: 1.4,
+              }}>
+                A confirmation from <span style={{ fontWeight: 600, color: BRONZE_BOLD }}>Gideon Gratsiani</span>
+              </div>
+              <div style={{
+                fontFamily: FONT_NAME,
+                fontSize: '22px',
+                color: BRONZE_BOLD,
+                fontWeight: 600,
+                fontStyle: 'italic',
+                marginBottom: '10px',
+              }}>
+                {firstName} —
+              </div>
+              <div style={{
+                fontFamily: FONT_NAME,
+                fontSize: '14px',
+                color: NAVY,
+                lineHeight: 1.6,
+                fontStyle: 'italic',
+              }}>
+                Your {isTerminal ? 'introduction' : 'meeting'} is set.
+              </div>
+              <div style={{
+                fontFamily: FONT_NAME,
+                fontSize: '22px',
+                color: NAVY,
+                fontWeight: 600,
+                margin: '14px 0 2px',
+                letterSpacing: '-0.01em',
+                lineHeight: 1.15,
+              }}>
+                {dayLine}
+              </div>
+              <div style={{
+                fontFamily: FONT_NAME,
+                fontSize: '22px',
+                color: NAVY,
+                fontWeight: 600,
+                lineHeight: 1.15,
+                letterSpacing: '-0.01em',
+              }}>
+                {timeLine}
+              </div>
+              <div style={{
+                fontFamily: FONT_NAME,
+                fontSize: '13px',
+                color: NAVY,
+                lineHeight: 1.55,
+                fontStyle: 'italic',
+                marginTop: '14px',
+              }}>
+                Looking forward to showing you what I&apos;ve been building.
+              </div>
+              <div style={{
+                fontFamily: FONT_NAME,
+                fontSize: '14px',
+                color: BRONZE_BOLD,
+                fontStyle: 'italic',
+                fontWeight: 600,
+                marginTop: '12px',
+              }}>
+                — Gideon
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ADD ATTENDEE — form posts to existing /api/invitations/add-attendee */}
+        <div style={{ padding: '8px 32px 18px' }}>
+          <div style={{
+            fontFamily: FONT_NAME,
+            fontSize: '20px',
+            color: GOLD,
+            fontWeight: 600,
+            textAlign: 'center',
+            marginBottom: '12px',
+          }}>
+            Add Attendee
+          </div>
+          <form action={`/api/invitations/add-attendee`} method="POST">
+            <input type="hidden" name="token" value={token} />
+            <input
+              name="email"
+              type="email"
+              required
+              placeholder="name@firm.com"
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: `0.5px solid rgba(${GOLD_RGB}, 0.35)`,
+                padding: '11px 14px',
+                color: GOLD,
+                fontFamily: FONT_NAME,
+                fontSize: '14px',
+                outline: 'none',
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <button type="submit" style={{
+                fontFamily: FONT_BODY,
+                fontSize: '11px',
+                color: GOLD,
+                fontWeight: 600,
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                textDecoration: 'none',
+              }}>
+                Send Invitation →
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* CALENDAR ADD */}
+        <div style={{ padding: '0 32px 18px' }}>
+          <div style={{
+            fontFamily: FONT_BODY,
+            fontSize: '9px',
+            letterSpacing: '0.24em',
+            textIndent: '0.24em',
+            color: GOLD,
+            textTransform: 'uppercase',
+            fontWeight: 600,
+            textAlign: 'center',
+            marginBottom: '11px',
+            opacity: 0.7,
+          }}>
+            Add to your calendar
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+            <a href={`/invite/${token}/calendar?provider=apple`} style={calBtnStyle}>Apple</a>
+            <a href={`/invite/${token}/calendar?provider=google`} style={calBtnStyle}>Google</a>
+            <a href={`/invite/${token}/calendar?provider=outlook`} style={calBtnStyle}>Outlook</a>
+          </div>
+        </div>
+
+        {/* MEETING DETAILS */}
+        {zoomUrl && (
+          <div style={{ padding: '0 32px 18px' }}>
+            <div style={{
+              fontFamily: FONT_BODY,
+              fontSize: '9px',
+              letterSpacing: '0.24em',
+              textIndent: '0.24em',
+              color: GOLD,
+              textTransform: 'uppercase',
+              fontWeight: 600,
+              textAlign: 'center',
+              marginBottom: '11px',
+              opacity: 0.7,
+            }}>
+              Meeting Details
+            </div>
+            <div style={{ borderTop: `0.5px solid rgba(${GOLD_RGB}, 0.18)`, paddingTop: '8px' }}>
+              <MdRow keyText="Zoom" valText={zoomShort ?? 'zoom.us/j/…'} href={zoomUrl} />
+              {meetingIdFormatted && <MdRow keyText="Meeting ID" valText={meetingIdFormatted} />}
+              {invitation.zoom_passcode && <MdRow keyText="Passcode" valText={invitation.zoom_passcode} />}
+            </div>
+          </div>
+        )}
+
+        {/* JOIN ZOOM (big tap target) */}
+        {zoomUrl && (
+          <div style={{ padding: '0 32px 22px', textAlign: 'center' }}>
+            <a
+              href={zoomUrl}
+              style={{
+                display: 'inline-block',
+                padding: '0.95rem 2rem',
+                background: GOLD,
+                color: NAVY,
+                textDecoration: 'none',
+                fontWeight: 600,
+                fontSize: '14px',
+                fontFamily: FONT_BODY,
+                letterSpacing: '0.02em',
+                borderRadius: '2px',
+              }}
+            >
+              Join Zoom
+            </a>
+          </div>
+        )}
+
+        {/* RESCHEDULE */}
+        <div style={{ padding: '0 32px 22px', textAlign: 'center' }}>
+          <a
+            href={`/invite/${token}/calendar?reschedule=1`}
+            style={{
+              fontFamily: FONT_NAME,
+              fontStyle: 'italic',
+              fontSize: '13px',
+              color: GOLD,
+              lineHeight: 1.5,
+              textDecoration: 'none',
+              opacity: 0.85,
+            }}
+          >
+            Need a different time?<br />
+            Reschedule with one click →
+          </a>
+        </div>
+
+        <TerminalFooter />
+      </PageShell>
+    )
+  }
+
+  // ── SENT state → Screen 2 (booking) ────────────────────────────────────────
   // Captain hotfix 2026-05-19: prefer per-invite proposed_slots if present
-  // (bypasses Google Calendar OAuth dependency). Falls back to live Calendar
-  // freebusy if invitation was minted without proposed_slots.
-  // ALSO: even when using proposed_slots, cross-check against Gideon's actual
-  // calendar via freebusy so we never offer a recipient a slot Gideon is
-  // already booked in.
+  // (bypasses Google Calendar OAuth dependency). Also cross-checks freebusy so
+  // we never offer recipients a slot Gideon is already booked in.
   let slotGroups: SlotGroup[]
   if (invitation.proposed_slots && invitation.proposed_slots.length > 0) {
     const slots = invitation.proposed_slots
-    // Compute freebusy window covering all proposed slots (with 30-min buffer)
     const isoTimes = slots.map(s => new Date(s.iso).getTime()).filter(t => !isNaN(t))
     if (isoTimes.length > 0) {
       const windowStart = new Date(Math.min(...isoTimes) - 30 * 60 * 1000).toISOString()
@@ -198,151 +602,110 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   }
 
   return (
-    <main
-      className={fontClasses}
-      style={{
-        minHeight: '100vh',
-        background: NAVY,
-        color: '#fff',
-        fontFamily: FONT_BODY,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '4rem 1.5rem',
-      }}
-    >
-      <div style={{ width: '100%', maxWidth: 560, textAlign: 'center' }}>
+    <PageShell fontClasses={fontClasses}>
+      <TerminalHeader />
 
-        {/* ── Guest name (Playfair Display 700, Imperial Gold) ── */}
+      {/* Hero — recipient name in Playfair Display */}
+      <div style={{ padding: '26px 32px 18px', textAlign: 'center' }}>
+        <div style={{
+          fontFamily: FONT_BODY,
+          fontSize: '8px',
+          letterSpacing: '0.30em',
+          textIndent: '0.30em',
+          color: GOLD,
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          marginBottom: '11px',
+          opacity: 0.85,
+        }}>
+          Private Introduction
+        </div>
         <h1 style={{
           fontFamily: FONT_NAME,
-          fontSize: 'clamp(3.25rem, 9vw, 5rem)',
-          fontWeight: 700,
+          fontSize: 'clamp(2.4rem, 9vw, 3.25rem)',
           color: GOLD,
-          margin: '0 0 0.4rem',
+          fontWeight: 600,
           lineHeight: 1.0,
           letterSpacing: '-0.01em',
+          margin: 0,
         }}>
           {displayName}
         </h1>
+      </div>
 
-        {/* Private Introduction — Poppins small-caps */}
-        <p style={{
-          color: `rgba(${GOLD_RGB}, 0.70)`,
-          fontSize: '0.72rem',
-          letterSpacing: '0.28em',
+      {/* Private Membership · By Invitation Only */}
+      <div style={{ padding: '0 32px 18px', textAlign: 'center' }}>
+        <div style={{
+          fontFamily: FONT_BODY,
+          fontSize: '9px',
+          letterSpacing: '0.24em',
+          textIndent: '0.24em',
+          color: `rgba(${GOLD_RGB}, 0.80)`,
+          fontWeight: 600,
           textTransform: 'uppercase',
-          margin: '0 0 2.75rem',
-          fontWeight: 500,
-        }}>
-          Private Introduction
-        </p>
-
-        {/* ══ Terminal Wordmark Block ══ */}
-        {isTerminal && (
-          <div style={{ margin: '0 0 2.75rem' }}>
-            {/* Top spindle rule */}
-            <div style={{
-              height: '1.5px',
-              background: `linear-gradient(90deg, transparent 0%, ${GOLD} 6%, ${GOLD} 94%, transparent 100%)`,
-              marginBottom: '1.5rem',
-            }} />
-
-            {/* TERMINAL — Cinzel SemiBold per locked logo spec */}
-            <h2 style={{
-              fontFamily: FONT_TERMINAL,
-              fontSize: 'clamp(1.9rem, 5.5vw, 2.85rem)',
-              fontWeight: 600,
-              color: GOLD,
-              letterSpacing: '0.145em',
-              textIndent: '0.145em',
-              textTransform: 'uppercase',
-              margin: '0 0 0.55rem',
-            }}>
-              Terminal
-            </h2>
-
-            {/* by RePrime — EB Garamond Italic */}
-            <p style={{
-              fontFamily: FONT_BY,
-              color: `rgba(${GOLD_RGB}, 0.90)`,
-              fontSize: '1.1rem',
-              fontStyle: 'italic',
-              letterSpacing: '0.04em',
-              margin: '0 0 1.5rem',
-            }}>
-              by RePrime
-            </p>
-
-            {/* Bottom spindle rule */}
-            <div style={{
-              height: '1.5px',
-              background: `linear-gradient(90deg, transparent 0%, ${GOLD} 6%, ${GOLD} 94%, transparent 100%)`,
-            }} />
-          </div>
-        )}
-
-        {/* Private Membership · By Invitation Only */}
-        <p style={{
-          color: 'rgba(255, 255, 255, 0.60)',
-          fontSize: '0.65rem',
-          letterSpacing: '0.2em',
-          textTransform: 'uppercase',
-          margin: '0 0 0.4rem',
-          fontWeight: 500,
+          marginBottom: '4px',
         }}>
           Private Membership
-        </p>
-        <p style={{
-          color: 'rgba(255, 255, 255, 0.42)',
-          fontSize: '0.65rem',
-          letterSpacing: '0.2em',
+        </div>
+        <div style={{
+          fontFamily: FONT_BODY,
+          fontSize: '9px',
+          letterSpacing: '0.24em',
+          textIndent: '0.24em',
+          color: `rgba(${GOLD_RGB}, 0.55)`,
+          fontWeight: 500,
           textTransform: 'uppercase',
-          margin: '0 0 3rem',
-          fontWeight: 400,
         }}>
           By Invitation Only
-        </p>
+        </div>
+      </div>
 
-        {/* ── Time slots ── */}
+      {/* Time slots */}
+      <div style={{ padding: '6px 32px 24px' }}>
         {slotGroups.length === 0 ? (
           <p style={{
             color: `rgba(${GOLD_RGB}, 0.55)`,
-            fontSize: '0.95rem',
+            fontSize: '14px',
             letterSpacing: '0.02em',
             lineHeight: 1.8,
             fontStyle: 'italic',
             fontFamily: FONT_NAME,
+            textAlign: 'center',
           }}>
             Please reach out directly to schedule.
           </p>
         ) : (
           <>
-            <p style={{
+            <div style={{
+              fontFamily: FONT_BODY,
+              fontSize: '9px',
+              letterSpacing: '0.24em',
+              textIndent: '0.24em',
               color: GOLD,
-              fontSize: '0.72rem',
-              letterSpacing: '0.22em',
-              textTransform: 'uppercase',
-              marginBottom: '2rem',
               fontWeight: 600,
+              textTransform: 'uppercase',
+              textAlign: 'center',
+              marginBottom: '14px',
+              opacity: 0.85,
             }}>
-              Select a time →
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2.25rem', textAlign: 'left' }}>
+              Select a time
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {slotGroups.map((group) => (
                 <div key={group.date}>
                   <p style={{
-                    color: `rgba(${GOLD_RGB}, 0.85)`,
-                    fontSize: '0.62rem',
+                    color: `rgba(${GOLD_RGB}, 0.70)`,
+                    fontSize: '10px',
                     fontWeight: 600,
                     textTransform: 'uppercase',
-                    letterSpacing: '0.22em',
-                    margin: '0 0 0.7rem',
+                    letterSpacing: '0.20em',
+                    textIndent: '0.20em',
+                    margin: '0 0 6px',
+                    fontFamily: FONT_BODY,
                   }}>
                     {group.label}
                   </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                     {group.times.map((slot) => (
                       <form key={slot.iso} action="/api/bookings/confirm" method="POST">
                         <input type="hidden" name="token" value={token} />
@@ -351,18 +714,18 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
                           type="submit"
                           style={{
                             width: '100%',
-                            padding: '0.95rem 1.5rem',
-                            background: `rgba(${GOLD_RGB}, 0.08)`,
-                            color: '#fff',
-                            border: `1px solid rgba(${GOLD_RGB}, 0.35)`,
+                            padding: '11px 14px',
+                            background: `rgba(${GOLD_RGB}, 0.04)`,
+                            color: GOLD,
+                            border: `0.5px solid rgba(${GOLD_RGB}, 0.35)`,
                             borderRadius: '2px',
-                            fontSize: '0.95rem',
-                            fontFamily: FONT_BODY,
+                            fontSize: '13px',
+                            fontFamily: FONT_NAME,
                             cursor: 'pointer',
                             textAlign: 'left',
-                            letterSpacing: '0.02em',
+                            letterSpacing: '0.01em',
                             lineHeight: 1.4,
-                            transition: 'background 0.18s ease, border-color 0.18s ease',
+                            transition: 'background 0.15s ease, border-color 0.15s ease',
                           }}
                         >
                           {slot.display}
@@ -375,24 +738,49 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
             </div>
           </>
         )}
-
-        {/* Signature — sits on a subtle gold divider */}
-        <div style={{
-          marginTop: '4.5rem',
-          paddingTop: '1.75rem',
-          borderTop: `1px solid rgba(${GOLD_RGB}, 0.18)`,
-        }}>
-          <p style={{
-            color: 'rgba(255, 255, 255, 0.55)',
-            fontSize: '0.72rem',
-            letterSpacing: '0.12em',
-            margin: 0,
-          }}>
-            Gideon Gratsiani · Founder, RePrime Group
-          </p>
-        </div>
-
       </div>
-    </main>
+
+      <TerminalFooter />
+    </PageShell>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Inline subcomponent styles
+// ────────────────────────────────────────────────────────────────────────────
+
+const calBtnStyle: React.CSSProperties = {
+  border: `0.5px solid rgba(${GOLD_RGB}, 0.35)`,
+  padding: '10px 6px',
+  textAlign: 'center',
+  fontFamily: FONT_BODY,
+  fontSize: '9px',
+  color: GOLD,
+  letterSpacing: '0.10em',
+  textTransform: 'uppercase',
+  fontWeight: 600,
+  textIndent: '0.10em',
+  background: 'transparent',
+  cursor: 'pointer',
+  textDecoration: 'none',
+  display: 'block',
+}
+
+function MdRow({ keyText, valText, href }: { keyText: string; valText: string; href?: string }) {
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '6px 0',
+      borderBottom: `0.5px dashed rgba(${GOLD_RGB}, 0.12)`,
+    }}>
+      <span style={{ fontFamily: FONT_BODY, fontSize: '11px', color: GOLD, letterSpacing: '0.04em', opacity: 0.65 }}>{keyText}</span>
+      {href ? (
+        <a href={href} style={{ fontFamily: FONT_BODY, fontSize: '11px', color: GOLD, fontWeight: 500, textDecoration: 'none' }}>{valText}</a>
+      ) : (
+        <span style={{ fontFamily: FONT_BODY, fontSize: '11px', color: GOLD, fontWeight: 500 }}>{valText}</span>
+      )}
+    </div>
   )
 }
