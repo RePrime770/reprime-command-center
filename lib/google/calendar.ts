@@ -73,9 +73,13 @@ export async function createCalendarEvent(opts: {
 }) {
   const calendar = google.calendar({ version: 'v3', auth: getAuthClient() })
   const location = opts.location ?? opts.zoomLink
-  const description = location
-    ? (opts.description || '')
-    : (opts.description || '') + (opts.zoomLink ? `\n\nZoom: ${opts.zoomLink}` : '')
+  // Captain hotfix 2026-05-19: ALWAYS prepend Zoom URL to description as a
+  // visible link. Previously the URL was put in `location` only, which Outlook
+  // and many email clients show as a non-clickable "Zoom meeting" label until
+  // the recipient opens the event. Putting it at the top of the description
+  // surfaces it in compact previews and copy-paste flows.
+  const zoomBlock = opts.zoomLink ? `Join Zoom: ${opts.zoomLink}\n\n` : ''
+  const description = zoomBlock + (opts.description || '')
   const res = await calendar.events.insert({
     calendarId: 'primary',
     requestBody: {
@@ -88,4 +92,48 @@ export async function createCalendarEvent(opts: {
     },
   })
   return res.data.id
+}
+
+/**
+ * Captain hotfix 2026-05-19: expose freebusy lookup so the booking page can
+ * filter proposed_slots against Gideon's actual calendar before showing them
+ * to a recipient. Returns busy intervals in ms-epoch range.
+ */
+export interface BusyInterval {
+  start: number
+  end: number
+}
+
+export async function getBusyTimes(timeMin: string, timeMax: string): Promise<BusyInterval[]> {
+  try {
+    const calendar = google.calendar({ version: 'v3', auth: getAuthClient() })
+    const res = await calendar.freebusy.query({
+      requestBody: {
+        timeMin,
+        timeMax,
+        timeZone: 'UTC',
+        items: [{ id: 'primary' }],
+      },
+    })
+    const busyRanges = res.data?.calendars?.primary?.busy ?? []
+    return busyRanges.map((b) => ({
+      start: new Date(b.start!).getTime(),
+      end: new Date(b.end!).getTime(),
+    }))
+  } catch (err) {
+    // Graceful degradation — if freebusy fails, return [] (no conflicts known).
+    // Better to show a slot that might conflict than to show nothing.
+    console.error('[google.getBusyTimes] failed', err)
+    return []
+  }
+}
+
+export function slotOverlapsBusy(slotIso: string, durationMinutes: number, busy: BusyInterval[]): boolean {
+  const start = new Date(slotIso).getTime()
+  if (isNaN(start)) return false
+  const end = start + durationMinutes * 60 * 1000
+  for (const b of busy) {
+    if (start < b.end && end > b.start) return true
+  }
+  return false
 }

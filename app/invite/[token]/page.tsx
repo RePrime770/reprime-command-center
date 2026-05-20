@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Cinzel, EB_Garamond, Playfair_Display } from 'next/font/google'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getBusyTimes, slotOverlapsBusy } from '@/lib/google/calendar'
 
 // Locked brand fonts per dashboard/_terminal-design-reference/brand/TerminalLogo.jsx
 // and 01_Screen1_OG_Card.html. Loaded via next/font for self-hosting + zero CLS.
@@ -175,9 +176,26 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   // Captain hotfix 2026-05-19: prefer per-invite proposed_slots if present
   // (bypasses Google Calendar OAuth dependency). Falls back to live Calendar
   // freebusy if invitation was minted without proposed_slots.
-  const slotGroups = invitation.proposed_slots && invitation.proposed_slots.length > 0
-    ? groupProposedSlotsByDate(invitation.proposed_slots)
-    : await loadAvailableSlots()
+  // ALSO: even when using proposed_slots, cross-check against Gideon's actual
+  // calendar via freebusy so we never offer a recipient a slot Gideon is
+  // already booked in.
+  let slotGroups: SlotGroup[]
+  if (invitation.proposed_slots && invitation.proposed_slots.length > 0) {
+    const slots = invitation.proposed_slots
+    // Compute freebusy window covering all proposed slots (with 30-min buffer)
+    const isoTimes = slots.map(s => new Date(s.iso).getTime()).filter(t => !isNaN(t))
+    if (isoTimes.length > 0) {
+      const windowStart = new Date(Math.min(...isoTimes) - 30 * 60 * 1000).toISOString()
+      const windowEnd = new Date(Math.max(...isoTimes) + 60 * 60 * 1000).toISOString()
+      const busy = await getBusyTimes(windowStart, windowEnd)
+      const nonConflicting = slots.filter(s => !slotOverlapsBusy(s.iso, 30, busy))
+      slotGroups = groupProposedSlotsByDate(nonConflicting)
+    } else {
+      slotGroups = groupProposedSlotsByDate(slots)
+    }
+  } else {
+    slotGroups = await loadAvailableSlots()
+  }
 
   return (
     <main
