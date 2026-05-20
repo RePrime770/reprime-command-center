@@ -271,11 +271,14 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
       })
       const json = (await res.json()) as {
         invitation_id?: string
+        invite_url?: string
         sent_channels?: string[]
         errors?: Array<{ channel: string; message: string }>
         error?: string
         message?: string
         sql?: string
+        phone_e164?: string | null
+        whatsapp_text?: string | null
       }
       if (!res.ok) {
         // Special handling for missing DB table
@@ -291,12 +294,35 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
       }
       const sent = json.sent_channels ?? []
       const errs = json.errors ?? []
+
+      // Captain hotfix 2026-05-20: detect cold-start (Timelines lacks an existing
+      // chat for this phone). Surface a wa.me deep-link so Gideon can fire one
+      // manual send from WhatsApp Web — which creates the chat and unblocks
+      // future automated sends to this contact.
+      const coldStartChannels = errs
+        .filter((e) => e.message === 'no_existing_chat_with_this_phone_on_panel')
+        .map((e) => e.channel)
+      const isColdStart = coldStartChannels.length > 0 && json.phone_e164 && json.whatsapp_text
+      if (isColdStart) {
+        setColdStartFallback({
+          phone: json.phone_e164!,
+          text: json.whatsapp_text!,
+          panels: coldStartChannels,
+          inviteUrl: json.invite_url ?? '',
+        })
+      } else {
+        setColdStartFallback(null)
+      }
+
       if (sent.length > 0 && errs.length === 0) {
         setToast(`✓ Sent via ${sent.join(', ')}`)
         setToastIsError(false)
         setTimeout(() => onClose?.(), 1800)
       } else if (sent.length > 0) {
         setToast(`Sent via ${sent.join(', ')}. ${errs.length} channel(s) failed.`)
+        setToastIsError(false)
+      } else if (isColdStart) {
+        setToast(`Cold contact — no WhatsApp chat exists yet. Use the manual send button below to create the chat. Email channel sends without this constraint.`)
         setToastIsError(false)
       } else {
         setToast(`No channels sent. ${errs.map((e) => `${e.channel}: ${e.message}`).join(' · ')}`)
@@ -308,6 +334,26 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
     } finally {
       setSending(false)
     }
+  }
+
+  const [coldStartFallback, setColdStartFallback] = useState<{
+    phone: string
+    text: string
+    panels: string[]
+    inviteUrl: string
+  } | null>(null)
+
+  function buildWaMeUrl(phoneE164: string, text: string): string {
+    // wa.me expects digits-only (no leading +)
+    const digits = phoneE164.replace(/\D/g, '')
+    return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`
+  }
+
+  function copyColdStartText() {
+    if (!coldStartFallback) return
+    void navigator.clipboard.writeText(coldStartFallback.text)
+    setToast('✓ Message copied. Paste into WhatsApp Web after the chat opens.')
+    setToastIsError(false)
   }
 
   const [dbSetupSql, setDbSetupSql] = useState<string | null>(null)
@@ -558,6 +604,81 @@ export default function BookingsPanel({ onClose, autofillPhone, autofillName }: 
               >
                 {sqlCopied ? '✓ Copied!' : 'Copy SQL'}
               </button>
+            </div>
+          )}
+
+          {/* ── Cold-start manual WhatsApp fallback (Captain hotfix 2026-05-20) ── */}
+          {coldStartFallback && (
+            <div style={{ background: 'rgba(255, 204, 51, 0.06)', border: `1px solid ${GOLD}`, borderRadius: 6, padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+              <div style={{ color: GOLD, fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.04em' }}>
+                ⚡ Cold contact — one-time manual send needed
+              </div>
+              <div style={{ color: GOLD_LIGHT, fontSize: '0.78rem', lineHeight: 1.55 }}>
+                {coldStartFallback.panels.includes('whatsapp_305') && coldStartFallback.panels.includes('whatsapp_718')
+                  ? 'No existing WhatsApp chats with this number on 305 or 718.'
+                  : `No existing WhatsApp chat with this number on the ${coldStartFallback.panels[0]?.replace('whatsapp_', '') ?? ''} panel.`}{' '}
+                Click below to open WhatsApp Web with the recipient + message pre-filled. Hit Send once — the chat will exist and future invitations will auto-send via the API.
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <a
+                  href={buildWaMeUrl(coldStartFallback.phone, coldStartFallback.text)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    background: GOLD,
+                    color: NAVY_DEEP,
+                    border: 'none',
+                    borderRadius: 5,
+                    padding: '0.5rem 0.95rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    fontFamily: 'inherit',
+                    textDecoration: 'none',
+                    display: 'inline-block',
+                  }}
+                >
+                  Open WhatsApp Web with this message →
+                </a>
+                <button
+                  type="button"
+                  onClick={copyColdStartText}
+                  style={{
+                    background: 'transparent',
+                    color: GOLD,
+                    border: `1px solid ${GOLD}`,
+                    borderRadius: 5,
+                    padding: '0.5rem 0.85rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    fontFamily: 'inherit',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Copy text to clipboard
+                </button>
+                {coldStartFallback.inviteUrl && (
+                  <button
+                    type="button"
+                    onClick={() => { void navigator.clipboard.writeText(coldStartFallback.inviteUrl); setToast('✓ Magic link copied.'); setToastIsError(false) }}
+                    style={{
+                      background: 'transparent',
+                      color: GOLD_LIGHT,
+                      border: `1px solid ${GOLD_LIGHT}`,
+                      borderRadius: 5,
+                      padding: '0.5rem 0.85rem',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      fontFamily: 'inherit',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Copy magic link only
+                  </button>
+                )}
+              </div>
+              <div style={{ color: MUTED, fontSize: '0.72rem', lineHeight: 1.4 }}>
+                Tip: if you'd rather use email for cold contacts going forward, untoggle WhatsApp 305/718 and select Email — SendGrid sends to any address without needing a prior chat.
+              </div>
             </div>
           )}
 

@@ -279,10 +279,19 @@ export async function POST(request: Request) {
     }
   }
 
+  // Captain hotfix 2026-05-20: also return the recipient phone + the WhatsApp
+  // body the route tried to send, so the UI can offer a wa.me deep-link
+  // fallback for cold contacts (Timelines API requires an existing chat;
+  // wa.me opens WhatsApp Web with the recipient pre-filled, lets Gideon
+  // send manually one time, and creates the chat for future API sends).
+  const whatsappText = phone ? buildWhatsAppCopy(firstName, inviteUrl, meetingType, personalMessage) : null
   return NextResponse.json({
     invitation_id: token,
     invite_url: inviteUrl,
     sent_channels: sentChannels,
     errors,
+    // Cold-start fallback fields
+    phone_e164: phone,
+    whatsapp_text: whatsappText,
   })
 }
