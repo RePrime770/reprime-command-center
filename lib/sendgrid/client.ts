@@ -11,10 +11,13 @@ export interface SendEmailAttachment {
 export interface SendEmailInput {
   to: string | string[]
   from: string
+  /** Display name on the From header. Falls back to env SENDGRID_FROM_NAME, then "Gideon Gratsiani". */
+  fromName?: string
   subject: string
   text?: string
   html?: string
   replyTo?: string
+  replyToName?: string
   cc?: string | string[]
   bcc?: string | string[]
   attachments?: SendEmailAttachment[]
@@ -43,13 +46,26 @@ export async function sendEmail(input: SendEmailInput): Promise<void> {
   const bcc = asAddressList(input.bcc)
   if (bcc) personalization.bcc = bcc
 
+  // Captain hotfix 2026-05-20: ALWAYS include a friendly display name so
+  // Gmail/Outlook/Apple Mail show "Gideon Gratsiani" in the inbox From column
+  // instead of extracting the bare local-part "g" from the address. Falls
+  // back to env var then to a sensible default. Also helps with deliverability
+  // — anti-spam heuristics flag mailers with no display name more aggressively.
+  const fromName =
+    (input.fromName?.trim()) ||
+    (process.env.SENDGRID_FROM_NAME?.trim()) ||
+    'Gideon Gratsiani'
   const body: Record<string, unknown> = {
     personalizations: [personalization],
-    from: { email: input.from },
+    from: { email: input.from, name: fromName },
     subject: input.subject,
     content,
   }
-  if (input.replyTo) body.reply_to = { email: input.replyTo }
+  if (input.replyTo) {
+    body.reply_to = input.replyToName
+      ? { email: input.replyTo, name: input.replyToName }
+      : { email: input.replyTo, name: fromName }
+  }
   if (input.attachments && input.attachments.length > 0) {
     body.attachments = input.attachments.map((a) => ({
       content: a.content,
