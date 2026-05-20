@@ -439,45 +439,58 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         </div>
 
         {/* ADD ATTENDEE — form posts to existing /api/invitations/add-attendee */}
-        <div style={{ padding: '8px 32px 18px' }}>
+        <div style={{ padding: '8px 28px 18px' }}>
           <div style={{
             fontFamily: FONT_NAME,
-            fontSize: '20px',
+            fontSize: '24px',
             color: GOLD,
             fontWeight: 600,
             textAlign: 'center',
-            marginBottom: '12px',
+            marginBottom: '8px',
           }}>
             Add Attendee
+          </div>
+          <div style={{
+            fontFamily: FONT_NAME,
+            fontStyle: 'italic',
+            fontSize: '15px',
+            color: `rgba(${GOLD_RGB}, 0.70)`,
+            textAlign: 'center',
+            marginBottom: '14px',
+            lineHeight: 1.4,
+          }}>
+            Want to bring a colleague? Add their email — separate multiple addresses with a comma.
           </div>
           <form action={`/api/invitations/add-attendee`} method="POST">
             <input type="hidden" name="token" value={token} />
             <input
-              name="email"
-              type="email"
+              name="emails"
+              type="text"
               required
-              placeholder="name@firm.com"
+              placeholder="name@firm.com, another@firm.com"
               style={{
                 width: '100%',
-                background: 'transparent',
-                border: `0.5px solid rgba(${GOLD_RGB}, 0.35)`,
-                padding: '11px 14px',
+                background: `rgba(${GOLD_RGB}, 0.06)`,
+                border: `1px solid rgba(${GOLD_RGB}, 0.40)`,
+                padding: '14px 16px',
                 color: GOLD,
                 fontFamily: FONT_NAME,
-                fontSize: '14px',
+                fontSize: '17px',
                 outline: 'none',
               }}
             />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
               <button type="submit" style={{
                 fontFamily: FONT_BODY,
-                fontSize: '11px',
-                color: GOLD,
-                fontWeight: 600,
-                background: 'transparent',
+                fontSize: '15px',
+                color: NAVY,
+                fontWeight: 700,
+                background: GOLD,
                 border: 'none',
+                padding: '10px 22px',
+                borderRadius: '4px',
                 cursor: 'pointer',
-                textDecoration: 'none',
+                letterSpacing: '0.02em',
               }}>
                 Send Invitation →
               </button>
