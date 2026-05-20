@@ -94,15 +94,39 @@ function buildAttendeeEmail(opts: {
 }
 
 export async function POST(request: NextRequest) {
+  // Captain hotfix 2026-05-20: accept BOTH JSON AND form-data. Screen 3's
+  // Add Attendee field is a plain HTML form (server-component-friendly) and
+  // posts `token` + `email`. Programmatic callers still send JSON with
+  // `parent_token` + `emails[]`. After processing, form-data POSTs get a
+  // 303 redirect back to /invite/{parent} so the recipient lands on the
+  // updated Screen 3 (now with the additional attendee surfaced).
+  const contentType = request.headers.get('content-type') || ''
+  const isFormData = contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data')
   let body: Body
-  try {
-    body = (await request.json()) as Body
-  } catch {
-    return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
+  let isHtmlSubmit = false
+  if (isFormData) {
+    try {
+      const form = await request.formData()
+      const token = form.get('token') ?? form.get('parent_token')
+      const singleEmail = form.get('email') as string | null
+      const emailsStr = form.get('emails') as string | null
+      const emailsArr = emailsStr ? emailsStr.split(/[,\s]+/).filter(Boolean) : (singleEmail ? [singleEmail] : [])
+      body = { parent_token: typeof token === 'string' ? token : undefined, emails: emailsArr }
+      isHtmlSubmit = true
+    } catch {
+      return NextResponse.json({ error: 'invalid_form' }, { status: 400 })
+    }
+  } else {
+    try {
+      body = (await request.json()) as Body
+    } catch {
+      return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
+    }
   }
 
   const parentToken = body.parent_token
   if (!parentToken || typeof parentToken !== 'string') {
+    if (isHtmlSubmit) return new Response(null, { status: 303, headers: { Location: `${appUrl()}/` } })
     return NextResponse.json({ error: 'parent_token_required' }, { status: 400 })
   }
 
@@ -111,6 +135,7 @@ export async function POST(request: NextRequest) {
     new Set(rawEmails.map((e) => (typeof e === 'string' ? e.trim().toLowerCase() : '')).filter(Boolean))
   )
   if (emails.length === 0) {
+    if (isHtmlSubmit) return new Response(null, { status: 303, headers: { Location: `${appUrl()}/invite/${parentToken}?attendee=missing` } })
     return NextResponse.json({ error: 'emails_required' }, { status: 400 })
   }
   const invalid = emails.filter((e) => !EMAIL_RE.test(e))
@@ -191,6 +216,15 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Form-submitters get 303 back to /invite/{parent} so the browser lands
+  // on Screen 3 cleanly. API callers still get JSON.
+  if (isHtmlSubmit) {
+    const status = errors.length === 0 ? 'ok' : 'partial'
+    return new Response(null, {
+      status: 303,
+      headers: { Location: `${appUrl()}/invite/${parentToken}?attendee=${status}&sent=${sentChannels.length}` },
+    })
+  }
   return NextResponse.json({
     ok: errors.length === 0,
     sent: sentChannels.length,

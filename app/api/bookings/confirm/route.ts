@@ -291,57 +291,67 @@ export async function POST(request: Request) {
     }
   }
 
-  // Step 3: persist Zoom IDs
+  // Captain hotfix 2026-05-20: parallelize Steps 3-9 to cut the post-click
+  // latency from ~3-4s to ~1-2s (max(any single step) instead of sum). Step 2
+  // (Zoom create) must finish first because Steps 4/6/7/8/9 need the URL.
+  // Step 5 still chains after Step 4 inside its own task.
+  const parallelTasks: Promise<void>[] = []
+
+  // Task A — persist Zoom IDs (Step 3)
   if (zoomMeetingId && zoomJoinUrl) {
-    try {
-      const { error } = await supabase
-        .from('invitations')
-        .update({ zoom_meeting_id: zoomMeetingId, zoom_join_url: zoomJoinUrl })
-        .eq('id', token)
-      if (error) throw new Error(error.message)
-    } catch (err) {
-      errors.push({ step: '3_persist_zoom', message: (err as Error).message })
-      await pageGideonCritical(`Bookings: failed to persist Zoom IDs for ${firstName}`, { token, zoom_id: zoomMeetingId, err: (err as Error).message })
-    }
+    parallelTasks.push((async () => {
+      try {
+        const { error } = await supabase
+          .from('invitations')
+          .update({ zoom_meeting_id: zoomMeetingId, zoom_join_url: zoomJoinUrl })
+          .eq('id', token)
+        if (error) throw new Error(error.message)
+      } catch (err) {
+        errors.push({ step: '3_persist_zoom', message: (err as Error).message })
+        await pageGideonCritical(`Bookings: failed to persist Zoom IDs for ${firstName}`, { token, zoom_id: zoomMeetingId, err: (err as Error).message })
+      }
+    })())
   }
 
-  // Step 4: create Google Calendar event (Zoom URL in LOCATION per Agent 34 audit)
+  // Task B — create Calendar event → then persist calendar id (Steps 4 + 5 chained)
   if (zoomJoinUrl) {
-    try {
-      const start = new Date(slot.iso)
-      const end = new Date(start.getTime() + 30 * 60 * 1000)
-      const eventId = await createCalendarEvent({
-        summary: `Terminal Introduction — ${firstName}`,
-        description: 'Terminal introduction call. 30 minutes.',
-        startTime: slot.iso,
-        endTime: end.toISOString(),
-        attendees: inv.contact_email ? [inv.contact_email] : [],
-        zoomLink: zoomJoinUrl,
-        location: zoomJoinUrl,
-      })
-      calendarEventId = eventId ?? null
-    } catch (err) {
-      errors.push({ step: '4_calendar_create', message: (err as Error).message })
-      await pageGideonCritical(`Bookings: Calendar event create failed for ${firstName}`, { token, slot, err: (err as Error).message })
-    }
+    parallelTasks.push((async () => {
+      try {
+        const start = new Date(slot.iso)
+        const end = new Date(start.getTime() + 30 * 60 * 1000)
+        const eventId = await createCalendarEvent({
+          summary: `Terminal Introduction — ${firstName}`,
+          description: 'Terminal introduction call. 30 minutes.',
+          startTime: slot.iso,
+          endTime: end.toISOString(),
+          attendees: inv.contact_email ? [inv.contact_email] : [],
+          zoomLink: zoomJoinUrl,
+          location: zoomJoinUrl,
+        })
+        calendarEventId = eventId ?? null
+      } catch (err) {
+        errors.push({ step: '4_calendar_create', message: (err as Error).message })
+        await pageGideonCritical(`Bookings: Calendar event create failed for ${firstName}`, { token, slot, err: (err as Error).message })
+        return
+      }
+      if (calendarEventId) {
+        try {
+          const { error } = await supabase
+            .from('invitations')
+            .update({ calendar_event_id: calendarEventId })
+            .eq('id', token)
+          if (error) throw new Error(error.message)
+        } catch (err) {
+          errors.push({ step: '5_persist_calendar', message: (err as Error).message })
+          await pageGideonCritical(`Bookings: failed to persist calendar event id for ${firstName}`, { token, err: (err as Error).message })
+        }
+      }
+    })())
   }
 
-  // Step 5: persist calendar event id
-  if (calendarEventId) {
-    try {
-      const { error } = await supabase
-        .from('invitations')
-        .update({ calendar_event_id: calendarEventId })
-        .eq('id', token)
-      if (error) throw new Error(error.message)
-    } catch (err) {
-      errors.push({ step: '5_persist_calendar', message: (err as Error).message })
-      await pageGideonCritical(`Bookings: failed to persist calendar event id for ${firstName}`, { token, err: (err as Error).message })
-    }
-  }
-
-  // Step 6: send confirmation email + ICS
+  // Task C — send confirmation email + ICS (Step 6) — runs in parallel
   if (inv.contact_email && zoomJoinUrl) {
+    parallelTasks.push((async () => {
     try {
       const start = new Date(slot.iso)
       const end = new Date(start.getTime() + 30 * 60 * 1000)
@@ -387,7 +397,7 @@ Gideon Gratsiani
 Founder, RePrime Group`
 
       await sendEmail({
-        to: inv.contact_email,
+        to: inv.contact_email!,
         from: FROM_EMAIL,
         replyTo: REPLY_TO,
         subject: `Confirmed — Terminal Introduction · ${slot.display}`,
@@ -406,29 +416,33 @@ Founder, RePrime Group`
       errors.push({ step: '6_confirmation_email', message: (err as Error).message })
       await pageGideonCritical(`Bookings: confirmation email failed for ${firstName}`, { token, email: inv.contact_email, err: (err as Error).message })
     }
+    })())
   }
 
-  // Step 7: WhatsApp confirmation (panel 305 default)
+  // Task D — WhatsApp confirmation (Step 7) — runs in parallel
   if (inv.contact_phone && zoomJoinUrl) {
-    try {
-      const chatId = await findChatIdForPhone('305', inv.contact_phone)
-      if (chatId) {
-        const text = `${firstName} — confirmed: ${slot.display}.\n\nZoom: ${zoomJoinUrl}\n\nSee you then.\n— Gideon`
-        await sendMessage({
-          phone: inv.contact_phone,
-          text,
-          whatsappAccountPhone: PANEL_ACCOUNT_MAP['305'],
-        })
-      } else {
-        errors.push({ step: '7_whatsapp_confirmation', message: 'no_existing_chat' })
+    parallelTasks.push((async () => {
+      try {
+        const chatId = await findChatIdForPhone('305', inv.contact_phone!)
+        if (chatId) {
+          const text = `${firstName} — confirmed: ${slot.display}.\n\nZoom: ${zoomJoinUrl}\n\nSee you then.\n— Gideon`
+          await sendMessage({
+            phone: inv.contact_phone!,
+            text,
+            whatsappAccountPhone: PANEL_ACCOUNT_MAP['305'],
+          })
+        } else {
+          errors.push({ step: '7_whatsapp_confirmation', message: 'no_existing_chat' })
+        }
+      } catch (err) {
+        errors.push({ step: '7_whatsapp_confirmation', message: (err as Error).message })
+        await pageGideonCritical(`Bookings: WhatsApp confirmation failed for ${firstName}`, { token, phone: inv.contact_phone, err: (err as Error).message })
       }
-    } catch (err) {
-      errors.push({ step: '7_whatsapp_confirmation', message: (err as Error).message })
-      await pageGideonCritical(`Bookings: WhatsApp confirmation failed for ${firstName}`, { token, phone: inv.contact_phone, err: (err as Error).message })
-    }
+    })())
   }
 
-  // Step 8: schedule T-10 + T-1 PagerDuty events via Upstash Redis ZSET
+  // Task E — PagerDuty T-10 + T-1 schedule (Step 8) — runs in parallel
+  parallelTasks.push((async () => {
   try {
     const redis = getRedis()
     if (!redis) throw new Error('upstash_not_configured')
@@ -459,9 +473,11 @@ Founder, RePrime Group`
     errors.push({ step: '8_pagerduty_schedule', message: (err as Error).message })
     await pageGideonCritical(`Bookings: PagerDuty schedule failed for ${firstName}`, { token, err: (err as Error).message })
   }
+  })())
 
-  // Step 9: Pipedrive activity
+  // Task F — Pipedrive activity (Step 9) — runs in parallel
   if (inv.contact_pipedrive_id) {
+    parallelTasks.push((async () => {
     try {
       const slotDate = new Date(slot.iso)
       const yyyy = slotDate.getFullYear()
@@ -472,7 +488,7 @@ Founder, RePrime Group`
       await createActivity({
         type: 'meeting',
         subject: 'Terminal Introduction',
-        person_id: inv.contact_pipedrive_id,
+        person_id: inv.contact_pipedrive_id!,
         due_date: `${yyyy}-${mm}-${dd}`,
         due_time: `${hh}:${mn}`,
         duration: '00:30',
@@ -484,7 +500,11 @@ Founder, RePrime Group`
       errors.push({ step: '9_pipedrive_activity', message: (err as Error).message })
       await pageGideonCritical(`Bookings: Pipedrive activity failed for ${firstName}`, { token, err: (err as Error).message })
     }
+    })())
   }
+
+  // Wait for all parallel tasks to finish before responding
+  await Promise.allSettled(parallelTasks)
 
   if (errors.length > 0) {
     console.error('[bookings.confirm] partial failures', { token, errors })
