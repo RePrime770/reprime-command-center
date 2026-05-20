@@ -1,5 +1,40 @@
 import type { Metadata } from 'next'
+import { Cinzel, EB_Garamond, Playfair_Display } from 'next/font/google'
 import { createServiceClient } from '@/lib/supabase/server'
+
+// Locked brand fonts per dashboard/_terminal-design-reference/brand/TerminalLogo.jsx
+// and 01_Screen1_OG_Card.html. Loaded via next/font for self-hosting + zero CLS.
+const cinzel = Cinzel({
+  subsets: ['latin'],
+  weight: ['600'],
+  variable: '--rp-font-cinzel',
+  display: 'swap',
+})
+const ebGaramond = EB_Garamond({
+  subsets: ['latin'],
+  weight: ['400'],
+  style: ['italic'],
+  variable: '--rp-font-eb-garamond',
+  display: 'swap',
+})
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  style: ['normal', 'italic'],
+  variable: '--rp-font-playfair',
+  display: 'swap',
+})
+
+// Locked brand tokens — sourced from dashboard/lib/design-tokens.ts.
+// One gold (#FFCC33 Imperial Gold), one navy (#0E3470 Brand Navy). Hierarchy via opacity.
+const NAVY = '#0E3470'
+const GOLD = '#FFCC33'
+const GOLD_RGB = '255, 204, 51'
+
+const FONT_NAME = `var(--rp-font-playfair), 'Playfair Display', Georgia, serif`
+const FONT_TERMINAL = `var(--rp-font-cinzel), Cinzel, 'Trajan Pro', Georgia, serif`
+const FONT_BY = `var(--rp-font-eb-garamond), 'EB Garamond', Garamond, Georgia, serif`
+const FONT_BODY = `'Poppins', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif`
 
 interface SlotGroup {
   date: string
@@ -56,9 +91,9 @@ async function loadAvailableSlots(): Promise<SlotGroup[]> {
 }
 
 /**
- * Group a flat list of proposed_slots (from the invitation row) into SlotGroups
- * keyed by Chicago date. Lets the booking page work without Google Calendar OAuth.
- * Captain hotfix 2026-05-19 — see _ops-context for context.
+ * Group flat proposed_slots into SlotGroups keyed by Chicago date.
+ * Lets the booking page work without Google Calendar OAuth.
+ * Captain hotfix 2026-05-19.
  */
 function groupProposedSlotsByDate(slots: Array<{ iso: string; display: string }>): SlotGroup[] {
   const TZ = 'America/Chicago'
@@ -118,16 +153,18 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const { token } = await params
   const { invitation, reason } = await loadInvitation(token)
 
+  const fontClasses = `${cinzel.variable} ${ebGaramond.variable} ${playfair.variable}`
+
   if (!invitation || reason) {
     const message =
       reason === 'used' ? 'This invitation has already been used.'
       : reason === 'expired' ? 'This invitation has expired.'
       : 'This invitation link is not valid.'
     return (
-      <main style={{ minHeight: '100vh', background: '#080d18', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', fontFamily: 'Georgia, serif' }}>
+      <main className={fontClasses} style={{ minHeight: '100vh', background: NAVY, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', fontFamily: FONT_BODY }}>
         <div style={{ textAlign: 'center' }}>
-          <p style={{ color: 'rgba(255, 204, 51,0.6)', fontSize: '0.65rem', letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: '1.5rem', fontFamily: 'Poppins, Arial, sans-serif' }}>RePrime Group</p>
-          <p style={{ color: '#FFCC33', fontSize: '1.1rem', letterSpacing: '0.04em', fontStyle: 'italic' }}>{message}</p>
+          <p style={{ color: `rgba(${GOLD_RGB}, 0.55)`, fontSize: '0.65rem', letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: '1.5rem' }}>RePrime Group</p>
+          <p style={{ color: GOLD, fontSize: '1.1rem', letterSpacing: '0.04em', fontStyle: 'italic', fontFamily: FONT_NAME }}>{message}</p>
         </div>
       </main>
     )
@@ -143,35 +180,38 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     : await loadAvailableSlots()
 
   return (
-    <main style={{
-      minHeight: '100vh',
-      background: '#080d18',
-      color: '#fff',
-      fontFamily: 'Poppins, Arial, sans-serif',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '4rem 1.5rem',
-    }}>
-      <div style={{ width: '100%', maxWidth: 520, textAlign: 'center' }}>
+    <main
+      className={fontClasses}
+      style={{
+        minHeight: '100vh',
+        background: NAVY,
+        color: '#fff',
+        fontFamily: FONT_BODY,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '4rem 1.5rem',
+      }}
+    >
+      <div style={{ width: '100%', maxWidth: 560, textAlign: 'center' }}>
 
-        {/* ── Guest name ── */}
+        {/* ── Guest name (Playfair Display 700, Imperial Gold) ── */}
         <h1 style={{
-          fontFamily: 'Georgia, serif',
-          fontSize: 'clamp(3.5rem, 10vw, 5.5rem)',
+          fontFamily: FONT_NAME,
+          fontSize: 'clamp(3.25rem, 9vw, 5rem)',
           fontWeight: 700,
-          color: '#C9A84C',
+          color: GOLD,
           margin: '0 0 0.4rem',
-          lineHeight: 1,
-          letterSpacing: '0.01em',
+          lineHeight: 1.0,
+          letterSpacing: '-0.01em',
         }}>
           {displayName}
         </h1>
 
-        {/* Private Introduction */}
+        {/* Private Introduction — Poppins small-caps */}
         <p style={{
-          color: 'rgba(201,168,76,0.7)',
+          color: `rgba(${GOLD_RGB}, 0.70)`,
           fontSize: '0.72rem',
           letterSpacing: '0.28em',
           textTransform: 'uppercase',
@@ -181,35 +221,35 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           Private Introduction
         </p>
 
-        {/* ══ Terminal Logo Block ══ */}
+        {/* ══ Terminal Wordmark Block ══ */}
         {isTerminal && (
           <div style={{ margin: '0 0 2.75rem' }}>
-            {/* Top rule */}
+            {/* Top spindle rule */}
             <div style={{
-              height: '1px',
-              background: 'linear-gradient(90deg, transparent 0%, #C9A84C 25%, #C9A84C 75%, transparent 100%)',
+              height: '1.5px',
+              background: `linear-gradient(90deg, transparent 0%, ${GOLD} 6%, ${GOLD} 94%, transparent 100%)`,
               marginBottom: '1.5rem',
             }} />
 
-            {/* TERMINAL */}
+            {/* TERMINAL — Cinzel SemiBold per locked logo spec */}
             <h2 style={{
-              fontFamily: 'Georgia, serif',
-              fontSize: 'clamp(1.9rem, 5.5vw, 3rem)',
-              fontWeight: 400,
-              color: '#C9A84C',
-              letterSpacing: '0.38em',
+              fontFamily: FONT_TERMINAL,
+              fontSize: 'clamp(1.9rem, 5.5vw, 2.85rem)',
+              fontWeight: 600,
+              color: GOLD,
+              letterSpacing: '0.145em',
+              textIndent: '0.145em',
               textTransform: 'uppercase',
               margin: '0 0 0.55rem',
-              paddingLeft: '0.38em',
             }}>
               Terminal
             </h2>
 
-            {/* by RePrime */}
+            {/* by RePrime — EB Garamond Italic */}
             <p style={{
-              fontFamily: 'Georgia, serif',
-              color: 'rgba(201,168,76,0.75)',
-              fontSize: '1rem',
+              fontFamily: FONT_BY,
+              color: `rgba(${GOLD_RGB}, 0.90)`,
+              fontSize: '1.1rem',
               fontStyle: 'italic',
               letterSpacing: '0.04em',
               margin: '0 0 1.5rem',
@@ -217,17 +257,17 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
               by RePrime
             </p>
 
-            {/* Bottom rule */}
+            {/* Bottom spindle rule */}
             <div style={{
-              height: '1px',
-              background: 'linear-gradient(90deg, transparent 0%, #C9A84C 25%, #C9A84C 75%, transparent 100%)',
+              height: '1.5px',
+              background: `linear-gradient(90deg, transparent 0%, ${GOLD} 6%, ${GOLD} 94%, transparent 100%)`,
             }} />
           </div>
         )}
 
         {/* Private Membership · By Invitation Only */}
         <p style={{
-          color: 'rgba(255,255,255,0.55)',
+          color: 'rgba(255, 255, 255, 0.60)',
           fontSize: '0.65rem',
           letterSpacing: '0.2em',
           textTransform: 'uppercase',
@@ -237,7 +277,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           Private Membership
         </p>
         <p style={{
-          color: 'rgba(255,255,255,0.38)',
+          color: 'rgba(255, 255, 255, 0.42)',
           fontSize: '0.65rem',
           letterSpacing: '0.2em',
           textTransform: 'uppercase',
@@ -250,19 +290,20 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         {/* ── Time slots ── */}
         {slotGroups.length === 0 ? (
           <p style={{
-            color: 'rgba(201,168,76,0.45)',
-            fontSize: '0.9rem',
-            letterSpacing: '0.03em',
+            color: `rgba(${GOLD_RGB}, 0.55)`,
+            fontSize: '0.95rem',
+            letterSpacing: '0.02em',
             lineHeight: 1.8,
             fontStyle: 'italic',
+            fontFamily: FONT_NAME,
           }}>
             Please reach out directly to schedule.
           </p>
         ) : (
           <>
             <p style={{
-              color: 'rgba(201,168,76,0.85)',
-              fontSize: '0.7rem',
+              color: GOLD,
+              fontSize: '0.72rem',
               letterSpacing: '0.22em',
               textTransform: 'uppercase',
               marginBottom: '2rem',
@@ -274,16 +315,16 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
               {slotGroups.map((group) => (
                 <div key={group.date}>
                   <p style={{
-                    color: 'rgba(201,168,76,0.6)',
-                    fontSize: '0.6rem',
+                    color: `rgba(${GOLD_RGB}, 0.85)`,
+                    fontSize: '0.62rem',
                     fontWeight: 600,
                     textTransform: 'uppercase',
                     letterSpacing: '0.22em',
-                    margin: '0 0 0.6rem',
+                    margin: '0 0 0.7rem',
                   }}>
                     {group.label}
                   </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                     {group.times.map((slot) => (
                       <form key={slot.iso} action="/api/bookings/confirm" method="POST">
                         <input type="hidden" name="token" value={token} />
@@ -292,17 +333,18 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
                           type="submit"
                           style={{
                             width: '100%',
-                            padding: '0.9rem 1.5rem',
-                            background: 'rgba(201,168,76,0.07)',
-                            color: 'rgba(255,255,255,0.88)',
-                            border: '1px solid rgba(201,168,76,0.28)',
+                            padding: '0.95rem 1.5rem',
+                            background: `rgba(${GOLD_RGB}, 0.08)`,
+                            color: '#fff',
+                            border: `1px solid rgba(${GOLD_RGB}, 0.35)`,
                             borderRadius: '2px',
-                            fontSize: '0.9rem',
-                            fontFamily: 'inherit',
+                            fontSize: '0.95rem',
+                            fontFamily: FONT_BODY,
                             cursor: 'pointer',
                             textAlign: 'left',
                             letterSpacing: '0.02em',
                             lineHeight: 1.4,
+                            transition: 'background 0.18s ease, border-color 0.18s ease',
                           }}
                         >
                           {slot.display}
@@ -316,15 +358,21 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           </>
         )}
 
-        {/* Signature */}
-        <p style={{
+        {/* Signature — sits on a subtle gold divider */}
+        <div style={{
           marginTop: '4.5rem',
-          color: 'rgba(255,255,255,0.18)',
-          fontSize: '0.68rem',
-          letterSpacing: '0.1em',
+          paddingTop: '1.75rem',
+          borderTop: `1px solid rgba(${GOLD_RGB}, 0.18)`,
         }}>
-          Gideon Gratsiani · Founder, RePrime Group
-        </p>
+          <p style={{
+            color: 'rgba(255, 255, 255, 0.55)',
+            fontSize: '0.72rem',
+            letterSpacing: '0.12em',
+            margin: 0,
+          }}>
+            Gideon Gratsiani · Founder, RePrime Group
+          </p>
+        </div>
 
       </div>
     </main>
