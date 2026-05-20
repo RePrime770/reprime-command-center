@@ -77,14 +77,19 @@ function buildWhatsAppCopy(
   meetingType: MeetingType,
   personalMessage?: string
 ): string {
-  // If Gideon wrote a personal note, that IS the message — just append the link
+  // Captain hotfix 2026-05-20: URL must be the LAST line with no text after.
+  // WhatsApp's auto-preview engine places the OG card at the END of the
+  // message bubble when the URL is the trailing element — which puts the
+  // recipient's eye on Gideon's typed text FIRST, then the gold preview
+  // card BELOW. Previously the URL sat in the middle with "— Gideon" after,
+  // which pushed the preview to the top and the text below.
   if (personalMessage) {
-    return `${personalMessage}\n\nPick a time: ${inviteUrl}\n— Gideon`
+    return `${personalMessage}\n\n— Gideon\n\n${inviteUrl}`
   }
   if (meetingType === 'meeting') {
-    return `${firstName} — I'd value some time with you.\n\n30 minutes, your schedule. Pick what works:\n${inviteUrl}\n— Gideon`
+    return `${firstName} — I'd value some time with you. 30 minutes, your schedule.\n\n— Gideon\n\n${inviteUrl}`
   }
-  return `${firstName} — I'm hosting a Terminal Introduction.\n\nThe Terminal is a deal sourcing machine unlike anything that exists — built to source, qualify, and close at a different level. One of a kind.\n\n30 minutes to walk you through it. Pick a time:\n${inviteUrl}\n— Gideon`
+  return `${firstName} — built a deal-sourcing machine I want to walk you through. 30 minutes.\n\n— Gideon\n\n${inviteUrl}`
 }
 
 async function findChatIdForPhone(panel: Panel, phone: string): Promise<number | null> {

@@ -490,16 +490,20 @@ Founder, RePrime Group`
     console.error('[bookings.confirm] partial failures', { token, errors })
   }
 
-  const success = !!zoomJoinUrl && errors.every((e) => e.step !== '2_zoom_create')
-  return htmlResponse(
-    pageHtml({
-      firstName,
-      slot,
-      zoomUrl: zoomJoinUrl ?? undefined,
-      state: success ? 'confirmed' : 'partial',
-      message: success
-        ? undefined
-        : 'Slot saved. There was a hiccup creating the Zoom link — Gideon will follow up directly.',
-    })
-  )
+  // Captain hotfix 2026-05-20: instead of returning a bespoke "Locked in"
+  // HTML page (which drifted from the locked Screen 3 design), 303-redirect
+  // the recipient back to /invite/{token}. The invitation row now has
+  // status='confirmed' + confirmed_slot_iso + zoom_join_url (or null if Zoom
+  // failed), so page.tsx renders the locked Screen 3 confirmation surface
+  // — cream letter bubble, meeting details, Add Attendee, calendar buttons,
+  // reschedule link — exactly per _terminal-design-reference/03_Screen3_Confirmation.html.
+  // Single source of truth for the confirmation surface lives in page.tsx.
+  const appUrlBase = (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'https://project-7e87w.vercel.app'
+  ).replace(/\/$/, '')
+  return new Response(null, {
+    status: 303,
+    headers: { Location: `${appUrlBase}/invite/${token}` },
+  })
 }
