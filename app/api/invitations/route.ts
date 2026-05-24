@@ -15,6 +15,28 @@ type CreateBody = {
   expires_in_days?: number
 }
 
+// Captain hotfix 2026-05-24: CORS allowed for cross-origin mints (Chrome
+// extension running on web.whatsapp.com or any other tab needs to fetch
+// this endpoint directly). Security gate is the X-Captain-Token header,
+// not the origin — so `*` is acceptable here.
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Captain-Token, Authorization',
+  'Access-Control-Max-Age': '86400',
+}
+
+function corsJson(body: unknown, init?: { status?: number }) {
+  return NextResponse.json(body, {
+    status: init?.status ?? 200,
+    headers: CORS_HEADERS,
+  })
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS })
+}
+
 export async function POST(request: NextRequest) {
   // Captain hotfix 2026-05-20: switched from cookie-based g@reprime.com check
   // to X-Captain-Token header so the Chrome Extension can mint directly via
@@ -32,7 +54,7 @@ export async function POST(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user || user.email !== 'g@reprime.com') {
-      return NextResponse.json(
+      return corsJson(
         { error: 'unauthorized', message: 'Provide X-Captain-Token header or sign in as g@reprime.com' },
         { status: 401 }
       )
@@ -43,14 +65,14 @@ export async function POST(request: NextRequest) {
   try {
     payload = (await request.json()) as CreateBody
   } catch {
-    return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
+    return corsJson({ error: 'invalid_json' }, { status: 400 })
   }
 
   const firstName = (payload.contact_first_name || '').trim() || null
   const fullName = (payload.contact_name || '').trim() || null
 
   if (!firstName && !fullName) {
-    return NextResponse.json(
+    return corsJson(
       { error: 'name_required', message: 'contact_first_name or contact_name is required' },
       { status: 400 }
     )
@@ -77,7 +99,7 @@ export async function POST(request: NextRequest) {
   const { error: insertErr } = await service.from('invitations').insert(row)
 
   if (insertErr) {
-    return NextResponse.json(
+    return corsJson(
       { error: 'db_insert_failed', message: insertErr.message },
       { status: 500 }
     )
@@ -88,7 +110,7 @@ export async function POST(request: NextRequest) {
   ).replace(/\/$/, '')
   const invite_url = `${appUrl}/invite/${id}`
 
-  return NextResponse.json({
+  return corsJson({
     id,
     invite_url,
     expires_at: expiresAt,
