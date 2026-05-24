@@ -291,7 +291,12 @@ export default async function InvitePage({
   searchParams,
 }: {
   params: Promise<{ token: string }>
-  searchParams: Promise<{ attendee?: string; sent?: string }>
+  // Captain 2026-05-24: `slot` arrives when recipient clicks a per-time link
+  // inside the SendGrid invitation email. Page renders a focused "Confirm
+  // this time" view instead of the multi-slot grid. NO auto-confirm — email
+  // clients prefetch links, so confirmation always requires an explicit form
+  // POST initiated by an actual human click.
+  searchParams: Promise<{ attendee?: string; sent?: string; slot?: string }>
 }) {
   const { token } = await params
   const sp = await searchParams
@@ -299,6 +304,7 @@ export default async function InvitePage({
 
   const attendeeStatus = sp?.attendee
   const attendeeSent = sp?.sent ? parseInt(sp.sent, 10) : 0
+  const preselectedSlotIso = sp?.slot ? decodeURIComponent(sp.slot) : null
   const attendeeBanner = attendeeStatus === 'ok' && attendeeSent > 0
     ? `✓ Invitation sent to ${attendeeSent} colleague${attendeeSent === 1 ? '' : 's'}. Check their inbox (and spam, just in case).`
     : attendeeStatus === 'partial'
@@ -644,6 +650,197 @@ export default async function InvitePage({
           >
             Need a different time?<br />
             Reschedule with one click →
+          </a>
+        </div>
+
+        <TerminalFooter />
+      </PageShell>
+    )
+  }
+
+  // ── SENT state + ?slot=<iso> → focused single-slot confirm view ────────────
+  // Captain 2026-05-24: when the recipient clicks a per-time button inside
+  // the SendGrid invitation email (e.g. ".../invite/[token]?slot=2026-05-26T09:00:00-05:00"),
+  // we land here with preselectedSlotIso. If it matches one of the proposed
+  // slots, render a focused "Confirm this time" screen — single big gold
+  // button, no other slots, no decision overhead. One click confirms exactly
+  // as the email promised. We do NOT auto-confirm on page load because email
+  // clients (Gmail, Outlook, iOS Mail) routinely prefetch URLs and would
+  // accidentally book the slot before the recipient even opened the email.
+  const matchedPreselect =
+    preselectedSlotIso &&
+    invitation.proposed_slots?.find((s) => s.iso === preselectedSlotIso)
+
+  if (matchedPreselect) {
+    const slotDate = new Date(matchedPreselect.iso)
+    const TZ = 'America/Chicago'
+    const dayLine = new Intl.DateTimeFormat('en-US', {
+      weekday: 'long', month: 'long', day: 'numeric', timeZone: TZ,
+    }).format(slotDate)
+    const timeLine = new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric', minute: '2-digit', timeZone: TZ,
+    }).format(slotDate) + ' Central'
+
+    return (
+      <PageShell fontClasses={fontClasses}>
+        <TerminalHeader />
+
+        {/* Hero — recipient name */}
+        <div style={{ padding: '26px 32px 12px', textAlign: 'center' }}>
+          <div style={{
+            fontFamily: FONT_BODY,
+            fontSize: '11px',
+            letterSpacing: '0.30em',
+            textIndent: '0.30em',
+            color: GOLD,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            marginBottom: '14px',
+          }}>
+            Private Introduction
+          </div>
+          <h1 style={{
+            fontFamily: FONT_NAME,
+            fontSize: 'clamp(2.4rem, 9vw, 3.25rem)',
+            color: GOLD,
+            fontWeight: 600,
+            lineHeight: 1.0,
+            letterSpacing: '-0.01em',
+            margin: 0,
+          }}>
+            {displayName}
+          </h1>
+        </div>
+
+        {/* Confirm-this-time summary */}
+        <div style={{ padding: '24px 32px 18px', textAlign: 'center' }}>
+          <div style={{
+            fontFamily: FONT_BODY,
+            fontSize: '11px',
+            letterSpacing: '0.24em',
+            textIndent: '0.24em',
+            color: GOLD,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            opacity: 0.85,
+            marginBottom: '10px',
+          }}>
+            Your selected time
+          </div>
+          <div style={{
+            fontFamily: FONT_NAME,
+            fontSize: '28px',
+            color: GOLD,
+            fontWeight: 600,
+            lineHeight: 1.15,
+            letterSpacing: '-0.01em',
+          }}>
+            {dayLine}
+          </div>
+          <div style={{
+            fontFamily: FONT_NAME,
+            fontSize: '24px',
+            color: GOLD,
+            fontWeight: 400,
+            lineHeight: 1.2,
+            marginTop: '4px',
+            fontStyle: 'italic',
+          }}>
+            {timeLine}
+          </div>
+        </div>
+
+        {/* Confirm form — single big gold button */}
+        <div style={{ padding: '6px 32px 18px' }}>
+          <form action="/api/bookings/confirm" method="POST">
+            <input type="hidden" name="token" value={token} />
+            <input type="hidden" name="slot_iso" value={matchedPreselect.iso} />
+            {!invitation.contact_email && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{
+                  display: 'block',
+                  fontFamily: FONT_BODY,
+                  fontSize: 11,
+                  letterSpacing: '0.18em',
+                  textIndent: '0.18em',
+                  color: GOLD,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  marginBottom: 6,
+                  textAlign: 'center',
+                }}>
+                  Your email (for Zoom + calendar invite)
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    background: `rgba(${GOLD_RGB}, 0.04)`,
+                    border: `0.5px solid rgba(${GOLD_RGB}, 0.40)`,
+                    borderRadius: 2,
+                    color: GOLD,
+                    fontFamily: FONT_NAME,
+                    fontSize: 14,
+                    marginBottom: 4,
+                    textAlign: 'center',
+                  }}
+                />
+              </div>
+            )}
+            <button
+              type="submit"
+              style={{
+                width: '100%',
+                padding: '18px 16px',
+                background: GOLD,
+                color: NAVY,
+                border: 'none',
+                borderRadius: '2px',
+                fontFamily: FONT_NAME,
+                fontSize: '20px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                letterSpacing: '0.02em',
+              }}
+            >
+              Confirm this time →
+            </button>
+          </form>
+          <a
+            href={`/invite/${token}`}
+            style={{
+              display: 'block',
+              marginTop: '14px',
+              fontFamily: FONT_NAME,
+              fontStyle: 'italic',
+              fontSize: '14px',
+              color: GOLD,
+              textAlign: 'center',
+              textDecoration: 'underline',
+              opacity: 0.75,
+            }}
+          >
+            See other suggested times →
+          </a>
+          <a
+            href={`/invite/${token}/choose`}
+            style={{
+              display: 'block',
+              marginTop: '8px',
+              fontFamily: FONT_NAME,
+              fontStyle: 'italic',
+              fontSize: '14px',
+              color: GOLD,
+              textAlign: 'center',
+              textDecoration: 'underline',
+              opacity: 0.75,
+            }}
+          >
+            Or pick a different date and time →
           </a>
         </div>
 

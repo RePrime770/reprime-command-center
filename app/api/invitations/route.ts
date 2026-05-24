@@ -164,6 +164,19 @@ export async function POST(request: NextRequest) {
   // engage via whichever channel they prefer first. Both point at the same
   // magic link → same booking flow. Fires in background via after().
   // Skip if: send_email explicitly false, OR no email resolved, OR no slots.
+  //
+  // Email markup MIRRORS the locked design at
+  //   dashboard/_terminal-design-reference/00_Email_Page.html
+  // — Imperial Gold #FFCC33 + Brand Navy #0E3470 + Cinzel/Playfair/EB Garamond
+  // — cream letter bubble with the personal note
+  // — each proposed slot is its own clickable bordered button (Eslot pattern)
+  // — "Different Time?" link routes to /invite/[token]/choose (Calendly grid)
+  //
+  // Adjustments from the static HTML for email-client safety:
+  //   • SVG spindles → flat gold hairlines (Gmail/Outlook strip SVG)
+  //   • SVG pointy-tip bubble → standard bordered <table> with cream gradient
+  //   • Web-font @import retained (Gmail+Apple Mail honor it; Outlook falls
+  //     back gracefully to Georgia / Arial — declared via font-family stack)
   const wantEmail = payload.send_email !== false
   const recipientFirst = firstName || (fullName ? fullName.split(' ')[0] : 'there')
   const recipientFull = fullName || firstName || 'there'
@@ -171,81 +184,162 @@ export async function POST(request: NextRequest) {
     after(async () => {
       try {
         const slots = payload.proposed_slots ?? []
-        const slotPreview = slots.slice(0, 3).map((s) => `• ${s.display}`).join('\n')
-        const slotPreviewHtml = slots.slice(0, 3).map((s) =>
-          `<li style="margin:6px 0;color:#FFCC33;font-family:'Playfair Display',Georgia,serif;font-size:15px;">${s.display}</li>`
-        ).join('')
 
+        // ── Helpers ──
+        const periodLabel = (iso: string): string => {
+          try {
+            const d = new Date(iso)
+            const hh = new Intl.DateTimeFormat('en-US', {
+              timeZone: 'America/Chicago',
+              hour: 'numeric',
+              hour12: false,
+            }).format(d)
+            const h = parseInt(hh, 10)
+            if (h < 12) return 'Morning'
+            if (h < 16) return 'Afternoon'
+            if (h < 18) return 'Late Afternoon'
+            return 'Evening'
+          } catch {
+            return 'Suggested'
+          }
+        }
+        const dayLabel = (iso: string): string => {
+          try {
+            return new Intl.DateTimeFormat('en-US', {
+              timeZone: 'America/Chicago',
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            }).format(new Date(iso))
+          } catch {
+            return ''
+          }
+        }
+        const escapeHtml = (s: string) =>
+          s.replace(/[&<>"']/g, (c) =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!)
+          )
+
+        // ── Slots label: "Suggested times — Tuesday, May 5" if all same day,
+        // else generic "Suggested times" ──
+        const firstDay = slots[0] ? dayLabel(slots[0].iso) : ''
+        const allSameDay = slots.every((s) => dayLabel(s.iso) === firstDay)
+        const slotsLabel = firstDay && allSameDay
+          ? `Suggested times — ${firstDay}`
+          : 'Suggested times'
+
+        // ── Per-slot bordered button (Eslot pattern) ──
+        const slotButtonsHtml = slots.slice(0, 5).map((s) => {
+          const slotUrl = `${invite_url}?slot=${encodeURIComponent(s.iso)}`
+          const period = periodLabel(s.iso)
+          return `<a href="${slotUrl}" style="display:block;width:100%;padding:14px 20px;border:1px solid rgba(255,204,51,0.35);text-align:center;text-decoration:none;margin:0 0 8px;box-sizing:border-box;background:#0E3470;">
+            <div style="font-family:'Poppins',Arial,sans-serif;font-size:11px;color:#FFCC33;letter-spacing:0.20em;text-transform:uppercase;font-weight:600;text-indent:0.20em;opacity:0.85;">${escapeHtml(period)}</div>
+            <div style="font-family:'Playfair Display',Georgia,serif;font-size:22px;color:#FFCC33;font-weight:400;margin-top:4px;line-height:1.2;">${escapeHtml(s.display)}</div>
+          </a>`
+        }).join('')
+
+        // Plain text fallback (Speechify + non-HTML clients)
+        const slotPlainList = slots.slice(0, 5).map((s) => `• ${s.display}`).join('\n')
         const subject = `A private introduction from Gideon Gratsiani — ${recipientFirst}`
-
-        // Plain text fallback
         const text = `${recipientFirst} —
 
-I've built something I'd like to show you. Two years in the making — by invitation only.
+I've been building something privately for two years, and you're one of the very first people I want to show it to. Thirty minutes, just us.
 
-Tap the link below to pick a time. One click confirms.
+By Invitation Only · Private Membership
 
+${slotsLabel}:
+${slotPlainList}
+
+Pick a time:
 ${invite_url}
 
-Suggested times:
-${slotPreview}
+Different time? ${appUrl}/invite/${id}/choose
 
 — Gideon
 Gideon Gratsiani, Founder
 RePrime Group`
 
-        // HTML — Imperial Gold + Brand Navy locked design, mirrors the OG card aesthetic.
-        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${subject}</title></head>
-<body style="margin:0;padding:0;background:#DDD9D2;font-family:Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
-    <tr><td align="center">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#0E3470;border:1px solid rgba(255,204,51,0.22);">
+        // ── Cream letter body ──
+        const personalNoteHtml = `${escapeHtml(recipientFirst)} — I've been building something privately for two years, and you're one of the very first people I want to show it to. Thirty minutes, just us.`
 
-        <!-- Header — TERMINAL -->
-        <tr><td style="padding:28px 48px 24px;text-align:center;border-bottom:1px solid rgba(255,204,51,0.18);">
-          <div style="font-family:Georgia,serif;font-size:30px;letter-spacing:0.30em;color:#FFCC33;font-weight:600;text-indent:0.30em;">TERMINAL</div>
-          <div style="font-family:Garamond,Georgia,serif;font-style:italic;font-size:15px;color:#FFCC33;margin-top:6px;">by RePrime</div>
-        </td></tr>
+        // ── HTML email — mirrors the locked design ──
+        const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(subject)}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;1,400&display=swap');
+body { margin:0; padding:0; }
+a { text-decoration: none; }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#DDD9D2;font-family:'Poppins',Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#DDD9D2;padding:40px 20px;">
+<tr><td align="center">
 
-        <!-- Cream letter -->
-        <tr><td style="padding:30px 36px 24px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(180deg,#F8F0DA 0%,#EFE2C4 100%);border:1px solid rgba(255,204,51,0.30);padding:32px 28px;">
-            <tr><td style="text-align:center;font-family:Georgia,serif;color:#0E3470;">
-              <p style="margin:0 0 14px;font-size:12px;font-style:italic;color:rgba(14,52,112,0.55);font-family:Arial,sans-serif;letter-spacing:0.04em;">A private introduction from Gideon Gratsiani</p>
-              <h1 style="margin:0 0 12px;font-size:30px;font-style:italic;font-weight:600;color:#5A3F18;">${recipientFirst} —</h1>
-              <p style="margin:14px 0;font-size:17px;line-height:1.6;font-style:italic;color:#0E3470;">I've built something I'd like to show you. Two years in the making — by invitation only.</p>
-              <p style="margin:18px 0 6px;font-size:15px;line-height:1.6;font-style:italic;color:#0E3470;">Pick any time below. One click confirms.</p>
-              <p style="margin:18px 0 0;font-size:18px;font-weight:600;font-style:italic;color:#5A3F18;">— Gideon</p>
-            </td></tr>
-          </table>
-        </td></tr>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;background:#0E3470;border:1px solid rgba(255,204,51,0.22);border-radius:2px;">
 
-        <!-- Suggested times -->
-        ${slotPreviewHtml ? `<tr><td style="padding:0 36px 18px;">
-          <p style="margin:0 0 10px;text-align:center;font-size:11px;letter-spacing:0.24em;color:#FFCC33;text-transform:uppercase;font-family:Arial,sans-serif;font-weight:600;text-indent:0.24em;">Suggested times</p>
-          <ul style="list-style:none;padding:0;margin:0;text-align:center;">${slotPreviewHtml}</ul>
-        </td></tr>` : ''}
+  <!-- HEADER — TERMINAL wordmark between gold hairlines -->
+  <tr><td style="padding:22px 48px 20px;text-align:center;border-bottom:1px solid rgba(255,204,51,0.18);">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="70%" style="margin:0 auto 11px;"><tr><td style="height:2px;background:#FFCC33;line-height:1px;font-size:0;">&nbsp;</td></tr></table>
+    <div style="font-family:'Cinzel',Georgia,serif;font-size:26px;letter-spacing:0.145em;color:#FFCC33;font-weight:600;text-indent:0.145em;margin:11px 0;">TERMINAL</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="70%" style="margin:11px auto 0;"><tr><td style="height:2px;background:#FFCC33;line-height:1px;font-size:0;">&nbsp;</td></tr></table>
+  </td></tr>
 
-        <!-- Big gold CTA -->
-        <tr><td style="padding:22px 36px 30px;text-align:center;">
-          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
-            <tr><td style="background:#FFCC33;border-radius:2px;">
-              <a href="${invite_url}" style="display:inline-block;padding:16px 38px;color:#0E3470;text-decoration:none;font-weight:700;font-size:17px;font-family:Georgia,serif;letter-spacing:0.04em;">Open Invitation →</a>
-            </td></tr>
-          </table>
-          <p style="margin:16px 0 0;font-size:11px;color:rgba(255,204,51,0.55);font-family:Arial,sans-serif;letter-spacing:0.10em;">PRIVATE MEMBERSHIP · BY INVITATION ONLY</p>
-        </td></tr>
+  <!-- HERO — Private Introduction + recipient name -->
+  <tr><td style="padding:34px 48px 22px;text-align:center;">
+    <div style="font-family:'Poppins',Arial,sans-serif;font-size:9px;letter-spacing:0.30em;color:#FFCC33;font-weight:600;text-transform:uppercase;text-indent:0.30em;margin-bottom:14px;opacity:0.85;">Private Introduction</div>
+    <div style="font-family:'Playfair Display',Georgia,serif;font-size:56px;color:#FFCC33;font-weight:600;line-height:1.0;letter-spacing:-0.01em;">${escapeHtml(recipientFull)}</div>
+  </td></tr>
 
-        <!-- Footer -->
-        <tr><td style="padding:22px 36px;text-align:center;border-top:1px solid rgba(255,204,51,0.18);">
-          <div style="font-family:Georgia,serif;font-size:16px;color:#FFCC33;font-weight:600;letter-spacing:0.10em;text-indent:0.10em;">TERMINAL</div>
-          <div style="font-family:Garamond,Georgia,serif;font-style:italic;font-size:12px;color:#FFCC33;margin-top:3px;">by RePrime</div>
-          <p style="margin:14px 0 0;font-size:9px;color:rgba(255,204,51,0.55);letter-spacing:0.06em;font-family:Arial,sans-serif;">This invitation was sent personally. Reply directly to Gideon.</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`
+  <!-- CREAM LETTER — the personal note (pointy-tip bubble in the design;
+       email-safe version: standard bordered table with cream gradient) -->
+  <tr><td style="padding:0 36px 26px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F4E8CC;border:1px solid rgba(255,204,51,0.30);border-radius:4px;">
+      <tr><td style="padding:30px 28px;text-align:center;background:linear-gradient(180deg,#F8F0DA 0%,#EFE2C4 100%);">
+        <div style="font-family:'Playfair Display',Georgia,serif;font-size:13px;color:#7A5A30;font-style:italic;margin-bottom:11px;">A personal note from <span style="font-weight:600;color:#5A3F18;">Gideon Gratsiani</span></div>
+        <div style="font-family:'Playfair Display',Georgia,serif;font-size:15px;color:#0E3470;line-height:1.7;font-style:italic;">${personalNoteHtml}</div>
+      </td></tr>
+    </table>
+  </td></tr>
+
+  <!-- MEMBERSHIP -->
+  <tr><td style="padding:24px 48px;text-align:center;border-top:1px solid rgba(255,204,51,0.18);border-bottom:1px solid rgba(255,204,51,0.18);">
+    <div style="font-family:'Playfair Display',Georgia,serif;font-size:28px;color:#FFCC33;font-weight:400;font-style:italic;">Private Membership</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:13px auto;"><tr><td style="width:5px;height:5px;background:#FFCC33;border-radius:50%;font-size:0;line-height:1px;">&nbsp;</td></tr></table>
+    <div style="font-family:'Playfair Display',Georgia,serif;font-size:36px;color:#FFCC33;font-weight:400;font-style:italic;">By Invitation Only</div>
+  </td></tr>
+
+  <!-- SLOT BUTTONS — each is an Eslot link straight to /invite/[token]?slot= -->
+  <tr><td style="padding:28px 48px 0;">
+    <div style="font-family:'Poppins',Arial,sans-serif;font-size:11px;letter-spacing:0.24em;color:#FFCC33;text-transform:uppercase;font-weight:600;text-align:center;margin-bottom:16px;text-indent:0.24em;opacity:0.85;">${escapeHtml(slotsLabel)}</div>
+    ${slotButtonsHtml}
+    <a href="${appUrl}/invite/${id}/choose" style="display:block;width:100%;padding:14px 20px;border:1px solid rgba(255,204,51,0.35);text-align:center;text-decoration:none;margin:0;box-sizing:border-box;background:#0E3470;">
+      <div style="font-family:'Poppins',Arial,sans-serif;font-size:11px;color:#FFCC33;letter-spacing:0.20em;text-transform:uppercase;font-weight:600;text-indent:0.20em;opacity:0.85;">Different Time?</div>
+      <div style="font-family:'Playfair Display',Georgia,serif;font-size:28px;color:#FFCC33;font-weight:400;margin-top:4px;line-height:1.2;">Choose your own date and time →</div>
+    </a>
+  </td></tr>
+
+  <!-- CONFIRM tagline -->
+  <tr><td style="padding:18px 48px 26px;text-align:center;">
+    <div style="font-family:'Poppins',Arial,sans-serif;font-size:10px;color:#FFCC33;line-height:1.85;letter-spacing:0.04em;opacity:0.7;">One click confirms · Zoom link follows immediately · Thirty minutes · No preparation needed</div>
+  </td></tr>
+
+  <!-- FOOTER -->
+  <tr><td style="padding:22px 48px;border-top:1px solid rgba(255,204,51,0.18);text-align:center;">
+    <div style="font-family:'Playfair Display',Georgia,serif;font-size:16px;color:#FFCC33;font-weight:600;letter-spacing:0.10em;text-indent:0.10em;">TERMINAL</div>
+    <div style="font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:13px;color:#FFCC33;margin-top:4px;opacity:0.75;">by RePrime</div>
+    <div style="font-family:'Poppins',Arial,sans-serif;font-size:8px;color:#FFCC33;margin-top:11px;letter-spacing:0.06em;opacity:0.55;">This invitation was sent personally. Reply directly to Gideon.</div>
+  </td></tr>
+
+</table>
+
+</td></tr>
+</table>
+</body>
+</html>`
 
         await sendEmail({
           to: resolvedEmail,
