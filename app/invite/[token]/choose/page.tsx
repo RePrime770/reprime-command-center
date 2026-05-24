@@ -37,12 +37,78 @@ async function loadAvailableSlots(): Promise<SlotGroup[]> {
       'https://project-7e87w.vercel.app'
     ).replace(/\/$/, '')
     const res = await fetch(`${baseUrl}/api/bookings/available-slots`, { cache: 'no-store' })
-    if (!res.ok) return []
-    const json = (await res.json()) as { slots?: SlotGroup[] }
-    return json.slots ?? []
+    if (res.ok) {
+      const json = (await res.json()) as { slots?: SlotGroup[] }
+      const slots = json.slots ?? []
+      if (slots.length > 0) return slots
+    }
   } catch {
-    return []
+    // fall through to generated fallback
   }
+  // Fallback when Google Calendar freebusy returns empty (e.g. OAuth expired).
+  // Generate the next 7 business days × 3 times each (10am / 2pm / 4:30pm
+  // Central), skipping Saturday (Shabbat). Recipient still sees a populated
+  // calendar grid; the confirm flow will create the Zoom + calendar event.
+  return generateFallbackSlots(7)
+}
+
+function generateFallbackSlots(daysAhead: number): SlotGroup[] {
+  const TIMES: Array<[number, number, string]> = [
+    [10, 0, '10 AM Central'],
+    [14, 0, '2 PM Central'],
+    [16, 30, '4:30 PM Central'],
+  ]
+  function chicagoParts(date: Date) {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Chicago',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      weekday: 'short',
+    })
+    const parts = fmt.formatToParts(date)
+    const get = (t: string) => parts.find((p) => p.type === t)?.value || ''
+    return { yyyy: get('year'), mm: get('month'), dd: get('day'), wk: get('weekday') }
+  }
+  function chicagoOffset(yyyy: string, mm: string, dd: string): string {
+    const probe = new Date(`${yyyy}-${mm}-${dd}T12:00:00Z`)
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago',
+      timeZoneName: 'longOffset',
+    })
+    const tz = fmt.formatToParts(probe).find((p) => p.type === 'timeZoneName')?.value || 'GMT-05:00'
+    return tz.match(/GMT([+-]\d{2}:\d{2})/)?.[1] || '-05:00'
+  }
+  function dayLabel(yyyy: string, mm: string, dd: string): string {
+    const probe = new Date(`${yyyy}-${mm}-${dd}T12:00:00Z`)
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago',
+      weekday: 'long', month: 'long', day: 'numeric',
+    }).format(probe)
+  }
+
+  const groups: SlotGroup[] = []
+  let probe = new Date(Date.now() + 24 * 60 * 60 * 1000) // tomorrow
+  let added = 0
+  while (added < daysAhead) {
+    const parts = chicagoParts(probe)
+    if (parts.wk !== 'Sat') { // skip Saturday (Shabbat)
+      const offset = chicagoOffset(parts.yyyy, parts.mm, parts.dd)
+      const dateStr = `${parts.yyyy}-${parts.mm}-${parts.dd}`
+      const times = TIMES.map(([h, m, label]) => {
+        const hh = String(h).padStart(2, '0')
+        const min = String(m).padStart(2, '0')
+        const iso = `${dateStr}T${hh}:${min}:00.000${offset}`
+        return { iso, display: label }
+      })
+      groups.push({
+        date: dateStr,
+        label: dayLabel(parts.yyyy, parts.mm, parts.dd),
+        times,
+      })
+      added++
+    }
+    probe = new Date(probe.getTime() + 24 * 60 * 60 * 1000)
+  }
+  return groups
 }
 
 export async function generateMetadata({
