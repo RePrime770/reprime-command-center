@@ -631,9 +631,14 @@ export default async function InvitePage({
 
   // ── SENT state → Screen 2 (booking) ────────────────────────────────────────
   // Captain hotfix 2026-05-19: prefer per-invite proposed_slots if present
-  // (bypasses Google Calendar OAuth dependency). Also cross-checks freebusy so
-  // we never offer recipients a slot Gideon is already booked in.
+  // (bypasses Google Calendar OAuth dependency). Cross-checks freebusy so we
+  // never offer recipients a slot Gideon is already booked in.
+  // Captain 2026-05-24: ALWAYS aim to show 3 slots. If proposed_slots filter
+  // down to <3 non-conflicting, supplement from Google Calendar freebusy so
+  // the recipient never sees a single-slot dead-end.
+  const TARGET_SLOT_COUNT = 3
   let slotGroups: SlotGroup[]
+  let nonConflictingProposed: Array<{ iso: string; display: string }> = []
   if (invitation.proposed_slots && invitation.proposed_slots.length > 0) {
     const slots = invitation.proposed_slots
     const isoTimes = slots.map(s => new Date(s.iso).getTime()).filter(t => !isNaN(t))
@@ -641,31 +646,52 @@ export default async function InvitePage({
       const windowStart = new Date(Math.min(...isoTimes) - 30 * 60 * 1000).toISOString()
       const windowEnd = new Date(Math.max(...isoTimes) + 60 * 60 * 1000).toISOString()
       const busy = await getBusyTimes(windowStart, windowEnd)
-      const nonConflicting = slots.filter(s => !slotOverlapsBusy(s.iso, 30, busy))
-      slotGroups = groupProposedSlotsByDate(nonConflicting)
+      nonConflictingProposed = slots.filter(s => !slotOverlapsBusy(s.iso, 30, busy))
     } else {
-      slotGroups = groupProposedSlotsByDate(slots)
+      nonConflictingProposed = slots
     }
+  }
+
+  if (nonConflictingProposed.length >= TARGET_SLOT_COUNT) {
+    slotGroups = groupProposedSlotsByDate(nonConflictingProposed.slice(0, TARGET_SLOT_COUNT))
   } else {
-    slotGroups = await loadAvailableSlots()
+    // Need to backfill from Google Calendar freebusy
+    const calendarGroups = await loadAvailableSlots()
+    if (nonConflictingProposed.length === 0) {
+      slotGroups = calendarGroups
+    } else {
+      // Merge: keep the proposed ones that survived + fill from calendar to 3
+      const merged = [...nonConflictingProposed]
+      const proposedIsos = new Set(merged.map(s => s.iso))
+      outer: for (const grp of calendarGroups) {
+        for (const t of grp.times) {
+          if (!proposedIsos.has(t.iso)) {
+            merged.push(t)
+            if (merged.length >= TARGET_SLOT_COUNT) break outer
+          }
+        }
+      }
+      slotGroups = groupProposedSlotsByDate(merged)
+    }
   }
 
   return (
     <PageShell fontClasses={fontClasses}>
       <TerminalHeader />
 
-      {/* Hero — recipient name in Playfair Display */}
+      {/* Hero — recipient name in Playfair Display.
+          Captain 2026-05-24: bumped sizing + full gold (no opacity dim) per
+          Gideon — uniform Imperial Gold across the whole card. */}
       <div style={{ padding: '26px 32px 18px', textAlign: 'center' }}>
         <div style={{
           fontFamily: FONT_BODY,
-          fontSize: '8px',
+          fontSize: '11px',
           letterSpacing: '0.30em',
           textIndent: '0.30em',
           color: GOLD,
           fontWeight: 600,
           textTransform: 'uppercase',
-          marginBottom: '11px',
-          opacity: 0.85,
+          marginBottom: '14px',
         }}>
           Private Introduction
         </div>
@@ -682,27 +708,27 @@ export default async function InvitePage({
         </h1>
       </div>
 
-      {/* Private Membership · By Invitation Only */}
+      {/* Private Membership · By Invitation Only — full gold, no dim */}
       <div style={{ padding: '0 32px 18px', textAlign: 'center' }}>
         <div style={{
           fontFamily: FONT_BODY,
-          fontSize: '9px',
+          fontSize: '12px',
           letterSpacing: '0.24em',
           textIndent: '0.24em',
-          color: `rgba(${GOLD_RGB}, 0.80)`,
+          color: GOLD,
           fontWeight: 600,
           textTransform: 'uppercase',
-          marginBottom: '4px',
+          marginBottom: '6px',
         }}>
           Private Membership
         </div>
         <div style={{
           fontFamily: FONT_BODY,
-          fontSize: '9px',
+          fontSize: '12px',
           letterSpacing: '0.24em',
           textIndent: '0.24em',
-          color: `rgba(${GOLD_RGB}, 0.55)`,
-          fontWeight: 500,
+          color: GOLD,
+          fontWeight: 600,
           textTransform: 'uppercase',
         }}>
           By Invitation Only
@@ -727,15 +753,14 @@ export default async function InvitePage({
           <>
             <div style={{
               fontFamily: FONT_BODY,
-              fontSize: '9px',
+              fontSize: '12px',
               letterSpacing: '0.24em',
               textIndent: '0.24em',
               color: GOLD,
               fontWeight: 600,
               textTransform: 'uppercase',
               textAlign: 'center',
-              marginBottom: '14px',
-              opacity: 0.85,
+              marginBottom: '16px',
             }}>
               Select a time
             </div>
@@ -743,13 +768,13 @@ export default async function InvitePage({
               {slotGroups.map((group) => (
                 <div key={group.date}>
                   <p style={{
-                    color: `rgba(${GOLD_RGB}, 0.70)`,
-                    fontSize: '10px',
+                    color: GOLD,
+                    fontSize: '12px',
                     fontWeight: 600,
                     textTransform: 'uppercase',
                     letterSpacing: '0.20em',
                     textIndent: '0.20em',
-                    margin: '0 0 6px',
+                    margin: '0 0 8px',
                     fontFamily: FONT_BODY,
                   }}>
                     {group.label}
