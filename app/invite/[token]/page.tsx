@@ -788,15 +788,15 @@ export default async function InvitePage({
                           type="submit"
                           style={{
                             width: '100%',
-                            padding: '11px 14px',
+                            padding: '14px 16px',
                             background: `rgba(${GOLD_RGB}, 0.04)`,
                             color: GOLD,
                             border: `0.5px solid rgba(${GOLD_RGB}, 0.35)`,
                             borderRadius: '2px',
-                            fontSize: '13px',
+                            fontSize: '15px',
                             fontFamily: FONT_NAME,
                             cursor: 'pointer',
-                            textAlign: 'left',
+                            textAlign: 'center',
                             letterSpacing: '0.01em',
                             lineHeight: 1.4,
                             transition: 'background 0.15s ease, border-color 0.15s ease',
@@ -810,6 +810,53 @@ export default async function InvitePage({
                 </div>
               ))}
             </div>
+
+            {/* Captain 2026-05-24: "Different Time? Choose your own →" per
+                locked Screen 2 spec. Wired to a wa.me deep-link to Gideon's
+                305 line — recipient taps, WhatsApp opens with a prefilled
+                request mentioning their name + invite token so Gideon can
+                quickly propose alternatives. */}
+            <a
+              href={`https://wa.me/13057784861?text=${encodeURIComponent(
+                `Hi Gideon — ${firstName} here. None of the proposed Terminal times work for me. Can we find another?\n\n(Invite ref: ${token.slice(0, 8)})`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: '14px 16px',
+                marginTop: '14px',
+                background: 'transparent',
+                color: GOLD,
+                border: `0.5px solid rgba(${GOLD_RGB}, 0.35)`,
+                borderRadius: '2px',
+                fontFamily: FONT_NAME,
+                textAlign: 'center',
+                textDecoration: 'none',
+                transition: 'background 0.15s ease, border-color 0.15s ease',
+              }}
+            >
+              <div style={{
+                fontFamily: FONT_BODY,
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.20em',
+                textIndent: '0.20em',
+                textTransform: 'uppercase',
+                marginBottom: '4px',
+                color: GOLD,
+              }}>
+                Different Time?
+              </div>
+              <div style={{
+                fontSize: '17px',
+                fontWeight: 400,
+                color: GOLD,
+              }}>
+                Message Gideon directly →
+              </div>
+            </a>
           </>
         )}
       </div>
