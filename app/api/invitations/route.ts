@@ -3,6 +3,7 @@ import { after } from 'next/server'
 import { randomUUID } from 'crypto'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { lookupByName } from '@/lib/contact-directory/client'
+import { sendEmail } from '@/lib/sendgrid/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,6 +16,10 @@ type CreateBody = {
   proposed_slots?: Array<{ iso: string; display: string }>
   meeting_type?: 'terminal' | 'meeting' | null
   expires_in_days?: number
+  // Captain 2026-05-24: opt-out for the parallel SendGrid invitation email.
+  // Default = true. Set false if you only want WhatsApp (e.g. close friends
+  // where an email feels too formal).
+  send_email?: boolean
 }
 
 // Captain hotfix 2026-05-24: CORS allowed for cross-origin mints (Chrome
@@ -154,11 +159,115 @@ export async function POST(request: NextRequest) {
     }
   })
 
+  // Captain 2026-05-24: parallel SendGrid invitation email at mint time.
+  // Recipient gets WhatsApp (when Gideon sends) + email simultaneously. They
+  // engage via whichever channel they prefer first. Both point at the same
+  // magic link → same booking flow. Fires in background via after().
+  // Skip if: send_email explicitly false, OR no email resolved, OR no slots.
+  const wantEmail = payload.send_email !== false
+  const recipientFirst = firstName || (fullName ? fullName.split(' ')[0] : 'there')
+  const recipientFull = fullName || firstName || 'there'
+  if (wantEmail && resolvedEmail && (payload.proposed_slots?.length ?? 0) > 0) {
+    after(async () => {
+      try {
+        const slots = payload.proposed_slots ?? []
+        const slotPreview = slots.slice(0, 3).map((s) => `• ${s.display}`).join('\n')
+        const slotPreviewHtml = slots.slice(0, 3).map((s) =>
+          `<li style="margin:6px 0;color:#FFCC33;font-family:'Playfair Display',Georgia,serif;font-size:15px;">${s.display}</li>`
+        ).join('')
+
+        const subject = `A private introduction from Gideon Gratsiani — ${recipientFirst}`
+
+        // Plain text fallback
+        const text = `${recipientFirst} —
+
+I've built something I'd like to show you. Two years in the making — by invitation only.
+
+Tap the link below to pick a time. One click confirms.
+
+${invite_url}
+
+Suggested times:
+${slotPreview}
+
+— Gideon
+Gideon Gratsiani, Founder
+RePrime Group`
+
+        // HTML — Imperial Gold + Brand Navy locked design, mirrors the OG card aesthetic.
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${subject}</title></head>
+<body style="margin:0;padding:0;background:#DDD9D2;font-family:Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#0E3470;border:1px solid rgba(255,204,51,0.22);">
+
+        <!-- Header — TERMINAL -->
+        <tr><td style="padding:28px 48px 24px;text-align:center;border-bottom:1px solid rgba(255,204,51,0.18);">
+          <div style="font-family:Georgia,serif;font-size:30px;letter-spacing:0.30em;color:#FFCC33;font-weight:600;text-indent:0.30em;">TERMINAL</div>
+          <div style="font-family:Garamond,Georgia,serif;font-style:italic;font-size:15px;color:#FFCC33;margin-top:6px;">by RePrime</div>
+        </td></tr>
+
+        <!-- Cream letter -->
+        <tr><td style="padding:30px 36px 24px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(180deg,#F8F0DA 0%,#EFE2C4 100%);border:1px solid rgba(255,204,51,0.30);padding:32px 28px;">
+            <tr><td style="text-align:center;font-family:Georgia,serif;color:#0E3470;">
+              <p style="margin:0 0 14px;font-size:12px;font-style:italic;color:rgba(14,52,112,0.55);font-family:Arial,sans-serif;letter-spacing:0.04em;">A private introduction from Gideon Gratsiani</p>
+              <h1 style="margin:0 0 12px;font-size:30px;font-style:italic;font-weight:600;color:#5A3F18;">${recipientFirst} —</h1>
+              <p style="margin:14px 0;font-size:17px;line-height:1.6;font-style:italic;color:#0E3470;">I've built something I'd like to show you. Two years in the making — by invitation only.</p>
+              <p style="margin:18px 0 6px;font-size:15px;line-height:1.6;font-style:italic;color:#0E3470;">Pick any time below. One click confirms.</p>
+              <p style="margin:18px 0 0;font-size:18px;font-weight:600;font-style:italic;color:#5A3F18;">— Gideon</p>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <!-- Suggested times -->
+        ${slotPreviewHtml ? `<tr><td style="padding:0 36px 18px;">
+          <p style="margin:0 0 10px;text-align:center;font-size:11px;letter-spacing:0.24em;color:#FFCC33;text-transform:uppercase;font-family:Arial,sans-serif;font-weight:600;text-indent:0.24em;">Suggested times</p>
+          <ul style="list-style:none;padding:0;margin:0;text-align:center;">${slotPreviewHtml}</ul>
+        </td></tr>` : ''}
+
+        <!-- Big gold CTA -->
+        <tr><td style="padding:22px 36px 30px;text-align:center;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+            <tr><td style="background:#FFCC33;border-radius:2px;">
+              <a href="${invite_url}" style="display:inline-block;padding:16px 38px;color:#0E3470;text-decoration:none;font-weight:700;font-size:17px;font-family:Georgia,serif;letter-spacing:0.04em;">Open Invitation →</a>
+            </td></tr>
+          </table>
+          <p style="margin:16px 0 0;font-size:11px;color:rgba(255,204,51,0.55);font-family:Arial,sans-serif;letter-spacing:0.10em;">PRIVATE MEMBERSHIP · BY INVITATION ONLY</p>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:22px 36px;text-align:center;border-top:1px solid rgba(255,204,51,0.18);">
+          <div style="font-family:Georgia,serif;font-size:16px;color:#FFCC33;font-weight:600;letter-spacing:0.10em;text-indent:0.10em;">TERMINAL</div>
+          <div style="font-family:Garamond,Georgia,serif;font-style:italic;font-size:12px;color:#FFCC33;margin-top:3px;">by RePrime</div>
+          <p style="margin:14px 0 0;font-size:9px;color:rgba(255,204,51,0.55);letter-spacing:0.06em;font-family:Arial,sans-serif;">This invitation was sent personally. Reply directly to Gideon.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`
+
+        await sendEmail({
+          to: resolvedEmail,
+          from: process.env.SENDGRID_FROM_EMAIL || 'g@reprime-terminal.com',
+          replyTo: 'g@reprime.com',
+          subject,
+          html,
+          text,
+        })
+        console.log('[invitations] invitation email sent:', id, 'to:', resolvedEmail)
+      } catch (err) {
+        console.warn('[invitations] invitation email failed:', (err as Error).message)
+      }
+    })
+  }
+
   return corsJson({
     id,
     invite_url,
     expires_at: expiresAt,
     contact_email: resolvedEmail,
-    email_source: emailSource,  // 'caller' | 'directory' | null — tells Google1 whether email auto-resolved
+    email_source: emailSource,  // 'caller' | 'directory' | null
+    email_dispatched: Boolean(wantEmail && resolvedEmail && (payload.proposed_slots?.length ?? 0) > 0),
   })
 }
