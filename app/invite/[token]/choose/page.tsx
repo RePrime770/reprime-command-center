@@ -13,6 +13,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 interface Invitation {
   contact_first_name: string | null
   contact_name: string | null
+  contact_email: string | null
   status: 'sent' | 'confirmed' | 'expired' | 'cancelled'
   expires_at: string | null
 }
@@ -21,7 +22,7 @@ async function loadInvitation(token: string): Promise<Invitation | null> {
   const supabase = createServiceClient()
   const { data } = await supabase
     .from('invitations')
-    .select('contact_first_name, contact_name, status, expires_at')
+    .select('contact_first_name, contact_name, contact_email, status, expires_at')
     .eq('id', token)
     .maybeSingle()
   return (data as Invitation) ?? null
@@ -355,23 +356,71 @@ export default async function ChooseTimePage({
           </div>
         </div>
 
-        {/* Time slots for selected date */}
+        {/* Time slots for selected date — single form wraps email + buttons */}
         {selectedKey && (
           <div style={slotsWrap}>
             <div style={selectedDayLabel}>{selectedLabel}</div>
-            <div style={slotsGrid}>
-              {timeSlots.map((slot) => (
-                <form
-                  key={slot.iso}
-                  action="/api/bookings/confirm"
-                  method="POST"
-                >
-                  <input type="hidden" name="token" value={token} />
-                  <input type="hidden" name="slot_iso" value={slot.iso} />
-                  <button type="submit" style={slotBtn}>{slot.display}</button>
-                </form>
-              ))}
-            </div>
+            <form action="/api/bookings/confirm" method="POST">
+              <input type="hidden" name="token" value={token} />
+              {!inv.contact_email && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{
+                    display: 'block',
+                    fontFamily: 'Poppins, sans-serif',
+                    fontSize: 11,
+                    letterSpacing: '0.18em',
+                    textIndent: '0.18em',
+                    color: '#FFCC33',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    marginBottom: 6,
+                    textAlign: 'center',
+                  }}>
+                    Your email (for Zoom + calendar invite)
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    style={{
+                      width: '100%',
+                      padding: '11px 14px',
+                      background: 'rgba(255, 204, 51, 0.05)',
+                      border: '0.5px solid rgba(255, 204, 51, 0.40)',
+                      borderRadius: 2,
+                      color: '#FFCC33',
+                      fontFamily: 'Playfair Display, Georgia, serif',
+                      fontSize: 14,
+                      marginBottom: 4,
+                      textAlign: 'center',
+                    }}
+                  />
+                  <div style={{
+                    fontFamily: 'Poppins, sans-serif',
+                    fontSize: 10,
+                    color: 'rgba(255, 204, 51, 0.55)',
+                    textAlign: 'center',
+                    fontStyle: 'italic',
+                  }}>
+                    Optional. We&rsquo;ll send the confirmation if you fill this in.
+                  </div>
+                </div>
+              )}
+              <div style={slotsGrid}>
+                {timeSlots.map((slot) => (
+                  <button
+                    key={slot.iso}
+                    type="submit"
+                    name="slot_iso"
+                    value={slot.iso}
+                    style={slotBtn}
+                  >
+                    {slot.display}
+                  </button>
+                ))}
+              </div>
+            </form>
             <div style={{ fontSize: 11, color: 'rgba(255, 204, 51, 0.65)', textAlign: 'center', marginTop: 14, fontFamily: 'Poppins, sans-serif', letterSpacing: '0.10em' }}>
               ALL TIMES CENTRAL · ONE CLICK CONFIRMS
             </div>

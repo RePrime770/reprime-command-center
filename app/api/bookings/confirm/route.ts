@@ -200,19 +200,22 @@ export async function POST(request: Request) {
   let slotIso: string | null = null
   let customDate: string | null = null  // YYYY-MM-DD from <input type="date">
   let customTime: string | null = null  // HH:MM from <input type="time">
+  let providedEmail: string | null = null  // optional <input type="email" name="email">
   try {
     const form = await request.formData()
     token = (form.get('token') as string | null) ?? null
     slotIso = (form.get('slot_iso') as string | null) ?? null
     customDate = (form.get('date') as string | null) ?? null
     customTime = (form.get('time') as string | null) ?? null
+    providedEmail = (form.get('email') as string | null) ?? null
   } catch {
     try {
-      const body = (await request.json()) as { token?: string; slot_iso?: string; date?: string; time?: string }
+      const body = (await request.json()) as { token?: string; slot_iso?: string; date?: string; time?: string; email?: string }
       token = body.token ?? null
       slotIso = body.slot_iso ?? null
       customDate = body.date ?? null
       customTime = body.time ?? null
+      providedEmail = body.email ?? null
     } catch {
       return htmlResponse(pageHtml({ firstName: 'there', state: 'invalid', message: 'Missing token.' }), 400)
     }
@@ -256,6 +259,28 @@ export async function POST(request: Request) {
   }
   if (inv.expires_at && new Date(inv.expires_at).getTime() < Date.now()) {
     return htmlResponse(pageHtml({ firstName, state: 'expired' }), 410)
+  }
+
+  // Captain 2026-05-24: capture recipient email at confirm time when not on
+  // file. If invitation has no contact_email but the recipient typed one into
+  // the optional email input on the booking/picker page, persist it to the
+  // invitation row so the downstream confirmation email + calendar invite
+  // gets delivered to them.
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const cleanedEmail = (providedEmail || '').trim().toLowerCase()
+  const isValidEmail = cleanedEmail.length > 0 && EMAIL_RE.test(cleanedEmail)
+  if (isValidEmail && !inv.contact_email) {
+    try {
+      const { error } = await supabase
+        .from('invitations')
+        .update({ contact_email: cleanedEmail })
+        .eq('id', token)
+      if (!error) {
+        inv.contact_email = cleanedEmail
+      }
+    } catch (err) {
+      console.warn('[bookings.confirm] email capture failed', { token, err: (err as Error).message })
+    }
   }
 
   const slot: Slot = {

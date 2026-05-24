@@ -188,16 +188,36 @@ export async function POST(
   const { token } = await params
 
   let slotIso: string | null = null
+  let customDate: string | null = null
+  let customTime: string | null = null
+  let providedEmail: string | null = null
+  let isHtmlSubmit = false
   try {
     const form = await request.formData()
     slotIso = (form.get('slot_iso') as string | null) ?? null
+    customDate = (form.get('date') as string | null) ?? null
+    customTime = (form.get('time') as string | null) ?? null
+    providedEmail = (form.get('email') as string | null) ?? null
+    isHtmlSubmit = true
   } catch {
     try {
-      const body = (await request.json()) as { slot_iso?: string }
+      const body = (await request.json()) as { slot_iso?: string; date?: string; time?: string; email?: string }
       slotIso = body.slot_iso ?? null
+      customDate = body.date ?? null
+      customTime = body.time ?? null
+      providedEmail = body.email ?? null
     } catch {
       return htmlResponse(pageHtml({ firstName: 'there', state: 'invalid', message: 'Missing slot.' }), 400)
     }
+  }
+
+  // Captain 2026-05-24: support custom date+time input (mirror /api/bookings/confirm).
+  if (!slotIso && customDate && customTime) {
+    const probe = new Date(`${customDate}T12:00:00Z`)
+    const tz = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', timeZoneName: 'longOffset' })
+      .formatToParts(probe).find(p => p.type === 'timeZoneName')?.value || 'GMT-05:00'
+    const offset = (tz.match(/GMT([+-]\d{2}:\d{2})/)?.[1]) || '-05:00'
+    slotIso = `${customDate}T${customTime}:00.000${offset}`
   }
 
   if (!slotIso || isNaN(new Date(slotIso).getTime())) {
@@ -225,6 +245,24 @@ export async function POST(
       pageHtml({ firstName, state: 'invalid', message: 'No confirmed time to reschedule.' }),
       410
     )
+  }
+
+  // Captain 2026-05-24: capture recipient email at reschedule time when not on file.
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const cleanedEmail = (providedEmail || '').trim().toLowerCase()
+  const isValidEmail = cleanedEmail.length > 0 && EMAIL_RE.test(cleanedEmail)
+  if (isValidEmail && !inv.contact_email) {
+    try {
+      const { error } = await supabase
+        .from('invitations')
+        .update({ contact_email: cleanedEmail })
+        .eq('id', token)
+      if (!error) {
+        inv.contact_email = cleanedEmail
+      }
+    } catch (err) {
+      console.warn('[invitations.reschedule] email capture failed', { token, err: (err as Error).message })
+    }
   }
 
   const slotDisplay = formatSlotDisplay(slotIso)
@@ -451,6 +489,19 @@ Founder, RePrime Group`
   }
 
   const success = errors.every((e) => e.step !== '2_zoom_patch')
+
+  // Captain 2026-05-24: redirect form-submitters back to the confirmation page
+  // (Screen 3) so the recipient sees the cream letter with the NEW time + Zoom
+  // creds + calendar buttons, instead of a bespoke 'Moved' page that dead-ends.
+  // JSON / API callers still get JSON.
+  if (isHtmlSubmit) {
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://project-7e87w.vercel.app').replace(/\/$/, '')
+    const query = success ? 'rescheduled=ok' : 'rescheduled=partial'
+    return new Response(null, {
+      status: 303,
+      headers: { Location: `${appUrl}/invite/${token}?${query}` },
+    })
+  }
   return htmlResponse(
     pageHtml({
       firstName,

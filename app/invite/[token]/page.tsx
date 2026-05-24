@@ -47,6 +47,7 @@ interface SlotGroup {
 interface Invitation {
   contact_first_name: string | null
   contact_name: string | null
+  contact_email: string | null
   proposed_slots: Array<{ iso: string; display: string }>
   status: 'sent' | 'confirmed' | 'expired' | 'cancelled'
   expires_at: string | null
@@ -64,7 +65,7 @@ async function loadInvitation(token: string): Promise<{ invitation: Invitation |
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('invitations')
-    .select('contact_first_name, contact_name, proposed_slots, status, expires_at, meeting_type, view_count, first_opened_at, confirmed_slot_iso, zoom_meeting_id, zoom_join_url, zoom_passcode, calendar_event_id')
+    .select('contact_first_name, contact_name, contact_email, proposed_slots, status, expires_at, meeting_type, view_count, first_opened_at, confirmed_slot_iso, zoom_meeting_id, zoom_join_url, zoom_passcode, calendar_event_id')
     .eq('id', token)
     .maybeSingle()
   if (error || !data) return { invitation: null, reason: 'not_found' }
@@ -764,28 +765,80 @@ export default async function InvitePage({
             }}>
               Select a time
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {slotGroups.map((group) => (
-                <div key={group.date}>
-                  <p style={{
+            {/* Captain 2026-05-24: single form wraps email input + all slot
+                buttons. Each slot is a submit button with name="slot_iso" so
+                the recipient's email (if typed) is captured in the same POST
+                that confirms the slot. If invitation already has contact_email
+                on file, skip the input entirely. */}
+            <form action="/api/bookings/confirm" method="POST">
+              <input type="hidden" name="token" value={token} />
+              {!invitation.contact_email && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{
+                    display: 'block',
+                    fontFamily: FONT_BODY,
+                    fontSize: 11,
+                    letterSpacing: '0.18em',
+                    textIndent: '0.18em',
                     color: GOLD,
-                    fontSize: '12px',
                     fontWeight: 600,
                     textTransform: 'uppercase',
-                    letterSpacing: '0.20em',
-                    textIndent: '0.20em',
-                    margin: '0 0 8px',
-                    fontFamily: FONT_BODY,
+                    marginBottom: 6,
+                    textAlign: 'center',
                   }}>
-                    {group.label}
-                  </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    {group.times.map((slot) => (
-                      <form key={slot.iso} action="/api/bookings/confirm" method="POST">
-                        <input type="hidden" name="token" value={token} />
-                        <input type="hidden" name="slot_iso" value={slot.iso} />
+                    Your email (for Zoom + calendar invite)
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      background: `rgba(${GOLD_RGB}, 0.04)`,
+                      border: `0.5px solid rgba(${GOLD_RGB}, 0.40)`,
+                      borderRadius: 2,
+                      color: GOLD,
+                      fontFamily: FONT_NAME,
+                      fontSize: 14,
+                      marginBottom: 4,
+                      textAlign: 'center',
+                    }}
+                  />
+                  <div style={{
+                    fontFamily: FONT_BODY,
+                    fontSize: 10,
+                    color: `rgba(${GOLD_RGB}, 0.55)`,
+                    textAlign: 'center',
+                    fontStyle: 'italic',
+                  }}>
+                    Optional. We&rsquo;ll send the confirmation + calendar invite if you fill this in.
+                  </div>
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {slotGroups.map((group) => (
+                  <div key={group.date}>
+                    <p style={{
+                      color: GOLD,
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.20em',
+                      textIndent: '0.20em',
+                      margin: '0 0 8px',
+                      fontFamily: FONT_BODY,
+                    }}>
+                      {group.label}
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      {group.times.map((slot) => (
                         <button
+                          key={slot.iso}
                           type="submit"
+                          name="slot_iso"
+                          value={slot.iso}
                           style={{
                             width: '100%',
                             padding: '14px 16px',
@@ -804,12 +857,12 @@ export default async function InvitePage({
                         >
                           {slot.display}
                         </button>
-                      </form>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </form>
 
             {/* Captain 2026-05-24: "Different Time? Choose your own →" per
                 locked Screen 2 spec. Now wired to the real picker page at
