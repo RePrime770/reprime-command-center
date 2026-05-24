@@ -80,6 +80,79 @@ export async function lookupByPhone(phone: string | null | undefined): Promise<C
 }
 
 /**
+ * Look up a contact by name. Searches canonical_name first (exact + ILIKE),
+ * then all_name_variants. Returns the first match with primary_email if any.
+ *
+ * Used by /api/invitations mint to auto-populate contact_email when the
+ * caller (Captain / Chrome Extension) passes only a name — the master
+ * RePrime_Command_Center_Master.xlsx already has emails on 1500+ people,
+ * so the recipient shouldn't have to type their own email on the booking
+ * page if we have it on file.
+ */
+export async function lookupByName(name: string | null | undefined): Promise<CallerIdResult | null> {
+  if (!name) return null
+  const trimmed = name.trim()
+  if (trimmed.length < 2) return null
+  const service = createServiceClient()
+
+  // 1. Exact canonical_name match (case-sensitive first, then ilike)
+  const { data: exact } = await service
+    .from('contact_directory')
+    .select('canonical_name, company, title, primary_email, source')
+    .eq('canonical_name', trimmed)
+    .not('primary_email', 'is', null)
+    .limit(1)
+    .maybeSingle()
+  if (exact) {
+    return {
+      canonical_name: exact.canonical_name,
+      company: exact.company,
+      title: exact.title,
+      primary_email: exact.primary_email,
+      source: (exact.source as CallerIdResult['source']) || 'xlsx',
+    }
+  }
+
+  // 2. ILIKE on canonical_name
+  const { data: ilike } = await service
+    .from('contact_directory')
+    .select('canonical_name, company, title, primary_email, source')
+    .ilike('canonical_name', trimmed)
+    .not('primary_email', 'is', null)
+    .limit(1)
+    .maybeSingle()
+  if (ilike) {
+    return {
+      canonical_name: ilike.canonical_name,
+      company: ilike.company,
+      title: ilike.title,
+      primary_email: ilike.primary_email,
+      source: (ilike.source as CallerIdResult['source']) || 'xlsx',
+    }
+  }
+
+  // 3. Partial match on all_name_variants
+  const { data: variant } = await service
+    .from('contact_directory')
+    .select('canonical_name, company, title, primary_email, source')
+    .ilike('all_name_variants', `%${trimmed}%`)
+    .not('primary_email', 'is', null)
+    .limit(1)
+    .maybeSingle()
+  if (variant) {
+    return {
+      canonical_name: variant.canonical_name,
+      company: variant.company,
+      title: variant.title,
+      primary_email: variant.primary_email,
+      source: (variant.source as CallerIdResult['source']) || 'xlsx',
+    }
+  }
+
+  return null
+}
+
+/**
  * Look up an email address. Falls back to all_emails partial match.
  */
 export async function lookupByEmail(email: string | null | undefined): Promise<CallerIdResult | null> {

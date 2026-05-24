@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { after } from 'next/server'
 import { randomUUID } from 'crypto'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { lookupByName } from '@/lib/contact-directory/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,11 +84,30 @@ export async function POST(request: NextRequest) {
   const expiresInDays = Math.max(1, Math.min(60, payload.expires_in_days ?? 14))
   const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
 
+  // Captain 2026-05-24: when no email is provided in the mint payload but we
+  // have a name, try to auto-resolve from contact_directory (the 1500+ row
+  // master from RePrime_Command_Center_Master.xlsx). If found, the recipient
+  // never sees the email input on the booking page — confirmation email + ICS
+  // attendee invite go to them automatically the moment they pick a slot.
+  let resolvedEmail: string | null = payload.contact_email ?? null
+  let emailSource: 'caller' | 'directory' | null = resolvedEmail ? 'caller' : null
+  if (!resolvedEmail && (fullName || firstName)) {
+    try {
+      const hit = await lookupByName(fullName || firstName)
+      if (hit?.primary_email) {
+        resolvedEmail = hit.primary_email
+        emailSource = 'directory'
+      }
+    } catch (err) {
+      console.warn('[invitations.mint] contact-directory lookup failed', (err as Error).message)
+    }
+  }
+
   const row = {
     id,
     contact_first_name: firstName,
     contact_name: fullName,
-    contact_email: payload.contact_email ?? null,
+    contact_email: resolvedEmail,
     contact_phone: payload.contact_phone ?? null,
     contact_pipedrive_id: payload.contact_pipedrive_id ?? null,
     proposed_slots: payload.proposed_slots ?? [],
@@ -138,5 +158,7 @@ export async function POST(request: NextRequest) {
     id,
     invite_url,
     expires_at: expiresAt,
+    contact_email: resolvedEmail,
+    email_source: emailSource,  // 'caller' | 'directory' | null — tells Google1 whether email auto-resolved
   })
 }
