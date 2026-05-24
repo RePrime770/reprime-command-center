@@ -812,16 +812,13 @@ export default async function InvitePage({
             </div>
 
             {/* Captain 2026-05-24: "Different Time? Choose your own →" per
-                locked Screen 2 spec. Wired to a wa.me deep-link to Gideon's
-                305 line — recipient taps, WhatsApp opens with a prefilled
-                request mentioning their name + invite token so Gideon can
-                quickly propose alternatives. */}
+                locked Screen 2 spec. Now wired to the real picker page at
+                /invite/[token]/choose — recipient lands on a date+time input
+                form, picks anything, gets the same Zoom+Calendar confirm
+                flow as the suggested slots. Secondary wa.me link below for
+                a direct chat fallback. */}
             <a
-              href={`https://wa.me/13057784861?text=${encodeURIComponent(
-                `Hi Gideon — ${firstName} here. None of the proposed Terminal times work for me. Can we find another?\n\n(Invite ref: ${token.slice(0, 8)})`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={`/invite/${token}/choose`}
               style={{
                 display: 'block',
                 width: '100%',
@@ -829,7 +826,7 @@ export default async function InvitePage({
                 marginTop: '14px',
                 background: 'transparent',
                 color: GOLD,
-                border: `0.5px solid rgba(${GOLD_RGB}, 0.35)`,
+                border: `0.5px solid rgba(${GOLD_RGB}, 0.45)`,
                 borderRadius: '2px',
                 fontFamily: FONT_NAME,
                 textAlign: 'center',
@@ -854,8 +851,35 @@ export default async function InvitePage({
                 fontWeight: 400,
                 color: GOLD,
               }}>
-                Message Gideon directly →
+                Pick your own →
               </div>
+            </a>
+
+            {/* Secondary fallback — message Gideon directly via WhatsApp */}
+            <a
+              href={`https://wa.me/13057784861?text=${encodeURIComponent(
+                `Hi Gideon — ${firstName} here. Got your Terminal invitation. Can we coordinate a time directly?\n\n(Invite ref: ${token.slice(0, 8)})`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: '10px 16px',
+                marginTop: '10px',
+                background: 'transparent',
+                color: GOLD,
+                border: 'none',
+                fontFamily: FONT_BODY,
+                fontSize: '12px',
+                fontWeight: 500,
+                letterSpacing: '0.10em',
+                textAlign: 'center',
+                textDecoration: 'underline',
+                opacity: 0.75,
+              }}
+            >
+              Or message Gideon directly on WhatsApp →
             </a>
           </>
         )}

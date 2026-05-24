@@ -198,18 +198,35 @@ async function pageGideonCritical(summary: string, customDetails: Record<string,
 export async function POST(request: Request) {
   let token: string | null = null
   let slotIso: string | null = null
+  let customDate: string | null = null  // YYYY-MM-DD from <input type="date">
+  let customTime: string | null = null  // HH:MM from <input type="time">
   try {
     const form = await request.formData()
     token = (form.get('token') as string | null) ?? null
     slotIso = (form.get('slot_iso') as string | null) ?? null
+    customDate = (form.get('date') as string | null) ?? null
+    customTime = (form.get('time') as string | null) ?? null
   } catch {
     try {
-      const body = (await request.json()) as { token?: string; slot_iso?: string }
+      const body = (await request.json()) as { token?: string; slot_iso?: string; date?: string; time?: string }
       token = body.token ?? null
       slotIso = body.slot_iso ?? null
+      customDate = body.date ?? null
+      customTime = body.time ?? null
     } catch {
       return htmlResponse(pageHtml({ firstName: 'there', state: 'invalid', message: 'Missing token.' }), 400)
     }
+  }
+
+  // Captain 2026-05-24: support custom-time picker from /invite/[token]/choose.
+  // If slot_iso wasn't sent but date + time were, construct the ISO in Central.
+  // CDT (-05:00) March-November, CST (-06:00) November-March. Use Intl to detect.
+  if (!slotIso && customDate && customTime) {
+    const probe = new Date(`${customDate}T12:00:00Z`)
+    const tz = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', timeZoneName: 'longOffset' })
+      .formatToParts(probe).find(p => p.type === 'timeZoneName')?.value || 'GMT-05:00'
+    const offset = (tz.match(/GMT([+-]\d{2}:\d{2})/)?.[1]) || '-05:00'
+    slotIso = `${customDate}T${customTime}:00.000${offset}`
   }
 
   if (!token || !slotIso) {
