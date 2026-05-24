@@ -1,115 +1,193 @@
 import type { Metadata } from 'next'
 import { createServiceClient } from '@/lib/supabase/server'
 
-// Captain 2026-05-24 rebuild: mirrors the existing /invite/[token]/calendar
-// reschedule page design — gold slot grid grouped by date, fed from
-// /api/bookings/available-slots (Google Calendar freebusy). Each slot is a
-// button that POSTs to /api/bookings/confirm. No manual date+time inputs.
-
-interface SlotGroup {
-  date: string
-  label: string
-  times: Array<{ iso: string; display: string }>
-}
+// Captain 2026-05-24 — Calendly/Zoom-style picker.
+// Month calendar grid on top with clickable dates. Below it the time slots
+// for the selected date (9 AM – 5 PM Central, 30-minute intervals). Each
+// time slot is a form button → POST /api/bookings/confirm → full Zoom +
+// Calendar + Email + WhatsApp flow.
+//
+// State is URL-driven (?month=YYYY-MM&date=YYYY-MM-DD) so the whole picker
+// works as a pure server component with no client JS.
 
 interface Invitation {
   contact_first_name: string | null
   contact_name: string | null
   status: 'sent' | 'confirmed' | 'expired' | 'cancelled'
   expires_at: string | null
-  meeting_type: 'terminal' | 'meeting' | null
 }
 
 async function loadInvitation(token: string): Promise<Invitation | null> {
   const supabase = createServiceClient()
   const { data } = await supabase
     .from('invitations')
-    .select('contact_first_name, contact_name, status, expires_at, meeting_type')
+    .select('contact_first_name, contact_name, status, expires_at')
     .eq('id', token)
     .maybeSingle()
   return (data as Invitation) ?? null
 }
 
-async function loadAvailableSlots(): Promise<SlotGroup[]> {
-  try {
-    const baseUrl = (
-      process.env.NEXT_PUBLIC_APP_URL ||
-      'https://project-7e87w.vercel.app'
-    ).replace(/\/$/, '')
-    const res = await fetch(`${baseUrl}/api/bookings/available-slots`, { cache: 'no-store' })
-    if (res.ok) {
-      const json = (await res.json()) as { slots?: SlotGroup[] }
-      const slots = json.slots ?? []
-      if (slots.length > 0) return slots
-    }
-  } catch {
-    // fall through to generated fallback
-  }
-  // Fallback when Google Calendar freebusy returns empty (e.g. OAuth expired).
-  // Generate the next 7 business days × 3 times each (10am / 2pm / 4:30pm
-  // Central), skipping Saturday (Shabbat). Recipient still sees a populated
-  // calendar grid; the confirm flow will create the Zoom + calendar event.
-  return generateFallbackSlots(7)
+// ── Date helpers (Chicago-aware) ─────────────────────────────────────────
+
+function chicagoToday(): { yyyy: string; mm: string; dd: string; wk: string } {
+  return chicagoParts(new Date())
 }
 
-function generateFallbackSlots(daysAhead: number): SlotGroup[] {
-  const TIMES: Array<[number, number, string]> = [
-    [10, 0, '10 AM Central'],
-    [14, 0, '2 PM Central'],
-    [16, 30, '4:30 PM Central'],
-  ]
-  function chicagoParts(date: Date) {
-    const fmt = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Chicago',
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      weekday: 'short',
-    })
-    const parts = fmt.formatToParts(date)
-    const get = (t: string) => parts.find((p) => p.type === t)?.value || ''
-    return { yyyy: get('year'), mm: get('month'), dd: get('day'), wk: get('weekday') }
+function chicagoParts(d: Date): { yyyy: string; mm: string; dd: string; wk: string } {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  })
+  const parts = fmt.formatToParts(d)
+  const get = (t: string) => parts.find((p) => p.type === t)?.value || ''
+  return { yyyy: get('year'), mm: get('month'), dd: get('day'), wk: get('weekday') }
+}
+
+function chicagoOffsetFor(yyyy: string, mm: string, dd: string): string {
+  const probe = new Date(`${yyyy}-${mm}-${dd}T12:00:00Z`)
+  const tz = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    timeZoneName: 'longOffset',
+  })
+    .formatToParts(probe)
+    .find((p) => p.type === 'timeZoneName')?.value || 'GMT-05:00'
+  return tz.match(/GMT([+-]\d{2}:\d{2})/)?.[1] || '-05:00'
+}
+
+function monthLabel(yyyy: number, mm: number): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(yyyy, mm - 1, 15))
+}
+
+function dayWeekdayShort(yyyy: string, mm: string, dd: string): string {
+  return chicagoParts(new Date(`${yyyy}-${mm}-${dd}T12:00:00Z`)).wk
+}
+
+function fullDateLabel(yyyy: string, mm: string, dd: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date(`${yyyy}-${mm}-${dd}T12:00:00Z`))
+}
+
+// Generate 9 AM – 5 PM Central time slots in 30-minute intervals.
+// Display strings strip ":00" (per Gideon: full amounts, no .00).
+function generateTimeSlotsForDate(yyyy: string, mm: string, dd: string) {
+  const offset = chicagoOffsetFor(yyyy, mm, dd)
+  const slots: Array<{ iso: string; display: string }> = []
+  for (let h = 9; h < 17; h++) {
+    for (const m of [0, 30]) {
+      const hh = String(h).padStart(2, '0')
+      const min = String(m).padStart(2, '0')
+      const iso = `${yyyy}-${mm}-${dd}T${hh}:${min}:00.000${offset}`
+      const display = formatTimeShort(h, m)
+      slots.push({ iso, display })
+    }
   }
-  function chicagoOffset(yyyy: string, mm: string, dd: string): string {
-    const probe = new Date(`${yyyy}-${mm}-${dd}T12:00:00Z`)
-    const fmt = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Chicago',
-      timeZoneName: 'longOffset',
+  return slots
+}
+
+function formatTimeShort(h: number, m: number): string {
+  const period = h >= 12 ? 'PM' : 'AM'
+  const hh = h % 12 === 0 ? 12 : h % 12
+  return m === 0 ? `${hh} ${period}` : `${hh}:${String(m).padStart(2, '0')} ${period}`
+}
+
+// ── Calendar grid model ──────────────────────────────────────────────────
+
+interface DayCell {
+  yyyy: string
+  mm: string
+  dd: string
+  inMonth: boolean
+  isPast: boolean
+  isSat: boolean
+  isToday: boolean
+  isSelected: boolean
+}
+
+function buildMonthGrid(
+  viewYear: number,
+  viewMonth: number,
+  todayKey: string,
+  selectedKey: string,
+): DayCell[] {
+  const firstOfMonth = new Date(Date.UTC(viewYear, viewMonth - 1, 1))
+  const lastOfMonth = new Date(Date.UTC(viewYear, viewMonth, 0))
+  const firstWeekday = firstOfMonth.getUTCDay() // 0 = Sun
+  const daysInMonth = lastOfMonth.getUTCDate()
+
+  // Previous month tail
+  const prevMonth = viewMonth === 1 ? 12 : viewMonth - 1
+  const prevYear = viewMonth === 1 ? viewYear - 1 : viewYear
+  const daysInPrev = new Date(Date.UTC(prevYear, prevMonth, 0)).getUTCDate()
+
+  const cells: DayCell[] = []
+
+  // Leading padding from previous month
+  for (let i = firstWeekday - 1; i >= 0; i--) {
+    const day = daysInPrev - i
+    const yyyy = String(prevYear)
+    const mm = String(prevMonth).padStart(2, '0')
+    const dd = String(day).padStart(2, '0')
+    cells.push({
+      yyyy, mm, dd,
+      inMonth: false,
+      isPast: `${yyyy}-${mm}-${dd}` < todayKey,
+      isSat: dayWeekdayShort(yyyy, mm, dd) === 'Sat',
+      isToday: false,
+      isSelected: false,
     })
-    const tz = fmt.formatToParts(probe).find((p) => p.type === 'timeZoneName')?.value || 'GMT-05:00'
-    return tz.match(/GMT([+-]\d{2}:\d{2})/)?.[1] || '-05:00'
-  }
-  function dayLabel(yyyy: string, mm: string, dd: string): string {
-    const probe = new Date(`${yyyy}-${mm}-${dd}T12:00:00Z`)
-    return new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Chicago',
-      weekday: 'long', month: 'long', day: 'numeric',
-    }).format(probe)
   }
 
-  const groups: SlotGroup[] = []
-  let probe = new Date(Date.now() + 24 * 60 * 60 * 1000) // tomorrow
-  let added = 0
-  while (added < daysAhead) {
-    const parts = chicagoParts(probe)
-    if (parts.wk !== 'Sat') { // skip Saturday (Shabbat)
-      const offset = chicagoOffset(parts.yyyy, parts.mm, parts.dd)
-      const dateStr = `${parts.yyyy}-${parts.mm}-${parts.dd}`
-      const times = TIMES.map(([h, m, label]) => {
-        const hh = String(h).padStart(2, '0')
-        const min = String(m).padStart(2, '0')
-        const iso = `${dateStr}T${hh}:${min}:00.000${offset}`
-        return { iso, display: label }
-      })
-      groups.push({
-        date: dateStr,
-        label: dayLabel(parts.yyyy, parts.mm, parts.dd),
-        times,
-      })
-      added++
-    }
-    probe = new Date(probe.getTime() + 24 * 60 * 60 * 1000)
+  // This month
+  for (let day = 1; day <= daysInMonth; day++) {
+    const yyyy = String(viewYear)
+    const mm = String(viewMonth).padStart(2, '0')
+    const dd = String(day).padStart(2, '0')
+    const key = `${yyyy}-${mm}-${dd}`
+    cells.push({
+      yyyy, mm, dd,
+      inMonth: true,
+      isPast: key < todayKey,
+      isSat: dayWeekdayShort(yyyy, mm, dd) === 'Sat',
+      isToday: key === todayKey,
+      isSelected: key === selectedKey,
+    })
   }
-  return groups
+
+  // Trailing padding to fill the grid (6 rows × 7 cols = 42)
+  const totalNeeded = Math.ceil(cells.length / 7) * 7
+  const nextMonth = viewMonth === 12 ? 1 : viewMonth + 1
+  const nextYear = viewMonth === 12 ? viewYear + 1 : viewYear
+  let tail = 1
+  while (cells.length < Math.max(totalNeeded, 42)) {
+    const yyyy = String(nextYear)
+    const mm = String(nextMonth).padStart(2, '0')
+    const dd = String(tail).padStart(2, '0')
+    cells.push({
+      yyyy, mm, dd,
+      inMonth: false,
+      isPast: false,
+      isSat: dayWeekdayShort(yyyy, mm, dd) === 'Sat',
+      isToday: false,
+      isSelected: false,
+    })
+    tail++
+  }
+
+  return cells
 }
+
+// ── Metadata ─────────────────────────────────────────────────────────────
 
 export async function generateMetadata({
   params,
@@ -121,25 +199,26 @@ export async function generateMetadata({
   const displayName = inv?.contact_name || inv?.contact_first_name || 'Guest'
   return {
     title: `Pick a Time — ${displayName}`,
-    description: 'All open times.',
+    description: 'Choose any time that works.',
     robots: { index: false, follow: false },
   }
 }
 
+// ── Page ─────────────────────────────────────────────────────────────────
+
 export default async function ChooseTimePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>
+  searchParams: Promise<{ month?: string; date?: string }>
 }) {
   const { token } = await params
+  const { month: monthParam, date: dateParam } = await searchParams
   const inv = await loadInvitation(token)
 
-  if (!inv) {
-    return <NotValidPage message="This invitation link is not valid." />
-  }
-  if (inv.status === 'cancelled') {
-    return <NotValidPage message="This introduction has been cancelled." />
-  }
+  if (!inv) return <NotValidPage message="This invitation link is not valid." />
+  if (inv.status === 'cancelled') return <NotValidPage message="This introduction has been cancelled." />
   if (inv.expires_at && new Date(inv.expires_at).getTime() < Date.now()) {
     return <NotValidPage message="This invitation has expired." />
   }
@@ -149,7 +228,53 @@ export default async function ChooseTimePage({
 
   const firstName =
     (inv.contact_first_name || inv.contact_name || 'there').trim().split(' ')[0] || 'there'
-  const slotGroups = await loadAvailableSlots()
+
+  const today = chicagoToday()
+  const todayKey = `${today.yyyy}-${today.mm}-${today.dd}`
+
+  // Default view = today's month. ?month=YYYY-MM overrides.
+  let viewYear = parseInt(today.yyyy, 10)
+  let viewMonth = parseInt(today.mm, 10)
+  if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+    const [y, m] = monthParam.split('-').map(Number)
+    viewYear = y
+    viewMonth = m
+  }
+
+  // Default selected date = today (if not Sat) or next non-Sat day in view month.
+  let selectedKey = ''
+  if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+    selectedKey = dateParam
+  } else {
+    // Auto-select: first non-Sat, non-past date in view month
+    const monthStr = String(viewMonth).padStart(2, '0')
+    const lastDay = new Date(Date.UTC(viewYear, viewMonth, 0)).getUTCDate()
+    for (let d = 1; d <= lastDay; d++) {
+      const dd = String(d).padStart(2, '0')
+      const k = `${viewYear}-${monthStr}-${dd}`
+      if (k >= todayKey && dayWeekdayShort(String(viewYear), monthStr, dd) !== 'Sat') {
+        selectedKey = k
+        break
+      }
+    }
+  }
+
+  const cells = buildMonthGrid(viewYear, viewMonth, todayKey, selectedKey)
+  const monthLbl = monthLabel(viewYear, viewMonth)
+
+  // Prev / next month nav
+  const prevMonthParam =
+    viewMonth === 1 ? `${viewYear - 1}-12` : `${viewYear}-${String(viewMonth - 1).padStart(2, '0')}`
+  const nextMonthParam =
+    viewMonth === 12 ? `${viewYear + 1}-01` : `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`
+
+  // Time slots for selected date
+  let selectedYyyy = '', selectedMm = '', selectedDd = '', selectedLabel = '', timeSlots: Array<{iso: string; display: string}> = []
+  if (selectedKey) {
+    ;[selectedYyyy, selectedMm, selectedDd] = selectedKey.split('-')
+    selectedLabel = fullDateLabel(selectedYyyy, selectedMm, selectedDd)
+    timeSlots = generateTimeSlotsForDate(selectedYyyy, selectedMm, selectedDd)
+  }
 
   return (
     <main style={pageStyle}>
@@ -164,46 +289,94 @@ export default async function ChooseTimePage({
           <div style={letterContent}>
             <div style={letterLabel}>A note from Gideon Gratsiani</div>
             <div style={letterGreeting}>{firstName} —</div>
-            <div style={letterBody}>Pick any time that works for you.</div>
-            <div style={letterClosing}>
-              One click confirms — calendar + Zoom land on both our calendars instantly.
-            </div>
+            <div style={letterBody}>Pick any day and time that works.</div>
           </div>
         </div>
 
-        <div style={{ ...padBlock, paddingTop: 18, paddingBottom: 28 }}>
-          {slotGroups.length === 0 ? (
-            <div style={emptyMsg}>
-              No open times right now. Reply to the original message and we&rsquo;ll sort it out.
-            </div>
-          ) : (
-            <>
-              <div style={lblSm}>Open times →</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-                {slotGroups.map((group) => (
-                  <div key={group.date}>
-                    <div style={dayLabel}>{group.label}</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {group.times.map((slot) => (
-                        <form
-                          key={slot.iso}
-                          action="/api/bookings/confirm"
-                          method="POST"
-                        >
-                          <input type="hidden" name="token" value={token} />
-                          <input type="hidden" name="slot_iso" value={slot.iso} />
-                          <button type="submit" style={slotBtn}>
-                            {slot.display}
-                          </button>
-                        </form>
-                      ))}
-                    </div>
+        {/* Calendar grid */}
+        <div style={calWrap}>
+          <div style={calNavRow}>
+            <a
+              href={`/invite/${token}/choose?month=${prevMonthParam}`}
+              style={calNavBtn}
+              aria-label="Previous month"
+            >
+              ←
+            </a>
+            <div style={monthLblStyle}>{monthLbl}</div>
+            <a
+              href={`/invite/${token}/choose?month=${nextMonthParam}`}
+              style={calNavBtn}
+              aria-label="Next month"
+            >
+              →
+            </a>
+          </div>
+
+          <div style={dowRow}>
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+              <div key={d} style={dowCell}>{d}</div>
+            ))}
+          </div>
+
+          <div style={gridStyle}>
+            {cells.map((c, i) => {
+              const disabled = c.isPast || c.isSat || !c.inMonth
+              const dayLabel = parseInt(c.dd, 10).toString()
+              const monthForLink = `${c.yyyy}-${c.mm}`
+              const dateForLink = `${c.yyyy}-${c.mm}-${c.dd}`
+              if (disabled) {
+                return (
+                  <div key={i} style={{
+                    ...dayCellBase,
+                    color: c.inMonth ? 'rgba(255, 204, 51, 0.22)' : 'rgba(255, 204, 51, 0.10)',
+                    cursor: 'default',
+                  }}>
+                    {dayLabel}
                   </div>
-                ))}
-              </div>
-            </>
-          )}
+                )
+              }
+              return (
+                <a
+                  key={i}
+                  href={`/invite/${token}/choose?month=${monthForLink}&date=${dateForLink}`}
+                  style={{
+                    ...dayCellBase,
+                    background: c.isSelected ? '#FFCC33' : 'transparent',
+                    color: c.isSelected ? '#0E3470' : '#FFCC33',
+                    fontWeight: c.isToday ? 700 : 500,
+                    border: c.isToday && !c.isSelected ? '1px solid rgba(255, 204, 51, 0.55)' : '1px solid transparent',
+                  }}
+                >
+                  {dayLabel}
+                </a>
+              )
+            })}
+          </div>
         </div>
+
+        {/* Time slots for selected date */}
+        {selectedKey && (
+          <div style={slotsWrap}>
+            <div style={selectedDayLabel}>{selectedLabel}</div>
+            <div style={slotsGrid}>
+              {timeSlots.map((slot) => (
+                <form
+                  key={slot.iso}
+                  action="/api/bookings/confirm"
+                  method="POST"
+                >
+                  <input type="hidden" name="token" value={token} />
+                  <input type="hidden" name="slot_iso" value={slot.iso} />
+                  <button type="submit" style={slotBtn}>{slot.display}</button>
+                </form>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255, 204, 51, 0.65)', textAlign: 'center', marginTop: 14, fontFamily: 'Poppins, sans-serif', letterSpacing: '0.10em' }}>
+              ALL TIMES CENTRAL · ONE CLICK CONFIRMS
+            </div>
+          </div>
+        )}
 
         <div style={{ padding: '14px 48px 22px', textAlign: 'center', background: '#0E3470' }}>
           <a href={`/invite/${token}`} style={backLink}>
@@ -225,27 +398,10 @@ function NotValidPage({ message }: { message: string }) {
   return (
     <main style={{ ...pageStyle, padding: '4rem 1.5rem', alignItems: 'center' }}>
       <div style={{ width: '100%', maxWidth: 520, textAlign: 'center' }}>
-        <p
-          style={{
-            color: '#FFCC33',
-            fontSize: '0.7rem',
-            letterSpacing: '0.3em',
-            textTransform: 'uppercase',
-            marginBottom: '1.5rem',
-            fontFamily: 'Poppins, Arial, sans-serif',
-          }}
-        >
+        <p style={{ color: '#FFCC33', fontSize: '0.7rem', letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: '1.5rem', fontFamily: 'Poppins, Arial, sans-serif' }}>
           RePrime Group
         </p>
-        <p
-          style={{
-            color: '#FFCC33',
-            fontSize: '1.1rem',
-            letterSpacing: '0.04em',
-            fontStyle: 'italic',
-            fontFamily: 'Georgia, serif',
-          }}
-        >
+        <p style={{ color: '#FFCC33', fontSize: '1.1rem', letterSpacing: '0.04em', fontStyle: 'italic', fontFamily: 'Georgia, serif' }}>
           {message}
         </p>
       </div>
@@ -271,9 +427,7 @@ function Spindle() {
   )
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Styles — mirror /invite/[token]/calendar (reschedule) page
-// ────────────────────────────────────────────────────────────────────────────
+// ── Styles ───────────────────────────────────────────────────────────────
 
 const pageStyle: React.CSSProperties = {
   background: '#DDD9D2',
@@ -311,104 +465,141 @@ const wordmarkStyle: React.CSSProperties = {
 }
 
 const letterWrap: React.CSSProperties = {
-  padding: '30px 48px 22px',
+  padding: '24px 36px 18px',
   background: 'linear-gradient(180deg, #F8F0DA 0%, #EFE2C4 100%)',
-  margin: '30px 48px 22px',
+  margin: '24px 36px 18px',
   border: '1px solid rgba(255, 204, 51, 0.30)',
   boxShadow: '0 4px 14px rgba(0, 0, 0, 0.22)',
 }
 
-const letterContent: React.CSSProperties = {
-  textAlign: 'center',
-  padding: '12px 8px',
-}
+const letterContent: React.CSSProperties = { textAlign: 'center', padding: '6px 4px' }
 
 const letterLabel: React.CSSProperties = {
   fontFamily: 'Poppins, sans-serif',
   fontSize: 11,
   color: 'rgba(14, 52, 112, 0.55)',
   fontStyle: 'italic',
-  marginBottom: 18,
+  marginBottom: 14,
   letterSpacing: '0.04em',
 }
 
 const letterGreeting: React.CSSProperties = {
   fontFamily: 'Playfair Display, Georgia, serif',
-  fontSize: 26,
+  fontSize: 24,
   color: '#0E3470',
   fontWeight: 600,
   fontStyle: 'italic',
-  marginBottom: 14,
+  marginBottom: 8,
 }
 
 const letterBody: React.CSSProperties = {
   fontFamily: 'Playfair Display, Georgia, serif',
-  fontSize: 18,
+  fontSize: 16,
   color: '#0E3470',
-  lineHeight: 1.6,
+  lineHeight: 1.5,
   fontStyle: 'italic',
-  marginBottom: 4,
 }
 
-const letterClosing: React.CSSProperties = {
-  fontFamily: 'Playfair Display, Georgia, serif',
-  fontSize: 13,
-  color: '#0E3470',
-  lineHeight: 1.6,
-  fontStyle: 'italic',
-  marginTop: 12,
-}
-
-const padBlock: React.CSSProperties = {
-  padding: '8px 48px 14px',
+const calWrap: React.CSSProperties = {
+  padding: '8px 36px 22px',
   background: '#0E3470',
 }
 
-const lblSm: React.CSSProperties = {
-  fontFamily: 'Poppins, sans-serif',
-  fontSize: 12,
-  letterSpacing: '0.24em',
-  color: '#FFCC33',
-  textTransform: 'uppercase',
-  fontWeight: 600,
-  textAlign: 'center',
-  marginBottom: 18,
-  textIndent: '0.24em',
+const calNavRow: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 14,
 }
 
-const dayLabel: React.CSSProperties = {
+const calNavBtn: React.CSSProperties = {
   fontFamily: 'Poppins, sans-serif',
-  fontSize: 12,
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.22em',
+  fontSize: 22,
   color: '#FFCC33',
-  margin: '0 0 8px',
+  textDecoration: 'none',
+  padding: '6px 14px',
+  border: '1px solid rgba(255, 204, 51, 0.35)',
+  borderRadius: 2,
+  background: 'transparent',
+  cursor: 'pointer',
+}
+
+const monthLblStyle: React.CSSProperties = {
+  fontFamily: 'Playfair Display, Georgia, serif',
+  fontSize: 19,
+  color: '#FFCC33',
+  fontWeight: 600,
+  letterSpacing: '0.04em',
+}
+
+const dowRow: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(7, 1fr)',
+  gap: 4,
+  marginBottom: 4,
+}
+
+const dowCell: React.CSSProperties = {
+  fontFamily: 'Poppins, sans-serif',
+  fontSize: 11,
+  fontWeight: 600,
+  color: '#FFCC33',
+  textAlign: 'center',
+  letterSpacing: '0.12em',
+  padding: '6px 0',
+}
+
+const gridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(7, 1fr)',
+  gap: 4,
+}
+
+const dayCellBase: React.CSSProperties = {
+  fontFamily: 'Playfair Display, Georgia, serif',
+  fontSize: 16,
+  height: 40,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textDecoration: 'none',
+  borderRadius: 2,
+  transition: 'background 0.15s ease',
+}
+
+const slotsWrap: React.CSSProperties = {
+  padding: '14px 36px 22px',
+  background: '#0E3470',
+  borderTop: '1px solid rgba(255, 204, 51, 0.18)',
+}
+
+const selectedDayLabel: React.CSSProperties = {
+  fontFamily: 'Playfair Display, Georgia, serif',
+  fontSize: 17,
+  color: '#FFCC33',
+  fontWeight: 600,
+  textAlign: 'center',
+  margin: '6px 0 14px',
+  fontStyle: 'italic',
+}
+
+const slotsGrid: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, 1fr)',
+  gap: 8,
 }
 
 const slotBtn: React.CSSProperties = {
   width: '100%',
-  padding: '14px 18px',
+  padding: '12px 8px',
   background: 'rgba(255, 204, 51, 0.07)',
   color: '#FFCC33',
-  border: '1px solid rgba(255, 204, 51, 0.35)',
+  border: '1px solid rgba(255, 204, 51, 0.45)',
   borderRadius: 2,
+  fontFamily: 'Playfair Display, Georgia, serif',
   fontSize: 15,
-  fontFamily: 'Playfair Display, Georgia, serif',
   cursor: 'pointer',
-  textAlign: 'center',
   letterSpacing: '0.02em',
-  lineHeight: 1.4,
-}
-
-const emptyMsg: React.CSSProperties = {
-  fontFamily: 'Playfair Display, Georgia, serif',
-  fontSize: 14,
-  fontStyle: 'italic',
-  color: '#FFCC33',
-  textAlign: 'center',
-  padding: '24px 12px',
-  lineHeight: 1.6,
 }
 
 const backLink: React.CSSProperties = {
