@@ -137,7 +137,7 @@ export default async function OGImage({ params }: { params: Promise<{ token: str
               fontFamily: 'EB Garamond, Georgia, serif',
               fontStyle: 'italic',
               fontSize: '48px',
-              color: GOLD_RGBA_85,
+              color: GOLD,
               marginTop: '14px',
               display: 'flex',
             }}
@@ -156,7 +156,7 @@ export default async function OGImage({ params }: { params: Promise<{ token: str
               fontWeight: 600,
               fontSize: '40px',
               letterSpacing: '6px',
-              color: GOLD_RGBA_70,
+              color: GOLD,
               textTransform: 'uppercase',
               marginBottom: '32px',
               display: 'flex',
