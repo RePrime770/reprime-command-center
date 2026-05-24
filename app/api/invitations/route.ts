@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { after } from 'next/server'
 import { randomUUID } from 'crypto'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 
@@ -109,6 +110,29 @@ export async function POST(request: NextRequest) {
     process.env.NEXT_PUBLIC_APP_URL || 'https://project-7e87w.vercel.app'
   ).replace(/\/$/, '')
   const invite_url = `${appUrl}/invite/${id}`
+
+  // Captain hotfix 2026-05-24: pre-warm the OG image at Vercel's edge cache
+  // immediately after mint, so WhatsApp's link-preview fetcher (which has
+  // a tight ~2-5s timeout) gets the gold-card PNG instantly on first send
+  // instead of timing out on the cold ~2-4s Satori render. Without this,
+  // recipients sometimes see a small text-card preview instead of the big
+  // Imperial Gold + Brand Navy card. Fire-and-forget via after() so the
+  // mint response returns in <100ms.
+  after(async () => {
+    try {
+      const ogUrl = `${appUrl}/invite/${id}/opengraph-image`
+      const res = await fetch(ogUrl, { cache: 'no-store' })
+      if (!res.ok) {
+        console.warn('[invitations] OG pre-warm non-OK:', res.status, ogUrl)
+      } else {
+        // Consume the body so the edge cache fully populates
+        await res.arrayBuffer()
+        console.log('[invitations] OG pre-warmed:', id, 'bytes:', res.headers.get('content-length'))
+      }
+    } catch (err) {
+      console.warn('[invitations] OG pre-warm failed:', (err as Error).message)
+    }
+  })
 
   return corsJson({
     id,
