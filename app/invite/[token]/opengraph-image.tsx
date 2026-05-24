@@ -58,9 +58,13 @@ export default async function OGImage({ params }: { params: Promise<{ token: str
 
   // Load brand fonts in parallel. Use Mozilla UA so Google Fonts returns TTF
   // (Satori in @vercel/og doesn't support WOFF2).
-  const [cinzelBuf, playfairBuf, ebGaramondBuf, poppinsBuf] = await Promise.all([
+  // Captain 2026-05-24: added Playfair Display Italic 400 because the bumped
+  // "By Invitation Only" + "Private Membership" labels render in italic per
+  // the locked Screen 1 spec.
+  const [cinzelBuf, playfairBuf, playfairItalicBuf, ebGaramondBuf, poppinsBuf] = await Promise.all([
     fetchFont('Cinzel', 600),
     fetchFont('Playfair Display', 700),
+    fetchFont('Playfair Display', 400, true),
     fetchFont('EB Garamond', 400, true),
     fetchFont('Poppins', 600),
   ])
@@ -72,6 +76,7 @@ export default async function OGImage({ params }: { params: Promise<{ token: str
   const fonts: Array<{ name: string; data: ArrayBuffer; weight: 400 | 600 | 700; style?: 'normal' | 'italic' }> = []
   if (cinzelBuf) fonts.push({ name: 'Cinzel', data: cinzelBuf, weight: 600, style: 'normal' })
   if (playfairBuf) fonts.push({ name: 'Playfair Display', data: playfairBuf, weight: 700, style: 'normal' })
+  if (playfairItalicBuf) fonts.push({ name: 'Playfair Display', data: playfairItalicBuf, weight: 400, style: 'italic' })
   if (ebGaramondBuf) fonts.push({ name: 'EB Garamond', data: ebGaramondBuf, weight: 400, style: 'italic' })
   if (poppinsBuf) fonts.push({ name: 'Poppins', data: poppinsBuf, weight: 600, style: 'normal' })
 
@@ -125,14 +130,15 @@ export default async function OGImage({ params }: { params: Promise<{ token: str
               display: 'flex',
             }}
           />
-          {/* by RePrime */}
+          {/* by RePrime — bumped to 48px so it stays readable when WhatsApp
+              scales the 1200x630 PNG down to ~350px wide. */}
           <div
             style={{
               fontFamily: 'EB Garamond, Georgia, serif',
               fontStyle: 'italic',
-              fontSize: '32px',
+              fontSize: '48px',
               color: GOLD_RGBA_85,
-              marginTop: '12px',
+              marginTop: '14px',
               display: 'flex',
             }}
           >
@@ -142,16 +148,17 @@ export default async function OGImage({ params }: { params: Promise<{ token: str
 
         {/* MIDDLE: Recipient name in Playfair Display */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-          {/* Private Introduction label */}
+          {/* Private Introduction label — bumped from 16px Poppins → 40px Poppins
+              so it survives WhatsApp's downscale. Letter-spacing kept tight. */}
           <div
             style={{
               fontFamily: 'Poppins, sans-serif',
               fontWeight: 600,
-              fontSize: '16px',
-              letterSpacing: '5px',
+              fontSize: '40px',
+              letterSpacing: '6px',
               color: GOLD_RGBA_70,
               textTransform: 'uppercase',
-              marginBottom: '24px',
+              marginBottom: '32px',
               display: 'flex',
             }}
           >
@@ -175,34 +182,44 @@ export default async function OGImage({ params }: { params: Promise<{ token: str
           </div>
         </div>
 
-        {/* BOTTOM: Private Membership · By Invitation Only */}
+        {/* BOTTOM: Private Membership · By Invitation Only — bumped to the
+            locked-spec sizes (38-50px Playfair Italic) so labels are readable
+            in WhatsApp's compressed preview render. */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
           <div
             style={{
-              fontFamily: 'Poppins, sans-serif',
-              fontWeight: 600,
-              fontSize: '14px',
-              letterSpacing: '4px',
-              color: GOLD_RGBA_70,
-              textTransform: 'uppercase',
-              marginBottom: '6px',
-              display: 'flex',
-            }}
-          >
-            Private Membership
-          </div>
-          <div
-            style={{
-              fontFamily: 'Poppins, sans-serif',
-              fontWeight: 500,
-              fontSize: '12px',
-              letterSpacing: '3.5px',
-              color: GOLD_RGBA_45,
-              textTransform: 'uppercase',
+              fontFamily: 'Playfair Display, Georgia, serif',
+              fontStyle: 'italic',
+              fontWeight: 400,
+              fontSize: '50px',
+              color: GOLD,
+              marginBottom: '14px',
               display: 'flex',
             }}
           >
             By Invitation Only
+          </div>
+          <div
+            style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              background: GOLD,
+              marginBottom: '14px',
+              display: 'flex',
+            }}
+          />
+          <div
+            style={{
+              fontFamily: 'Playfair Display, Georgia, serif',
+              fontStyle: 'italic',
+              fontWeight: 400,
+              fontSize: '38px',
+              color: GOLD,
+              display: 'flex',
+            }}
+          >
+            Private Membership
           </div>
         </div>
       </div>
