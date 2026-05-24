@@ -350,6 +350,28 @@ export default async function InvitePage({
     const meetingIdFormatted = formatMeetingId(invitation.zoom_meeting_id)
     const zoomShort = zoomUrl ? shortZoomUrl(zoomUrl) : null
 
+    // Captain 2026-05-24: Add-to-calendar links. Apple + Outlook get the ICS
+    // download endpoint (universal calendar import format). Google gets a
+    // deep-link to Google Calendar's event-create page with details prefilled.
+    // (Previous hrefs pointed at /invite/[token]/calendar?provider=X, which
+    // now lands on the reschedule picker — that was the dead-end loop.)
+    const icsDownloadUrl = `/api/invitations/${token}/calendar.ics`
+    const eventTitle = isTerminal ? `Terminal Introduction — Gideon Gratsiani` : `Meeting — Gideon Gratsiani`
+    const eventStart = slotDate
+    const eventEnd = new Date(slotDate.getTime() + 30 * 60 * 1000)
+    const ics = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+    const eventDescription = [
+      zoomUrl ? `Join Zoom: ${zoomUrl}` : null,
+      invitation.zoom_meeting_id ? `Meeting ID: ${invitation.zoom_meeting_id}` : null,
+      invitation.zoom_passcode ? `Passcode: ${invitation.zoom_passcode}` : null,
+    ].filter(Boolean).join('\n')
+    const googleCalUrl =
+      `https://calendar.google.com/calendar/r/eventedit?` +
+      `text=${encodeURIComponent(eventTitle)}` +
+      `&dates=${ics(eventStart)}/${ics(eventEnd)}` +
+      `&details=${encodeURIComponent(eventDescription)}` +
+      (zoomUrl ? `&location=${encodeURIComponent(zoomUrl)}` : '')
+
     return (
       <PageShell fontClasses={fontClasses}>
         <TerminalHeader />
@@ -552,9 +574,9 @@ export default async function InvitePage({
             Add to your calendar
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
-            <a href={`/invite/${token}/calendar?provider=apple`} style={calBtnStyle}>Apple</a>
-            <a href={`/invite/${token}/calendar?provider=google`} style={calBtnStyle}>Google</a>
-            <a href={`/invite/${token}/calendar?provider=outlook`} style={calBtnStyle}>Outlook</a>
+            <a href={icsDownloadUrl} download="terminal-introduction.ics" style={calBtnStyle}>Apple</a>
+            <a href={googleCalUrl} target="_blank" rel="noopener noreferrer" style={calBtnStyle}>Google</a>
+            <a href={icsDownloadUrl} download="terminal-introduction.ics" style={calBtnStyle}>Outlook</a>
           </div>
         </div>
 
