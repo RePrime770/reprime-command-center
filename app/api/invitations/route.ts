@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { lookupByName } from '@/lib/contact-directory/client'
 import { sendEmail } from '@/lib/sendgrid/client'
+import { appendOutreachRow } from '@/lib/google/sheets'
 
 export const dynamic = 'force-dynamic'
 
@@ -356,12 +357,47 @@ a { text-decoration: none; }
     })
   }
 
+  // Captain 2026-05-25: append a row to the Terminal Outreach Tracker
+  // spreadsheet (Sheet1!A:Q). This is the durable audit trail Gideon checks
+  // when he wants to follow up — every mint shows up automatically with the
+  // invite link, the resolved email, the slots that went out, and the
+  // dispatch status. Fire-and-forget via after() so it doesn't block the
+  // mint response. Failures are logged, not raised.
+  const emailDispatchedFlag = Boolean(
+    wantEmail && resolvedEmail && (payload.proposed_slots?.length ?? 0) > 0
+  )
+  after(async () => {
+    try {
+      // Build the message_draft as Gideon's standard personal note + URL,
+      // matching what /compose's Copy Message button puts on the clipboard.
+      const draftLine = `${recipientFirst} — this is Gideon. I've been building something privately and you're one of the very first people I want to show it to. Pick a time below — 30 minutes, just us.\n\n${invite_url}`
+      await appendOutreachRow({
+        first_name: firstName,
+        full_name: fullName,
+        phone: payload.contact_phone ?? null,
+        panel: null,         // filled by future WhatsApp send webhook
+        language: null,      // filled if we add language detection
+        tier: null,          // filled if we add directory tier lookup
+        observation: null,   // Gideon's free-form column
+        invite_id: id,
+        invite_url,
+        proposed_slots: payload.proposed_slots ?? [],
+        message_draft: draftLine,
+        contact_email: resolvedEmail,
+        email_source: emailSource,
+        email_dispatched: emailDispatchedFlag,
+      })
+    } catch (err) {
+      console.warn('[invitations] sheet append failed:', (err as Error).message)
+    }
+  })
+
   return corsJson({
     id,
     invite_url,
     expires_at: expiresAt,
     contact_email: resolvedEmail,
     email_source: emailSource,  // 'caller' | 'directory' | null
-    email_dispatched: Boolean(wantEmail && resolvedEmail && (payload.proposed_slots?.length ?? 0) > 0),
+    email_dispatched: emailDispatchedFlag,
   })
 }
