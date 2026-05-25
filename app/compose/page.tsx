@@ -79,6 +79,7 @@ export default function ComposePage() {
   const [firstName, setFirstName] = useState('')
   const [fullName, setFullName] = useState('')
   const [phoneRaw, setPhoneRaw] = useState('')
+  const [emailRaw, setEmailRaw] = useState('')
   const [slots, setSlots] = useState<Slot[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [slotsError, setSlotsError] = useState<string | null>(null)
@@ -155,6 +156,7 @@ export default function ComposePage() {
           contact_first_name: firstName.trim(),
           contact_name: fullName.trim() || firstName.trim(),
           contact_phone: phone || null,
+          contact_email: emailRaw.trim() || null,
           meeting_type: 'terminal',
           proposed_slots: slots,
         }),
@@ -273,6 +275,24 @@ export default function ComposePage() {
                 Will dial as: <strong style={{ color: '#FFCC33' }}>{phone}</strong>
               </div>
             )}
+          </Field>
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          <Field label="Email (optional — fill ONLY if directory has no email on file for this person)">
+            <input
+              type="email"
+              value={emailRaw}
+              onChange={(e) => setEmailRaw(e.target.value)}
+              placeholder="meir@example.com — leave blank to auto-resolve from directory"
+              style={inputStyle}
+              disabled={!!inviteUrl}
+            />
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
+              If blank, mint looks up the email by name in the master directory.
+              If the directory has nothing AND you leave this blank, WhatsApp still
+              goes out but no parallel SendGrid email fires.
+            </div>
           </Field>
         </div>
 
