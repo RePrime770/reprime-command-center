@@ -219,22 +219,43 @@ export default function ComposePage() {
         borderRadius: 8,
         padding: '28px 32px',
       }}>
-        <h1 style={{
-          margin: 0,
-          fontSize: 24,
-          color: '#FFCC33',
-          letterSpacing: '0.04em',
-          fontWeight: 700,
-        }}>
-          Compose Terminal Invitation
-        </h1>
-        <p style={{
-          margin: '6px 0 24px',
-          fontSize: 14,
-          color: 'rgba(255, 204, 51, 0.65)',
-        }}>
-          Mint a magic link, open it pre-filled in WhatsApp Web, send it from your own thumb.
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div>
+            <h1 style={{
+              margin: 0,
+              fontSize: 24,
+              color: '#FFCC33',
+              letterSpacing: '0.04em',
+              fontWeight: 700,
+            }}>
+              Compose Terminal Invitation
+            </h1>
+            <p style={{
+              margin: '6px 0 0',
+              fontSize: 14,
+              color: 'rgba(255, 204, 51, 0.65)',
+            }}>
+              Mint a magic link, open it pre-filled in WhatsApp Web, send it from your own thumb.
+            </p>
+          </div>
+          <a
+            href="/api/outreach/export"
+            download
+            title="Download every Terminal invitation as an Excel file"
+            style={{
+              ...secondaryButtonStyle,
+              flexShrink: 0,
+              textDecoration: 'none',
+              display: 'inline-block',
+              fontSize: 13,
+              padding: '8px 14px',
+              marginTop: 4,
+            }}
+          >
+            ↓ Download Excel Log
+          </a>
+        </div>
+        <div style={{ height: 24 }} />
 
         {/* INPUT FORM (always visible) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
