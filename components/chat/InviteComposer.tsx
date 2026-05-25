@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { DashboardThread, Panel } from '@/lib/timelines/types'
 
 type Props = {
@@ -9,12 +9,57 @@ type Props = {
   onSent?: () => void
 }
 
+type Slot = { iso: string; display: string }
+type SlotGroup = { date: string; label: string; times: Slot[] }
+
 function deriveFirstName(contactName: string | null, phone: string): string {
   if (contactName && contactName.trim()) {
     const parts = contactName.trim().split(/\s+/)
     return parts[0] || contactName.trim()
   }
   return phone
+}
+
+/**
+ * From the freebusy-filtered slot groups, pick three slots spread across the
+ * day (morning / early afternoon / late afternoon) on the soonest available
+ * day. Falls back to whatever is available if the day is sparse.
+ */
+function pickThreeSlots(groups: SlotGroup[]): Slot[] {
+  for (const group of groups) {
+    const picks: Slot[] = []
+    const bucketed: Record<'morning' | 'early' | 'late', Slot[]> = {
+      morning: [],
+      early: [],
+      late: [],
+    }
+    for (const t of group.times) {
+      const d = new Date(t.iso)
+      const h = parseInt(
+        new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Chicago',
+          hour: 'numeric',
+          hour12: false,
+        }).format(d),
+        10
+      )
+      if (h < 12) bucketed.morning.push(t)
+      else if (h < 15) bucketed.early.push(t)
+      else if (h < 18) bucketed.late.push(t)
+    }
+    if (bucketed.morning[0]) picks.push(bucketed.morning[0])
+    if (bucketed.early[0]) picks.push(bucketed.early[0])
+    if (bucketed.late[0]) picks.push(bucketed.late[0])
+    // Backfill from the day's remaining slots if we still don't have 3
+    if (picks.length < 3) {
+      for (const t of group.times) {
+        if (picks.length >= 3) break
+        if (!picks.find((p) => p.iso === t.iso)) picks.push(t)
+      }
+    }
+    if (picks.length >= 1) return picks.slice(0, 3)
+  }
+  return []
 }
 
 export default function InviteComposer({ panel, thread, onClose, onSent }: Props) {
@@ -26,6 +71,9 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
   const [personalMessage, setPersonalMessage] = useState(
     `${initialFirstName} — this is Gideon. I've been building something privately and you're one of the first people I want to show it to. Please select a time below — 20 minutes, just us.`
   )
+  const [slots, setSlots] = useState<Slot[]>([])
+  const [slotsLoading, setSlotsLoading] = useState(true)
+  const [slotsError, setSlotsError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,6 +85,34 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  // Fetch + pick 3 suggested slots on open so Gideon previews exactly what
+  // the recipient will see (and what the parallel SendGrid email will list).
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/bookings/available-slots', { cache: 'no-store' })
+        if (!res.ok) throw new Error(`available-slots ${res.status}`)
+        const { slots: groups } = (await res.json()) as { slots: SlotGroup[] }
+        const picks = pickThreeSlots(groups ?? [])
+        if (!cancelled) {
+          setSlots(picks)
+          setSlotsLoading(false)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setSlotsError((err as Error).message || 'Failed to load slots')
+          setSlotsLoading(false)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const slotPreview = useMemo(() => slots.map((s) => s.display), [slots])
+
   const send = async () => {
     if (submitting) return
     const msg = personalMessage.trim()
@@ -47,7 +123,10 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
     setSubmitting(true)
     setError(null)
     try {
-      // Step 1: create the invitation row in Supabase
+      // Step 1: create the invitation row in Supabase. Pass the 3 suggested
+      // slots so the parallel SendGrid email at mint time has concrete times
+      // to render as clickable buttons. Cookie auth (g@reprime.com) → no
+      // captain token needed from the client.
       const inviteRes = await fetch('/api/invitations', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -57,9 +136,7 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
           contact_phone: thread.phone,
           contact_pipedrive_id: thread.pipedrive_contact_id,
           meeting_type: 'terminal',
-          // proposed_slots intentionally empty here — slots come from
-          // /api/bookings/available-slots on the invite page itself.
-          proposed_slots: [],
+          proposed_slots: slots,
         }),
       })
       if (!inviteRes.ok) {
@@ -225,6 +302,36 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
           </span>
         </label>
 
+        {/* Suggested time slots — fetched from /api/bookings/available-slots
+            and previewed here so Gideon sees exactly what the recipient will
+            see in WhatsApp + email before he hits send. */}
+        <div style={{ marginTop: '0.75rem' }}>
+          <div style={{ fontSize: 11, color: 'rgba(255, 204, 51, 0.7)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+            Suggested times (sent in WhatsApp + email)
+          </div>
+          {slotsLoading ? (
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontStyle: 'italic' }}>
+              Loading from your calendar…
+            </div>
+          ) : slotsError ? (
+            <div style={{ fontSize: 12, color: '#FF7474' }}>
+              Couldn&apos;t load slots — {slotsError}. Will send without suggested times (recipient picks on the booking page).
+            </div>
+          ) : slots.length === 0 ? (
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontStyle: 'italic' }}>
+              No open slots in your calendar window. Recipient will pick on the booking page.
+            </div>
+          ) : (
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {slotPreview.map((s, i) => (
+                <li key={i} style={{ fontSize: 13, color: '#FFCC33', fontFamily: 'Georgia, serif' }}>
+                  · {s}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <div
           style={{
             marginTop: '0.75rem',
@@ -237,7 +344,7 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
             lineHeight: 1.5,
           }}
         >
-          Sends to <strong style={{ color: '#FFCC33' }}>{thread.phone}</strong> via the {panel === '305' ? '305 RePrime' : '718 Personal'} WhatsApp line. The recipient sees your personal message, then a gold Terminal card with their name, then taps to choose a time.
+          Sends to <strong style={{ color: '#FFCC33' }}>{thread.phone}</strong> via the {panel === '305' ? '305 RePrime' : '718 Personal'} WhatsApp line. The recipient sees your personal message, then a gold Terminal card with their name. If we have their email on file, a parallel SendGrid email lands at the same time with the suggested slots as clickable buttons.
         </div>
 
         {error && (
