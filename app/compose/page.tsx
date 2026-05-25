@@ -133,9 +133,12 @@ export default function ComposePage() {
     return `${personalMessage.trim()}\n\n${inviteUrl}`
   }, [personalMessage, inviteUrl])
 
+  // Phone is optional. When Gideon is composing for a chat that's already
+  // open in WhatsApp Web, he doesn't need to look up the phone — the
+  // recipient routing happens via him hitting Enter in the open chat. The
+  // mint endpoint accepts a null phone; we just won't have the metadata.
   const canMint =
     firstName.trim().length > 0 &&
-    phone.length > 4 &&
     personalMessage.trim().length > 0 &&
     !minting
 
@@ -151,7 +154,7 @@ export default function ComposePage() {
         body: JSON.stringify({
           contact_first_name: firstName.trim(),
           contact_name: fullName.trim() || firstName.trim(),
-          contact_phone: phone,
+          contact_phone: phone || null,
           meeting_type: 'terminal',
           proposed_slots: slots,
         }),
@@ -256,12 +259,12 @@ export default function ComposePage() {
         </div>
 
         <div style={{ marginTop: 12 }}>
-          <Field label="Phone (with country code or 10-digit US)">
+          <Field label="Phone (optional — leave blank if you're sending from WhatsApp Web yourself)">
             <input
               type="tel"
               value={phoneRaw}
               onChange={(e) => setPhoneRaw(e.target.value)}
-              placeholder="+1 (305) 555-1234 or 3055551234"
+              placeholder="+1 (305) 555-1234 — optional"
               style={inputStyle}
               disabled={!!inviteUrl}
             />
