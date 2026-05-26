@@ -27,12 +27,16 @@ type Slot = { iso: string; display: string }
 type SlotGroup = { date: string; label: string; times: Slot[] }
 
 function pickThreeSlots(groups: SlotGroup[]): Slot[] {
+  // Captain 2026-05-25: Buckets expanded to cover Gideon's full office
+  // availability (8:30 AM - 9 PM Central). Previously capped at 6 PM which
+  // meant recipients never saw evening options even though Gideon is at
+  // his desk until 9 PM. Now offers morning + afternoon + evening spread.
   for (const group of groups) {
     const picks: Slot[] = []
-    const bucketed: Record<'morning' | 'early' | 'late', Slot[]> = {
+    const bucketed: Record<'morning' | 'afternoon' | 'evening', Slot[]> = {
       morning: [],
-      early: [],
-      late: [],
+      afternoon: [],
+      evening: [],
     }
     for (const t of group.times) {
       const h = parseInt(
@@ -43,13 +47,13 @@ function pickThreeSlots(groups: SlotGroup[]): Slot[] {
         }).format(new Date(t.iso)),
         10
       )
-      if (h < 12) bucketed.morning.push(t)
-      else if (h < 15) bucketed.early.push(t)
-      else if (h < 18) bucketed.late.push(t)
+      if (h < 12) bucketed.morning.push(t)          // 8 AM - 12 PM
+      else if (h < 17) bucketed.afternoon.push(t)    // 12 PM - 5 PM
+      else if (h < 21) bucketed.evening.push(t)      // 5 PM - 9 PM
     }
     if (bucketed.morning[0]) picks.push(bucketed.morning[0])
-    if (bucketed.early[0]) picks.push(bucketed.early[0])
-    if (bucketed.late[0]) picks.push(bucketed.late[0])
+    if (bucketed.afternoon[0]) picks.push(bucketed.afternoon[0])
+    if (bucketed.evening[0]) picks.push(bucketed.evening[0])
     if (picks.length < 3) {
       for (const t of group.times) {
         if (picks.length >= 3) break

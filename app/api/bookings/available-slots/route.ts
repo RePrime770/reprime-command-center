@@ -220,10 +220,12 @@ export async function GET() {
       }
 
       // Determine operating hours for this day (Central time)
-      // Sunday–Thursday (0–4): 9am–11pm
-      // Friday (5): 9am–1pm
-      const startHour = 9
-      const endHour = dayOfWeek === 5 ? 13 : 23 // 1pm vs 11pm
+      // Captain 2026-05-25: Bumped per Gideon's actual office hours (8:30 AM
+      // - 9 PM). Was 9 AM - 11 PM previously. Picker bucket evening<21 means
+      // last picked slot lands at 8:30 PM. Sunday-Thursday 8 AM - 9 PM.
+      // Friday remains short (Shabbat lead-up).
+      const startHour = 8
+      const endHour = dayOfWeek === 5 ? 13 : 21 // 1pm Fri, 9pm Sun-Thu
 
       // Generate 30-min slots
       for (let h = startHour; h < endHour; h++) {
