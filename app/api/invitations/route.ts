@@ -256,6 +256,9 @@ ${invite_url}
 
 Different time? ${appUrl}/invite/${id}/choose
 
+Short walkthrough from the inside (4 minutes):
+https://youtu.be/khHY1V2ttGU
+
 — Gideon
 Gideon Gratsiani, Founder
 RePrime Group`
@@ -321,6 +324,11 @@ a { text-decoration: none; }
       <div style="font-family:'Poppins',Arial,sans-serif;font-size:11px;color:#FFCC33;letter-spacing:0.20em;text-transform:uppercase;font-weight:600;text-indent:0.20em;opacity:0.85;">Different Time?</div>
       <div style="font-family:'Playfair Display',Georgia,serif;font-size:28px;color:#FFCC33;font-weight:400;margin-top:4px;line-height:1.2;">Choose your own date and time →</div>
     </a>
+  </td></tr>
+
+  <!-- WALKTHROUGH VIDEO -->
+  <tr><td style="padding:18px 48px 0;text-align:center;">
+    <a href="https://youtu.be/khHY1V2ttGU" style="font-family:'Poppins',Arial,sans-serif;font-size:13px;color:#FFCC33;text-decoration:underline;letter-spacing:0.04em;">▶ Short walkthrough from the inside · 4 min</a>
   </td></tr>
 
   <!-- CONFIRM tagline -->
