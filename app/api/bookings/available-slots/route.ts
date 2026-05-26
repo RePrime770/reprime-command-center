@@ -220,11 +220,13 @@ export async function GET() {
       }
 
       // Determine operating hours for this day (Central time)
-      // Captain 2026-05-25: Bumped per Gideon's actual office hours (8:30 AM
-      // - 9 PM). Was 9 AM - 11 PM previously. Picker bucket evening<21 means
-      // last picked slot lands at 8:30 PM. Sunday-Thursday 8 AM - 9 PM.
-      // Friday remains short (Shabbat lead-up).
-      const startHour = 8
+      // Captain 2026-05-26: Lowered floor to 6 AM CDT (= 14:00 IDT) per
+      // Gideon's directive — Israeli contacts on /choose page need to be
+      // able to pick afternoon-Israel slots starting at 14:00 IDT. Picker
+      // logic surfaces the right defaults per locale (8/9/10 AM CDT for IL,
+      // 9 AM / noon / 5 PM CDT for US). Sunday-Thursday 6 AM - 9 PM CDT.
+      // Friday remains short (Shabbat lead-up): 6 AM - 1 PM CDT.
+      const startHour = 6
       const endHour = dayOfWeek === 5 ? 13 : 21 // 1pm Fri, 9pm Sun-Thu
 
       // Generate 30-min slots

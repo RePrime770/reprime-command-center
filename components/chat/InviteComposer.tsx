@@ -1,6 +1,12 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import type { DashboardThread, Panel } from '@/lib/timelines/types'
+import {
+  pickThreeSlots,
+  detectLocale,
+  type Slot,
+  type SlotGroup,
+} from '@/lib/scheduling/pick-three-slots'
 
 type Props = {
   panel: Panel
@@ -9,62 +15,12 @@ type Props = {
   onSent?: () => void
 }
 
-type Slot = { iso: string; display: string }
-type SlotGroup = { date: string; label: string; times: Slot[] }
-
 function deriveFirstName(contactName: string | null, phone: string): string {
   if (contactName && contactName.trim()) {
     const parts = contactName.trim().split(/\s+/)
     return parts[0] || contactName.trim()
   }
   return phone
-}
-
-/**
- * From the freebusy-filtered slot groups, pick three slots spread across the
- * day (morning / afternoon / evening) on the soonest available day. Falls
- * back to whatever is available if the day is sparse.
- *
- * Captain 2026-05-25: Buckets expanded to cover Gideon's full office
- * availability (8:30 AM - 9 PM Central). Previously capped at 6 PM which
- * meant recipients never saw evening options even though Gideon is at his
- * desk until 9 PM.
- */
-function pickThreeSlots(groups: SlotGroup[]): Slot[] {
-  for (const group of groups) {
-    const picks: Slot[] = []
-    const bucketed: Record<'morning' | 'afternoon' | 'evening', Slot[]> = {
-      morning: [],
-      afternoon: [],
-      evening: [],
-    }
-    for (const t of group.times) {
-      const d = new Date(t.iso)
-      const h = parseInt(
-        new Intl.DateTimeFormat('en-US', {
-          timeZone: 'America/Chicago',
-          hour: 'numeric',
-          hour12: false,
-        }).format(d),
-        10
-      )
-      if (h < 12) bucketed.morning.push(t)          // 8 AM - 12 PM
-      else if (h < 17) bucketed.afternoon.push(t)    // 12 PM - 5 PM
-      else if (h < 21) bucketed.evening.push(t)      // 5 PM - 9 PM
-    }
-    if (bucketed.morning[0]) picks.push(bucketed.morning[0])
-    if (bucketed.afternoon[0]) picks.push(bucketed.afternoon[0])
-    if (bucketed.evening[0]) picks.push(bucketed.evening[0])
-    // Backfill from the day's remaining slots if we still don't have 3
-    if (picks.length < 3) {
-      for (const t of group.times) {
-        if (picks.length >= 3) break
-        if (!picks.find((p) => p.iso === t.iso)) picks.push(t)
-      }
-    }
-    if (picks.length >= 1) return picks.slice(0, 3)
-  }
-  return []
 }
 
 export default function InviteComposer({ panel, thread, onClose, onSent }: Props) {
@@ -76,11 +32,23 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
   const [personalMessage, setPersonalMessage] = useState(
     `${initialFirstName} — this is Gideon. I've been building something privately and you're one of the first people I want to show it to. Please select a time below — 20 minutes, just us.`
   )
-  const [slots, setSlots] = useState<Slot[]>([])
+  const [slotGroups, setSlotGroups] = useState<SlotGroup[]>([])
   const [slotsLoading, setSlotsLoading] = useState(true)
   const [slotsError, setSlotsError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Locale auto-detected from the WhatsApp thread phone. +972 → IL.
+  const locale = useMemo(
+    () => detectLocale(thread.phone, fullName || firstName),
+    [thread.phone, fullName, firstName]
+  )
+
+  // Recompute 3 picks whenever locale or slot groups change.
+  const slots: Slot[] = useMemo(
+    () => pickThreeSlots(slotGroups, locale),
+    [slotGroups, locale]
+  )
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -99,9 +67,8 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
         const res = await fetch('/api/bookings/available-slots', { cache: 'no-store' })
         if (!res.ok) throw new Error(`available-slots ${res.status}`)
         const { slots: groups } = (await res.json()) as { slots: SlotGroup[] }
-        const picks = pickThreeSlots(groups ?? [])
         if (!cancelled) {
-          setSlots(picks)
+          setSlotGroups(groups ?? [])
           setSlotsLoading(false)
         }
       } catch (err) {
@@ -142,6 +109,7 @@ export default function InviteComposer({ panel, thread, onClose, onSent }: Props
           contact_pipedrive_id: thread.pipedrive_contact_id,
           meeting_type: 'terminal',
           proposed_slots: slots,
+          locale,
         }),
       })
       if (!inviteRes.ok) {

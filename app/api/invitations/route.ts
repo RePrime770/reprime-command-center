@@ -5,6 +5,12 @@ import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { lookupByName } from '@/lib/contact-directory/client'
 import { sendEmail } from '@/lib/sendgrid/client'
 import { appendOutreachRow } from '@/lib/google/sheets'
+import {
+  detectLocale,
+  formatSlotForLocale,
+  periodLabelForLocale,
+  type Locale,
+} from '@/lib/scheduling/pick-three-slots'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +27,11 @@ type CreateBody = {
   // Default = true. Set false if you only want WhatsApp (e.g. close friends
   // where an email feels too formal).
   send_email?: boolean
+  // Captain 2026-05-26: explicit locale override. If omitted, auto-detected
+  // from phone (+972 → 'il'). Forces the slot times + period labels to render
+  // in Israel time (with "Israel" suffix) and resets the proposed_slots.display
+  // strings on the DB row + email body.
+  locale?: Locale
 }
 
 // Captain hotfix 2026-05-24: CORS allowed for cross-origin mints (Chrome
@@ -109,6 +120,18 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Captain 2026-05-26: locale-aware display strings on proposed_slots.
+  // For Israeli contacts ('il'), rewrite each slot.display to show Israel
+  // wall-clock time (e.g. "Tuesday, May 26 · 4:00 PM Israel") instead of
+  // Central. Stored on the DB row so /invite page + email + Pipedrive
+  // activity all see the locale-correct text.
+  const locale: Locale =
+    payload.locale ?? detectLocale(payload.contact_phone ?? null, fullName || firstName)
+  const localizedSlots = (payload.proposed_slots ?? []).map((s) => ({
+    iso: s.iso,
+    display: formatSlotForLocale(s.iso, locale),
+  }))
+
   const row = {
     id,
     contact_first_name: firstName,
@@ -116,7 +139,7 @@ export async function POST(request: NextRequest) {
     contact_email: resolvedEmail,
     contact_phone: payload.contact_phone ?? null,
     contact_pipedrive_id: payload.contact_pipedrive_id ?? null,
-    proposed_slots: payload.proposed_slots ?? [],
+    proposed_slots: localizedSlots,
     meeting_type: payload.meeting_type ?? 'terminal',
     status: 'sent' as const,
     expires_at: expiresAt,
@@ -184,30 +207,20 @@ export async function POST(request: NextRequest) {
   if (wantEmail && resolvedEmail && (payload.proposed_slots?.length ?? 0) > 0) {
     after(async () => {
       try {
-        const slots = payload.proposed_slots ?? []
+        // Captain 2026-05-26: use the locale-rewritten slots so the email
+        // body shows "4:00 PM Israel" for IL contacts instead of "8:00 AM
+        // Central" (the same instant in time, but the right wall-clock for
+        // the recipient).
+        const slots = localizedSlots
 
         // ── Helpers ──
-        const periodLabel = (iso: string): string => {
-          try {
-            const d = new Date(iso)
-            const hh = new Intl.DateTimeFormat('en-US', {
-              timeZone: 'America/Chicago',
-              hour: 'numeric',
-              hour12: false,
-            }).format(d)
-            const h = parseInt(hh, 10)
-            if (h < 12) return 'Morning'
-            if (h < 16) return 'Afternoon'
-            if (h < 18) return 'Late Afternoon'
-            return 'Evening'
-          } catch {
-            return 'Suggested'
-          }
-        }
+        const periodLabel = (iso: string): string =>
+          periodLabelForLocale(iso, locale)
         const dayLabel = (iso: string): string => {
           try {
+            const tz = locale === 'il' ? 'Asia/Jerusalem' : 'America/Chicago'
             return new Intl.DateTimeFormat('en-US', {
-              timeZone: 'America/Chicago',
+              timeZone: tz,
               weekday: 'long',
               month: 'long',
               day: 'numeric',
@@ -389,7 +402,7 @@ a { text-decoration: none; }
         observation: null,   // Gideon's free-form column
         invite_id: id,
         invite_url,
-        proposed_slots: payload.proposed_slots ?? [],
+        proposed_slots: localizedSlots,
         message_draft: draftLine,
         contact_email: resolvedEmail,
         email_source: emailSource,

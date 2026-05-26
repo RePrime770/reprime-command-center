@@ -22,48 +22,13 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-
-type Slot = { iso: string; display: string }
-type SlotGroup = { date: string; label: string; times: Slot[] }
-
-function pickThreeSlots(groups: SlotGroup[]): Slot[] {
-  // Captain 2026-05-25: Buckets expanded to cover Gideon's full office
-  // availability (8:30 AM - 9 PM Central). Previously capped at 6 PM which
-  // meant recipients never saw evening options even though Gideon is at
-  // his desk until 9 PM. Now offers morning + afternoon + evening spread.
-  for (const group of groups) {
-    const picks: Slot[] = []
-    const bucketed: Record<'morning' | 'afternoon' | 'evening', Slot[]> = {
-      morning: [],
-      afternoon: [],
-      evening: [],
-    }
-    for (const t of group.times) {
-      const h = parseInt(
-        new Intl.DateTimeFormat('en-US', {
-          timeZone: 'America/Chicago',
-          hour: 'numeric',
-          hour12: false,
-        }).format(new Date(t.iso)),
-        10
-      )
-      if (h < 12) bucketed.morning.push(t)          // 8 AM - 12 PM
-      else if (h < 17) bucketed.afternoon.push(t)    // 12 PM - 5 PM
-      else if (h < 21) bucketed.evening.push(t)      // 5 PM - 9 PM
-    }
-    if (bucketed.morning[0]) picks.push(bucketed.morning[0])
-    if (bucketed.afternoon[0]) picks.push(bucketed.afternoon[0])
-    if (bucketed.evening[0]) picks.push(bucketed.evening[0])
-    if (picks.length < 3) {
-      for (const t of group.times) {
-        if (picks.length >= 3) break
-        if (!picks.find((p) => p.iso === t.iso)) picks.push(t)
-      }
-    }
-    if (picks.length >= 1) return picks.slice(0, 3)
-  }
-  return []
-}
+import {
+  pickThreeSlots,
+  detectLocale,
+  type Locale,
+  type Slot,
+  type SlotGroup,
+} from '@/lib/scheduling/pick-three-slots'
 
 function normalizePhone(raw: string): string {
   const digits = raw.replace(/\D/g, '')
@@ -84,7 +49,8 @@ export default function ComposePage() {
   const [fullName, setFullName] = useState('')
   const [phoneRaw, setPhoneRaw] = useState('')
   const [emailRaw, setEmailRaw] = useState('')
-  const [slots, setSlots] = useState<Slot[]>([])
+  const [localeOverride, setLocaleOverride] = useState<Locale | 'auto'>('auto')
+  const [slotGroups, setSlotGroups] = useState<SlotGroup[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [slotsError, setSlotsError] = useState<string | null>(null)
   const [personalMessage, setPersonalMessage] = useState('')
@@ -98,6 +64,18 @@ export default function ComposePage() {
 
   const phone = useMemo(() => normalizePhone(phoneRaw), [phoneRaw])
 
+  // Locale = explicit override, else auto-detect from phone + name.
+  const locale: Locale = useMemo(() => {
+    if (localeOverride !== 'auto') return localeOverride
+    return detectLocale(phone, fullName || firstName)
+  }, [localeOverride, phone, fullName, firstName])
+
+  // Recompute the 3 picks whenever locale or slot groups change.
+  const slots: Slot[] = useMemo(
+    () => pickThreeSlots(slotGroups, locale),
+    [slotGroups, locale]
+  )
+
   // Auto-populate the personal message when firstName changes
   useEffect(() => {
     const fn = firstName.trim()
@@ -107,7 +85,8 @@ export default function ComposePage() {
     )
   }, [firstName])
 
-  // Auto-fetch slots once (single call on mount). Cached client-side via state.
+  // Auto-fetch slot groups once (single call on mount). Cached client-side
+  // via state. Picker logic runs in useMemo against the groups + locale.
   useEffect(() => {
     let cancelled = false
     setSlotsLoading(true)
@@ -116,9 +95,8 @@ export default function ComposePage() {
         const res = await fetch('/api/bookings/available-slots', { cache: 'no-store' })
         if (!res.ok) throw new Error(`available-slots ${res.status}`)
         const { slots: groups } = (await res.json()) as { slots: SlotGroup[] }
-        const picks = pickThreeSlots(groups ?? [])
         if (!cancelled) {
-          setSlots(picks)
+          setSlotGroups(groups ?? [])
           setSlotsLoading(false)
         }
       } catch (err) {
@@ -163,6 +141,7 @@ export default function ComposePage() {
           contact_email: emailRaw.trim() || null,
           meeting_type: 'terminal',
           proposed_slots: slots,
+          locale,
         }),
       })
       if (!res.ok) {
@@ -317,6 +296,25 @@ export default function ComposePage() {
               If blank, mint looks up the email by name in the master directory.
               If the directory has nothing AND you leave this blank, WhatsApp still
               goes out but no parallel SendGrid email fires.
+            </div>
+          </Field>
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          <Field label="Region (auto-detects from +972 phone or Hebrew name; override if needed)">
+            <select
+              value={localeOverride}
+              onChange={(e) => setLocaleOverride(e.target.value as Locale | 'auto')}
+              disabled={!!inviteUrl}
+              style={{ ...inputStyle, cursor: 'pointer' }}
+            >
+              <option value="auto">Auto-detect (currently: {locale === 'il' ? 'Israel' : 'US'})</option>
+              <option value="us">United States — slots in Central time (9 AM / noon / 5 PM)</option>
+              <option value="il">Israel — slots in Israel time (4 PM / 5 PM / 6 PM IDT)</option>
+            </select>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
+              Israeli contacts see their suggested times in Israel time. The /choose page
+              opens from 6 AM Central (= 2 PM Israel) regardless.
             </div>
           </Field>
         </div>
