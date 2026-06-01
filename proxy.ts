@@ -10,6 +10,12 @@ const PUBLIC_PATHS = [
   '/api/phone/quo-webhook',
   '/invite',
   '/api/bookings/confirm',
+  // Recipient-facing — the public invite/choose pages fetch this to show
+  // Gideon's open times. Route reads availability via GOOGLE_REFRESH_TOKEN
+  // server-side and returns free slots only (no secrets). Without this in the
+  // allowlist the public booking page is redirected to /login, gets nothing,
+  // and falls back to "reach out directly to schedule."
+  '/api/bookings/available-slots',
   // Recipient-facing — Screen 3 Add Attendee + reschedule + .ics download
   '/api/invitations/add-attendee',
   // Captain hotfix 2026-05-20: Chrome Extension mints invites via X-Captain-Token
