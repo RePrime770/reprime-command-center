@@ -39,6 +39,18 @@
       "schedule": "0 13 * * *"
     },
     {
+      "path": "/api/cron/sec-edgar-poll",
+      "schedule": "30 13 * * *"
+    },
+    {
+      "path": "/api/cron/courtlistener-poll",
+      "schedule": "45 13 * * *"
+    },
+    {
+      "path": "/api/cron/census-refresh",
+      "schedule": "0 14 * * 1"
+    },
+    {
       "path": "/api/cron/slack-digest",
       "schedule": "0 13 * * *"
     }
