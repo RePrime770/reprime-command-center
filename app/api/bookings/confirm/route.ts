@@ -3,7 +3,6 @@ import { Redis } from '@upstash/redis'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createMeeting } from '@/lib/zoom/client'
 import { createCalendarEvent } from '@/lib/google/calendar'
-import { sendEmail } from '@/lib/sendgrid/client'
 import { triggerEvent } from '@/lib/pagerduty/events'
 import {
   getChats,
@@ -14,22 +13,23 @@ import { createActivity } from '@/lib/pipedrive/client'
 
 export const dynamic = 'force-dynamic'
 
-const FROM_EMAIL = 'g@reprime-terminal.com'
-const REPLY_TO = 'g@reprime.com'
 const PD_QUEUE_KEY = 'pagerduty:queue'
 
+// Dual-time confirmation string so the recipient sees their own clock and
+// Gideon sees Central. Gideon 2026-06-18.
 function formatSlotDisplay(iso: string): string {
   const d = new Date(iso)
   if (isNaN(d.getTime())) return iso
-  const fmt = new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: 'America/Chicago',
+  const dayFmt = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Chicago',
   })
-  return `${fmt.format(d)} Central`
+  const ilTime = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Jerusalem',
+  }).format(d)
+  const ctTime = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago',
+  }).format(d)
+  return `${dayFmt.format(d)} · ${ilTime} Israel · ${ctTime} Central`
 }
 
 interface Slot {
@@ -109,59 +109,6 @@ function htmlResponse(html: string, status = 200): Response {
     status,
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   })
-}
-
-function icsTimestamp(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return (
-    d.getUTCFullYear() +
-    pad(d.getUTCMonth() + 1) +
-    pad(d.getUTCDate()) +
-    'T' +
-    pad(d.getUTCHours()) +
-    pad(d.getUTCMinutes()) +
-    pad(d.getUTCSeconds()) +
-    'Z'
-  )
-}
-
-function buildIcs(opts: {
-  uid: string
-  startIso: string
-  endIso: string
-  summary: string
-  description: string
-  location: string
-  organizerEmail: string
-  organizerName: string
-  attendeeEmail: string | null
-  attendeeName: string | null
-}): string {
-  const dtstamp = icsTimestamp(new Date())
-  const dtstart = icsTimestamp(new Date(opts.startIso))
-  const dtend = icsTimestamp(new Date(opts.endIso))
-  const escape = (s: string) => s.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;')
-  const lines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//RePrime Group//Terminal//EN',
-    'METHOD:REQUEST',
-    'BEGIN:VEVENT',
-    `UID:${opts.uid}@reprime.com`,
-    `DTSTAMP:${dtstamp}`,
-    `DTSTART:${dtstart}`,
-    `DTEND:${dtend}`,
-    `SUMMARY:${escape(opts.summary)}`,
-    `DESCRIPTION:${escape(opts.description)}`,
-    `LOCATION:${escape(opts.location)}`,
-    `ORGANIZER;CN=${escape(opts.organizerName)}:mailto:${opts.organizerEmail}`,
-  ]
-  if (opts.attendeeEmail) {
-    const cn = opts.attendeeName ? `;CN=${escape(opts.attendeeName)}` : ''
-    lines.push(`ATTENDEE${cn};RSVP=TRUE:mailto:${opts.attendeeEmail}`)
-  }
-  lines.push('STATUS:CONFIRMED', 'SEQUENCE:0', 'END:VEVENT', 'END:VCALENDAR')
-  return lines.join('\r\n')
 }
 
 async function findChatIdForPhone(panel: '305' | '718', phone: string): Promise<number | null> {
@@ -366,7 +313,13 @@ export async function POST(request: Request) {
           description: 'Terminal introduction call. 30 minutes.',
           startTime: slot.iso,
           endTime: end.toISOString(),
-          attendees: inv.contact_email ? [inv.contact_email] : [],
+          // Gideon 2026-06-18: every booked Terminal meeting also lands on the
+          // team's calendars. Recipient first, then the standing meeting team.
+          attendees: [
+            ...(inv.contact_email ? [inv.contact_email] : []),
+            'chaim@reprime.com',
+            'steve@reprime.com',
+          ],
           zoomLink: zoomJoinUrl,
           location: zoomJoinUrl,
         })
@@ -391,75 +344,12 @@ export async function POST(request: Request) {
     })())
   }
 
-  // Task C — send confirmation email + ICS (Step 6) — runs in background
-  if (inv.contact_email && zoomJoinUrl) {
-    backgroundTasks.push((async () => {
-    try {
-      const start = new Date(slot.iso)
-      const end = new Date(start.getTime() + 30 * 60 * 1000)
-      const ics = buildIcs({
-        uid: token,
-        startIso: slot.iso,
-        endIso: end.toISOString(),
-        summary: `Terminal Introduction — ${firstName}`,
-        description: `Zoom: ${zoomJoinUrl}`,
-        location: zoomJoinUrl,
-        organizerEmail: FROM_EMAIL,
-        organizerName: 'Gideon Gratsiani',
-        attendeeEmail: inv.contact_email,
-        attendeeName: inv.contact_name,
-      })
-      const icsBase64 = Buffer.from(ics, 'utf-8').toString('base64')
-
-      const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#FAFAF9;font-family:'Poppins',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:2rem 1rem;">
-<table width="100%" style="max-width:600px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-<tr><td style="background:#0E3470;padding:1.75rem 2rem;border-bottom:3px solid #FFCC33;">
-<span style="color:#FFCC33;letter-spacing:0.1em;font-size:0.8rem;text-transform:uppercase;">RePrime Group · Terminal Confirmed</span>
-</td></tr>
-<tr><td style="padding:2.5rem 2rem;">
-<p style="color:#1F1D1A;font-size:1.05rem;margin:0 0 1.25rem;">${firstName},</p>
-<p style="color:#1F1D1A;font-size:1rem;margin:0 0 1.25rem;line-height:1.7;">Locked in: <strong>${slot.display}</strong>.</p>
-<p style="color:#1F1D1A;font-size:1rem;margin:0 0 1.5rem;line-height:1.7;">The calendar invite is attached. Zoom link below.</p>
-<table cellpadding="0" cellspacing="0"><tr><td style="background:#FFCC33;border-radius:4px;">
-<a href="${zoomJoinUrl}" style="display:inline-block;padding:0.85rem 2rem;color:#0E3470;text-decoration:none;font-weight:600;font-size:1rem;">Join Zoom</a>
-</td></tr></table>
-<p style="color:#8A8680;font-size:0.85rem;margin:2.5rem 0 0;padding-top:1.5rem;border-top:1px solid #E5E2DB;">
-Gideon Gratsiani<br>Founder, RePrime Group
-</p></td></tr></table></td></tr></table></body></html>`
-      const text = `${firstName},
-
-Locked in: ${slot.display}.
-Zoom: ${zoomJoinUrl}
-
-Calendar invite attached.
-
-—
-Gideon Gratsiani
-Founder, RePrime Group`
-
-      await sendEmail({
-        to: inv.contact_email!,
-        from: FROM_EMAIL,
-        replyTo: REPLY_TO,
-        subject: `Confirmed — Terminal Introduction · ${slot.display}`,
-        html,
-        text,
-        attachments: [
-          {
-            content: icsBase64,
-            filename: 'terminal-introduction.ics',
-            type: 'text/calendar; method=REQUEST',
-            disposition: 'attachment',
-          },
-        ],
-      })
-    } catch (err) {
-      errors.push({ step: '6_confirmation_email', message: (err as Error).message })
-      await pageGideonCritical(`Bookings: confirmation email failed for ${firstName}`, { token, email: inv.contact_email, err: (err as Error).message })
-    }
-    })())
-  }
+  // Task C — confirmation email.
+  // Gideon 2026-06-18: g@reprime-terminal.com is retired. The recipient's
+  // confirmation now rides on the Google Calendar invite, which createCalendarEvent
+  // sends from g@reprime.com (sendUpdates:'all') with the Zoom link in the
+  // location + description and the time in the recipient's own timezone. No
+  // SendGrid / terminal.com email is sent anymore.
 
   // Task D — WhatsApp confirmation (Step 7) — runs in background
   if (inv.contact_phone && zoomJoinUrl) {

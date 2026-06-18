@@ -26,11 +26,14 @@ function toChicagoDateStr(d: Date): string {
 function chicagoTime(dateStr: string, hour: number, minute: number): Date {
   // Build a local-time string that Chicago would use, let Intl resolve the offset
   const isoLike = `${dateStr}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`
-  // We use a trick: create an ISO string with the offset that Chicago has at that moment
-  // by formatting an approximate date and reading back the offset.
-  const approx = new Date(`${isoLike}Z`) // wrong UTC, but gives us a date to query offset
+  // Treat the wall-clock string as if it were UTC, read back Chicago's offset at
+  // that moment, then SUBTRACT it to recover the true UTC instant. Chicago is
+  // behind UTC (offset is negative), so subtracting a negative shifts forward —
+  // e.g. 9:00 AM CDT → 14:00 UTC. Gideon 2026-06-18: the prior code ADDED the
+  // offset, which pushed every fallback slot ~10h off and onto the wrong day.
+  const approx = new Date(`${isoLike}Z`)
   const offsetMs = getChicagoOffsetMs(approx)
-  return new Date(approx.getTime() + offsetMs)
+  return new Date(approx.getTime() - offsetMs)
 }
 
 /** Get the UTC offset for Chicago at the given UTC date (accounts for DST) */
@@ -78,18 +81,30 @@ function toChicagoWallClock(utcDate: Date): { hour: number; minute: number; dayO
   return { hour, minute, dayOfWeek, dateStr }
 }
 
-/** Display string: "Monday, May 4 at 9:00 AM" Central */
+/**
+ * Per-slot button label — BOTH clocks so an Israeli investor picks by their
+ * own time while Gideon still reads Central. The day is shown by the group
+ * header above the buttons, so this is time-only. Gideon 2026-06-18.
+ * e.g. "2:00 PM Israel · 6:00 AM Central"
+ */
 function formatSlotDisplay(iso: string): string {
   const d = new Date(iso)
-  const fmt = new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: TZ,
-  })
-  return `${fmt.format(d)} Central`
+  const ilTime = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Jerusalem',
+  }).format(d)
+  const ctTime = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric', minute: '2-digit', timeZone: TZ,
+  }).format(d)
+  return `${ilTime} Israel · ${ctTime} Central`
+}
+
+/** Given "YYYY-MM-DD", return the next calendar day as "YYYY-MM-DD" */
+function nextChicagoDateStr(dateStr: string): string {
+  const d = new Date(`${dateStr}T12:00:00Z`) // noon avoids DST edges
+  d.setUTCDate(d.getUTCDate() + 1)
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d)
 }
 
 /** Day-label for a YYYY-MM-DD string, e.g. "Monday, May 4" */
@@ -219,15 +234,27 @@ export async function GET() {
         continue
       }
 
-      // Determine operating hours for this day (Central time)
-      // Captain 2026-05-26: Lowered floor to 6 AM CDT (= 14:00 IDT) per
-      // Gideon's directive — Israeli contacts on /choose page need to be
-      // able to pick afternoon-Israel slots starting at 14:00 IDT. Picker
-      // logic surfaces the right defaults per locale (8/9/10 AM CDT for IL,
-      // 9 AM / noon / 5 PM CDT for US). Sunday-Thursday 6 AM - 9 PM CDT.
-      // Friday remains short (Shabbat lead-up): 6 AM - 1 PM CDT.
-      const startHour = 6
-      const endHour = dayOfWeek === 5 ? 13 : 21 // 1pm Fri, 9pm Sun-Thu
+      // Determine operating hours for this day — ALL Central/Iowa time.
+      // Gideon 2026-06-18 (locked): Sun 11a-11p, Mon-Thu 9a-11p,
+      // Fri 9a-10a only (erev Shabbat), Sat closed (handled above),
+      // Yom Tov closed (handled above), erev Yom Tov until 10a only.
+      let startHour: number
+      let endHour: number
+      if (dayOfWeek === 0) {
+        startHour = 11; endHour = 23   // Sunday
+      } else if (dayOfWeek === 5) {
+        startHour = 9; endHour = 10    // Friday, erev Shabbat
+      } else {
+        startHour = 9; endHour = 23    // Monday-Thursday
+      }
+
+      // Erev Yom Tov: the day immediately before a closed Yom Tov gets the
+      // same 10 AM cutoff as Friday. If that lands on a Sunday (11a floor),
+      // the cutoff wins and the day is effectively closed — flag if it occurs.
+      const nextDayStr = nextChicagoDateStr(dateStr)
+      if (closedDates.has(nextDayStr)) {
+        endHour = Math.min(endHour, 10)
+      }
 
       // Generate 30-min slots
       for (let h = startHour; h < endHour; h++) {

@@ -82,6 +82,7 @@ export async function createCalendarEvent(opts: {
   const description = zoomBlock + (opts.description || '')
   const res = await calendar.events.insert({
     calendarId: 'primary',
+    sendUpdates: 'all', // Gideon 2026-06-18: actually email/notify every attendee (recipient + Chaim + Steve) so it lands on their calendars
     requestBody: {
       summary: opts.summary,
       description,

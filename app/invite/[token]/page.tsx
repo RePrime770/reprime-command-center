@@ -348,9 +348,14 @@ export default async function InvitePage({
     const dayLine = new Intl.DateTimeFormat('en-US', {
       weekday: 'long', month: 'long', day: 'numeric', timeZone: TZ,
     }).format(slotDate)
-    const timeLine = new Intl.DateTimeFormat('en-US', {
+    // Gideon 2026-06-18: show both clocks — recipient's Israel time + Gideon's Central.
+    const ilTimeC = new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Jerusalem',
+    }).format(slotDate)
+    const ctTimeC = new Intl.DateTimeFormat('en-US', {
       hour: 'numeric', minute: '2-digit', timeZone: TZ,
-    }).format(slotDate) + ' Central'
+    }).format(slotDate)
+    const timeLine = `${ilTimeC} Israel · ${ctTimeC} Central`
 
     const zoomUrl = invitation.zoom_join_url
     const meetingIdFormatted = formatMeetingId(invitation.zoom_meeting_id)
@@ -677,9 +682,14 @@ export default async function InvitePage({
     const dayLine = new Intl.DateTimeFormat('en-US', {
       weekday: 'long', month: 'long', day: 'numeric', timeZone: TZ,
     }).format(slotDate)
-    const timeLine = new Intl.DateTimeFormat('en-US', {
+    // Gideon 2026-06-18: show both clocks — recipient's Israel time + Gideon's Central.
+    const ilTimeC = new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Jerusalem',
+    }).format(slotDate)
+    const ctTimeC = new Intl.DateTimeFormat('en-US', {
       hour: 'numeric', minute: '2-digit', timeZone: TZ,
-    }).format(slotDate) + ' Central'
+    }).format(slotDate)
+    const timeLine = `${ilTimeC} Israel · ${ctTimeC} Central`
 
     return (
       <PageShell fontClasses={fontClasses}>
