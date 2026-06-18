@@ -79,27 +79,67 @@ function fullDateLabel(yyyy: string, mm: string, dd: string): string {
   }).format(new Date(`${yyyy}-${mm}-${dd}T12:00:00Z`))
 }
 
-// Generate 9 AM – 5 PM Central time slots in 30-minute intervals.
-// Display strings strip ":00" (per Gideon: full amounts, no .00).
-function generateTimeSlotsForDate(yyyy: string, mm: string, dd: string) {
+// Locked availability windows (all Central). Gideon 2026-06-18:
+// Sun 11a-11p, Mon-Thu 9a-11p, Fri 9-10a (erev Shabbat), Sat closed,
+// Yom Tov closed, erev Yom Tov capped at 10a (same as Friday).
+function windowFor(weekdayShort: string, isErev: boolean): { start: number; end: number } | null {
+  if (weekdayShort === 'Sat') return null
+  let start: number, end: number
+  if (weekdayShort === 'Sun') { start = 11; end = 23 }
+  else if (weekdayShort === 'Fri') { start = 9; end = 10 }
+  else { start = 9; end = 23 }
+  if (isErev) end = Math.min(end, 10)
+  if (start >= end) return null
+  return { start, end }
+}
+
+// Both clocks on every slot so an Israeli investor picks by their own time
+// while Gideon reads Central. e.g. "5:00 PM Israel · 9:00 AM Central".
+function formatDualFromIso(iso: string): string {
+  const d = new Date(iso)
+  const il = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Jerusalem' }).format(d)
+  const ct = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }).format(d)
+  return `${il} Israel · ${ct} Central`
+}
+
+// 30-minute slots inside the day's locked window. Empty if the day is closed.
+function generateTimeSlotsForDate(
+  yyyy: string, mm: string, dd: string, weekdayShort: string, isErev: boolean
+) {
+  const win = windowFor(weekdayShort, isErev)
+  if (!win) return []
   const offset = chicagoOffsetFor(yyyy, mm, dd)
   const slots: Array<{ iso: string; display: string }> = []
-  for (let h = 9; h < 17; h++) {
+  for (let h = win.start; h < win.end; h++) {
     for (const m of [0, 30]) {
       const hh = String(h).padStart(2, '0')
       const min = String(m).padStart(2, '0')
       const iso = `${yyyy}-${mm}-${dd}T${hh}:${min}:00.000${offset}`
-      const display = formatTimeShort(h, m)
-      slots.push({ iso, display })
+      slots.push({ iso, display: formatDualFromIso(iso) })
     }
   }
   return slots
 }
 
-function formatTimeShort(h: number, m: number): string {
-  const period = h >= 12 ? 'PM' : 'AM'
-  const hh = h % 12 === 0 ? 12 : h % 12
-  return m === 0 ? `${hh} ${period}` : `${hh}:${String(m).padStart(2, '0')} ${period}`
+// ── Hebcal (free, no key) — Yom Tov closures + erev detection ──────────────
+async function fetchHebcalClosed(yms: Array<{ y: number; m: number }>): Promise<Set<string>> {
+  const closed = new Set<string>()
+  await Promise.all(yms.map(async ({ y, m }) => {
+    const url = `https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=off&nx=off&mf=off&ss=off&mod=off&yt=on&lg=s&c=off&year=${y}&month=${m}`
+    try {
+      const res = await fetch(url, { cache: 'no-store' })
+      if (!res.ok) return
+      const json = (await res.json()) as { items?: Array<{ date: string; yomtov?: boolean }> }
+      for (const item of json.items ?? []) if (item.yomtov === true) closed.add(item.date)
+    } catch { /* fail open — better to show a day than hide everything */ }
+  }))
+  return closed
+}
+
+function prevDayStr(dateStr: string): string {
+  const d = new Date(`${dateStr}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - 1)
+  return d.toISOString().slice(0, 10)
 }
 
 // ── Calendar grid model ──────────────────────────────────────────────────
@@ -242,18 +282,30 @@ export default async function ChooseTimePage({
     viewMonth = m
   }
 
-  // Default selected date = today (if not Sat) or next non-Sat day in view month.
+  // Yom Tov closures for the visible month + neighbors (erev can spill across
+  // a month boundary). Closed days are disabled; the day before is erev (10a cap).
+  const prevM = viewMonth === 1 ? 12 : viewMonth - 1
+  const prevY = viewMonth === 1 ? viewYear - 1 : viewYear
+  const nextM = viewMonth === 12 ? 1 : viewMonth + 1
+  const nextY = viewMonth === 12 ? viewYear + 1 : viewYear
+  const closedDates = await fetchHebcalClosed([
+    { y: prevY, m: prevM }, { y: viewYear, m: viewMonth }, { y: nextY, m: nextM },
+  ])
+  const erevDates = new Set<string>()
+  for (const d of closedDates) erevDates.add(prevDayStr(d))
+
+  // Default selected date = today (if open) or next open day in view month.
   let selectedKey = ''
   if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
     selectedKey = dateParam
   } else {
-    // Auto-select: first non-Sat, non-past date in view month
+    // Auto-select: first non-Sat, non-YomTov, non-past date in view month
     const monthStr = String(viewMonth).padStart(2, '0')
     const lastDay = new Date(Date.UTC(viewYear, viewMonth, 0)).getUTCDate()
     for (let d = 1; d <= lastDay; d++) {
       const dd = String(d).padStart(2, '0')
       const k = `${viewYear}-${monthStr}-${dd}`
-      if (k >= todayKey && dayWeekdayShort(String(viewYear), monthStr, dd) !== 'Sat') {
+      if (k >= todayKey && dayWeekdayShort(String(viewYear), monthStr, dd) !== 'Sat' && !closedDates.has(k)) {
         selectedKey = k
         break
       }
@@ -271,10 +323,11 @@ export default async function ChooseTimePage({
 
   // Time slots for selected date
   let selectedYyyy = '', selectedMm = '', selectedDd = '', selectedLabel = '', timeSlots: Array<{iso: string; display: string}> = []
-  if (selectedKey) {
+  if (selectedKey && !closedDates.has(selectedKey)) {
     ;[selectedYyyy, selectedMm, selectedDd] = selectedKey.split('-')
     selectedLabel = fullDateLabel(selectedYyyy, selectedMm, selectedDd)
-    timeSlots = generateTimeSlotsForDate(selectedYyyy, selectedMm, selectedDd)
+    const wk = dayWeekdayShort(selectedYyyy, selectedMm, selectedDd)
+    timeSlots = generateTimeSlotsForDate(selectedYyyy, selectedMm, selectedDd, wk, erevDates.has(selectedKey))
   }
 
   return (
@@ -322,7 +375,7 @@ export default async function ChooseTimePage({
 
           <div style={gridStyle}>
             {cells.map((c, i) => {
-              const disabled = c.isPast || c.isSat || !c.inMonth
+              const disabled = c.isPast || c.isSat || !c.inMonth || closedDates.has(`${c.yyyy}-${c.mm}-${c.dd}`)
               const dayLabel = parseInt(c.dd, 10).toString()
               const monthForLink = `${c.yyyy}-${c.mm}`
               const dateForLink = `${c.yyyy}-${c.mm}-${c.dd}`
@@ -422,7 +475,7 @@ export default async function ChooseTimePage({
               </div>
             </form>
             <div style={{ fontSize: 11, color: 'rgba(255, 204, 51, 0.65)', textAlign: 'center', marginTop: 14, fontFamily: 'Poppins, sans-serif', letterSpacing: '0.10em' }}>
-              ALL TIMES CENTRAL · ONE CLICK CONFIRMS
+              EACH TIME SHOWN IN ISRAEL & CENTRAL · ONE CLICK CONFIRMS
             </div>
           </div>
         )}
