@@ -1,13 +1,13 @@
 {
   "redirects": [
     {
-      "source": "/((?!api/|invite/).*)",
+      "source": "/((?!api/|invite/|v/).*)",
       "has": [{ "type": "host", "value": "reprime-terminal.com" }],
       "destination": "https://reprime.com/$1",
       "permanent": true
     },
     {
-      "source": "/((?!api/|invite/).*)",
+      "source": "/((?!api/|invite/|v/).*)",
       "has": [{ "type": "host", "value": "www.reprime-terminal.com" }],
       "destination": "https://reprime.com/$1",
       "permanent": true

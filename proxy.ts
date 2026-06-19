@@ -9,6 +9,9 @@ const PUBLIC_PATHS = [
   '/api/phone/bb-webhook',
   '/api/phone/quo-webhook',
   '/invite',
+  // Recipient-facing tracked video link → /v/<inviteId> logs the watch + 302s
+  // to YouTube. Public, no dashboard login.
+  '/v',
   '/api/bookings/confirm',
   // Recipient-facing — the public invite/choose pages fetch this to show
   // Gideon's open times. Route reads availability via GOOGLE_REFRESH_TOKEN

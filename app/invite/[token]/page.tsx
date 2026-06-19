@@ -75,7 +75,11 @@ async function loadInvitation(token: string): Promise<{ invitation: Invitation |
   if (inv.expires_at && new Date(inv.expires_at).getTime() < Date.now()) {
     return { invitation: inv, reason: 'expired' }
   }
-  // Track this open — fire and move on (non-blocking)
+  // Track this open — fire and move on (non-blocking).
+  // NOTE: we deliberately do NOT group-nudge on open — WhatsApp/email preview
+  // bots and Apple/Gmail prefetch hit this URL on their own, so an open ping
+  // would cry wolf. Opens are counted here and shown per-person in the Track
+  // tab; the group only buzzes for real human actions (video watch, booking).
   void supabase.from('invitations').update({
     view_count: (inv.view_count ?? 0) + 1,
     first_opened_at: inv.first_opened_at ?? new Date().toISOString(),

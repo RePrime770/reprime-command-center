@@ -20,7 +20,7 @@ function playChime() {
 }
 
 type Cand = { name: string; phone: string; email: string; status: 'new' | 'already'; match: { when: string | null; inviteStatus: string; booked: boolean } | null }
-type TrackContact = { name: string; phone: string; email: string; stage: string; awaitingUs: boolean; lastReply: string; lastFrom: string | null; outcome: string; remindAt: string | null; followupNote: string; snoozed: boolean; due: boolean; row: number }
+type TrackContact = { name: string; phone: string; email: string; stage: string; opened: boolean; watched: boolean; awaitingUs: boolean; lastReply: string; lastFrom: string | null; outcome: string; remindAt: string | null; followupNote: string; snoozed: boolean; due: boolean; row: number }
 type InboxItem = { channel: 'whatsapp' | 'email'; who: string; handle: string; preview: string; at: string | null; link: string }
 type Tab = 'send' | 'track' | 'inbox'
 
@@ -219,7 +219,11 @@ function TrackView({ pass }: { pass: string }) {
           <div key={i} style={{ padding: '11px 15px', borderRadius: 8, background: '#13294f', border: c.awaitingUs ? '1.5px solid #FFCC33' : '1px solid #2a4068' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
               <div><div style={{ fontSize: 16, fontWeight: 600 }}>{c.name}{c.awaitingUs && <span style={{ color: '#FFCC33', fontSize: 12.5, fontWeight: 700 }}> · ↩ awaiting you</span>}</div><div style={{ fontSize: 12.5, color: '#9fb0cf' }}>{[c.phone, c.email].filter(Boolean).join('  ·  ')}</div></div>
-              <span style={{ color: STAGE_COLOR[c.stage], fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap' }}>{STAGE_LABEL[c.stage] || c.stage}</span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', whiteSpace: 'nowrap' }}>
+                {c.opened && <span title="Opened the invite" style={{ fontSize: 12, fontWeight: 700, color: '#7CB0E0' }}>👀 opened</span>}
+                {c.watched && <span title="Watched the video" style={{ fontSize: 12, fontWeight: 700, color: '#C8A2FF' }}>▶️ watched</span>}
+                <span style={{ color: STAGE_COLOR[c.stage], fontWeight: 700, fontSize: 13.5 }}>{STAGE_LABEL[c.stage] || c.stage}</span>
+              </div>
             </div>
             {c.lastReply && <div dir="auto" style={{ fontSize: 12.5, color: '#aebcd6', marginTop: 6, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{c.lastReply}</div>}
             <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>

@@ -6,6 +6,10 @@ import { createServiceClient } from '@/lib/supabase/server'
 
 const ACCT_305 = '+13057784861'
 const VIDEO = 'https://youtu.be/1tFycgsst1c'
+// Per-recipient tracked video link → /v/<inviteId> logs the watch then 302s to
+// the video. Served on the branded domain (excluded from the reprime.com
+// redirect in vercel.json, same as /invite).
+const videoLink = (inviteId: string) => `https://reprime-terminal.com/v/${inviteId}`
 const TL = () => process.env.TIMELINES_API_KEY!
 const APP = () => (process.env.NEXT_PUBLIC_APP_URL || 'https://project-7e87w.vercel.app').replace(/\/$/, '')
 const INVITE_BASE = 'https://reprime-terminal.com/invite/'
@@ -51,11 +55,11 @@ function noteText(greet: string, xref: string): string {
   return greet + ', כאן גדעון גרציאני מאיווה. נפגשנו בישראל. אני והצוות שלי ב‑RePrime בנינו יחד משהו שאני מאמין שיחולל מהפכה בנדל״ן המסחרי בארה״ב. אשמח להראות לך. שלחתי לך הזמנה אישית — בחר מועד שנוח לך לזום.' + xref
 }
 
-export function inviteEmailHtml(name: string, link: string, slots: Slot[]): string {
+export function inviteEmailHtml(name: string, link: string, slots: Slot[], videoUrl: string = VIDEO): string {
   const greet = firstName(name) ? 'היי ' + firstName(name) : 'שלום'
   const note = noteText(greet, ' שלחתי לך גם הודעה בוואטסאפ.')
   const slotRow = (s: Slot) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;"><tr><td style="border:1px solid #6b5a1f; padding:14px 20px; text-align:center;"><a href="${link}?slot=${encodeURIComponent(s.iso)}" style="text-decoration:none; display:block;"><span style="font-family:'Playfair Display',Georgia,serif; font-size:19px; color:#FFCC33;">${s.label}</span><br><span style="font-family:'Poppins',Arial,sans-serif; font-size:14px; color:#FFCC33; letter-spacing:1px;">${s.display}</span></a></td></tr></table>`
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Poppins:wght@400;600&family=Cinzel:wght@600&family=EB+Garamond:ital@1&display=swap" rel="stylesheet"></head><body style="margin:0; padding:0; background:#DDD9D2;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#DDD9D2;"><tr><td align="center" style="padding:40px 20px;"><table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px; max-width:560px; background:#0E3470; border:1px solid #6b5a1f;"><tr><td style="padding:24px 48px; text-align:center; border-bottom:1px solid #5a4d22;"><div style="height:2px; background:#FFCC33; width:70%; margin:0 auto 14px;"></div><div style="font-family:'Cinzel',Georgia,serif; font-size:26px; letter-spacing:5px; color:#FFCC33; font-weight:600;">TERMINAL</div><div style="height:2px; background:#FFCC33; width:70%; margin:14px auto 0;"></div></td></tr><tr><td style="padding:34px 48px 22px; text-align:center;"><div style="font-family:'Poppins',Arial,sans-serif; font-size:10px; letter-spacing:4px; color:#FFCC33; font-weight:600; text-transform:uppercase;">PRIVATE&nbsp;&nbsp;INTRODUCTION</div><div style="font-family:'Playfair Display',Georgia,serif; font-size:46px; color:#FFCC33; font-weight:600; line-height:1.05; padding-top:14px;">${name}</div></td></tr><tr><td style="padding:0 48px 28px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3E9CC; border:1px solid #d8c79a;"><tr><td style="padding:24px 28px; text-align:center;"><div style="font-family:'Playfair Display',Georgia,serif; font-size:13px; font-style:italic; color:#7A5A30; padding-bottom:12px;">A personal note from <span style="font-weight:600; color:#5A3F18;">Gideon Gratsiani</span></div><div dir="rtl" style="font-family:Arial,'Helvetica Neue',sans-serif; font-size:16px; color:#0E3470; line-height:1.85;">${note}</div><div style="padding-top:16px;"><a href="${VIDEO}" style="font-family:'Poppins',Arial,sans-serif; font-size:12px; letter-spacing:1px; color:#5A3F18; text-decoration:underline; font-weight:600;">&#9658;&nbsp;A short look from the inside &middot; 4 min</a></div></td></tr></table></td></tr><tr><td style="padding:28px 48px 0;"><div style="font-family:'Poppins',Arial,sans-serif; font-size:11px; letter-spacing:3px; color:#FFCC33; text-transform:uppercase; font-weight:600; text-align:center; padding-bottom:16px;">SUGGESTED TIMES &mdash; ISRAEL &amp; CENTRAL</div>${slots.map(slotRow).join('')}<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="border:1px solid #6b5a1f; padding:14px 20px; text-align:center;"><a href="${link}/choose" style="text-decoration:none; display:block;"><span style="font-family:'Poppins',Arial,sans-serif; font-size:11px; letter-spacing:2px; color:#FFCC33; text-transform:uppercase; font-weight:600;">DIFFERENT TIME?</span><br><span style="font-family:'Playfair Display',Georgia,serif; font-size:24px; color:#FFCC33;">Choose your own date and time &rarr;</span></a></td></tr></table></td></tr><tr><td style="padding:22px 48px; text-align:center; border-top:1px solid #5a4d22;"><div style="font-family:'Playfair Display',Georgia,serif; font-size:16px; color:#FFCC33; font-weight:600; letter-spacing:2px;">TERMINAL</div><div style="font-family:'EB Garamond',Georgia,serif; font-style:italic; font-size:13px; color:#d9c071; padding-top:4px;">by RePrime</div></td></tr></table></td></tr></table></body></html>`
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Poppins:wght@400;600&family=Cinzel:wght@600&family=EB+Garamond:ital@1&display=swap" rel="stylesheet"></head><body style="margin:0; padding:0; background:#DDD9D2;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#DDD9D2;"><tr><td align="center" style="padding:40px 20px;"><table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px; max-width:560px; background:#0E3470; border:1px solid #6b5a1f;"><tr><td style="padding:24px 48px; text-align:center; border-bottom:1px solid #5a4d22;"><div style="height:2px; background:#FFCC33; width:70%; margin:0 auto 14px;"></div><div style="font-family:'Cinzel',Georgia,serif; font-size:26px; letter-spacing:5px; color:#FFCC33; font-weight:600;">TERMINAL</div><div style="height:2px; background:#FFCC33; width:70%; margin:14px auto 0;"></div></td></tr><tr><td style="padding:34px 48px 22px; text-align:center;"><div style="font-family:'Poppins',Arial,sans-serif; font-size:10px; letter-spacing:4px; color:#FFCC33; font-weight:600; text-transform:uppercase;">PRIVATE&nbsp;&nbsp;INTRODUCTION</div><div style="font-family:'Playfair Display',Georgia,serif; font-size:46px; color:#FFCC33; font-weight:600; line-height:1.05; padding-top:14px;">${name}</div></td></tr><tr><td style="padding:0 48px 28px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3E9CC; border:1px solid #d8c79a;"><tr><td style="padding:24px 28px; text-align:center;"><div style="font-family:'Playfair Display',Georgia,serif; font-size:13px; font-style:italic; color:#7A5A30; padding-bottom:12px;">A personal note from <span style="font-weight:600; color:#5A3F18;">Gideon Gratsiani</span></div><div dir="rtl" style="font-family:Arial,'Helvetica Neue',sans-serif; font-size:16px; color:#0E3470; line-height:1.85;">${note}</div><div style="padding-top:16px;"><a href="${videoUrl}" style="font-family:'Poppins',Arial,sans-serif; font-size:12px; letter-spacing:1px; color:#5A3F18; text-decoration:underline; font-weight:600;">&#9658;&nbsp;A short look from the inside &middot; 4 min</a></div></td></tr></table></td></tr><tr><td style="padding:28px 48px 0;"><div style="font-family:'Poppins',Arial,sans-serif; font-size:11px; letter-spacing:3px; color:#FFCC33; text-transform:uppercase; font-weight:600; text-align:center; padding-bottom:16px;">SUGGESTED TIMES &mdash; ISRAEL &amp; CENTRAL</div>${slots.map(slotRow).join('')}<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="border:1px solid #6b5a1f; padding:14px 20px; text-align:center;"><a href="${link}/choose" style="text-decoration:none; display:block;"><span style="font-family:'Poppins',Arial,sans-serif; font-size:11px; letter-spacing:2px; color:#FFCC33; text-transform:uppercase; font-weight:600;">DIFFERENT TIME?</span><br><span style="font-family:'Playfair Display',Georgia,serif; font-size:24px; color:#FFCC33;">Choose your own date and time &rarr;</span></a></td></tr></table></td></tr><tr><td style="padding:22px 48px; text-align:center; border-top:1px solid #5a4d22;"><div style="font-family:'Playfair Display',Georgia,serif; font-size:16px; color:#FFCC33; font-weight:600; letter-spacing:2px;">TERMINAL</div><div style="font-family:'EB Garamond',Georgia,serif; font-style:italic; font-size:13px; color:#d9c071; padding-top:4px;">by RePrime</div></td></tr></table></td></tr></table></body></html>`
 }
 
 function gmail() {
@@ -73,10 +77,10 @@ async function emailAlreadySent(email: string): Promise<boolean> {
   } catch { return false }
 }
 
-async function emailSend(name: string, email: string, link: string, slots: Slot[]): Promise<string> {
+async function emailSend(name: string, email: string, link: string, slots: Slot[], videoUrl: string): Promise<string> {
   const cc = 'shirel@reprime.com, tahisa@reprime.com'
   const headers = [`From: Gideon Gratsiani <g@reprime.com>`, `To: ${email}`, `Cc: ${cc}`, `Subject: ${encSub('Terminal Introduction — ' + (firstName(name) || name))}`, 'MIME-Version: 1.0', 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64'].join('\r\n')
-  const raw = b64url(headers + '\r\n\r\n' + Buffer.from(inviteEmailHtml(name, link, slots), 'utf8').toString('base64'))
+  const raw = b64url(headers + '\r\n\r\n' + Buffer.from(inviteEmailHtml(name, link, slots, videoUrl), 'utf8').toString('base64'))
   const r = await gmail().users.messages.send({ userId: 'me', requestBody: { raw } })
   return r.data.id || 'sent'
 }
@@ -104,6 +108,7 @@ export async function processInvite(inv: { id: string; contact_name: string | nu
   const slots = await daySpreadSlots()
   await supabase.from('invitations').update({ proposed_slots: slots.map((s) => ({ iso: s.iso, display: s.display })) }).eq('id', inv.id)
   const link = INVITE_BASE + inv.id
+  const video = videoLink(inv.id)
   const parts: string[] = []
   // WhatsApp
   if (inv.contact_phone) {
@@ -113,7 +118,7 @@ export async function processInvite(inv: { id: string; contact_name: string | nu
         const fn = firstName(name); const greet = fn ? 'היי ' + fn : 'שלום'
         const wa1 = noteText(greet, inv.contact_email ? ' שלחתי לך גם מייל.' : '') + '\n' + link
         await waSend(inv.contact_phone, wa1); await sleep(2500)
-        await waSend(inv.contact_phone, 'והנה הצצה קצרה מבפנים:\n' + VIDEO)
+        await waSend(inv.contact_phone, 'והנה הצצה קצרה מבפנים:\n' + video)
         parts.push('WA:sent')
       }
     } catch (e) { parts.push('WA:FAIL ' + (e as Error).message.slice(0, 60)) }
@@ -122,7 +127,7 @@ export async function processInvite(inv: { id: string; contact_name: string | nu
   if (inv.contact_email) {
     try {
       if (await emailAlreadySent(inv.contact_email)) parts.push('EM:skip-already')
-      else { await emailSend(name, inv.contact_email, link, slots); parts.push('EM:sent') }
+      else { await emailSend(name, inv.contact_email, link, slots, video); parts.push('EM:sent') }
     } catch (e) { parts.push('EM:FAIL ' + (e as Error).message.slice(0, 60)) }
   }
   return parts.join(' | ') || 'no-channel'

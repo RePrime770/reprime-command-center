@@ -18,22 +18,43 @@ export async function GET(request: Request) {
   const { data: roster, error } = await supabase.from('roster').select('*').order('source_row', { ascending: true })
   if (error) return NextResponse.json({ error: error.message, contacts: [] }, { status: 500 })
 
-  // Real bookings from the system (phone last-9 + email) to upgrade roster stage.
+  // Engagement signals from the system, keyed by phone last-9 + email:
+  //  booked  — a confirmed meeting
+  //  opened  — they opened the invite link (view_count / first_opened_at)
+  //  watched — they clicked the tracked video link (first_video_at)
   const bookedPhones = new Set<string>(); const bookedEmails = new Set<string>()
+  const openedKeys = new Set<string>(); const watchedKeys = new Set<string>()
+  const keysOf = (r: { contact_email: string | null; contact_phone: string | null }) => {
+    const ks: string[] = []
+    if (r.contact_phone) ks.push('p:' + dig9(r.contact_phone))
+    if (r.contact_email) ks.push('e:' + r.contact_email.toLowerCase().trim())
+    return ks
+  }
   for (let from = 0; from < 50000; from += 1000) {
-    const { data } = await supabase.from('invitations').select('contact_email, contact_phone').or('status.eq.confirmed,confirmed_slot_iso.not.is.null').range(from, from + 999)
-    const rows = (data || []) as Array<{ contact_email: string | null; contact_phone: string | null }>
-    for (const r of rows) { if (r.contact_phone) bookedPhones.add(dig9(r.contact_phone)); if (r.contact_email) bookedEmails.add(r.contact_email.toLowerCase().trim()) }
+    const { data } = await supabase.from('invitations').select('contact_email, contact_phone, status, confirmed_slot_iso, view_count, first_opened_at, first_video_at').range(from, from + 999)
+    const rows = (data || []) as Array<{ contact_email: string | null; contact_phone: string | null; status: string | null; confirmed_slot_iso: string | null; view_count: number | null; first_opened_at: string | null; first_video_at: string | null }>
+    for (const r of rows) {
+      const booked = r.status === 'confirmed' || !!r.confirmed_slot_iso
+      const opened = (r.view_count ?? 0) > 0 || !!r.first_opened_at
+      const watched = !!r.first_video_at
+      if (booked) { if (r.contact_phone) bookedPhones.add(dig9(r.contact_phone)); if (r.contact_email) bookedEmails.add(r.contact_email.toLowerCase().trim()) }
+      for (const k of keysOf(r)) { if (opened) openedKeys.add(k); if (watched) watchedKeys.add(k) }
+    }
     if (rows.length < 1000) break
   }
 
   const now = Date.now()
   const contacts = ((roster || []) as R[]).map((r) => {
+    const pk = r.phone ? 'p:' + dig9(r.phone) : ''
+    const ek = r.email ? 'e:' + r.email.toLowerCase().trim() : ''
     const isBooked = (r.phone && bookedPhones.has(dig9(r.phone))) || (r.email && bookedEmails.has((r.email || '').toLowerCase().trim()))
+    const opened = (!!pk && openedKeys.has(pk)) || (!!ek && openedKeys.has(ek))
+    const watched = (!!pk && watchedKeys.has(pk)) || (!!ek && watchedKeys.has(ek))
     const stage = isBooked ? 'booked' : r.board_stage
     const remindMs = r.remind_at ? new Date(r.remind_at).getTime() : null
     return {
       name: r.name, phone: r.phone || '', email: r.email || '', stage,
+      opened, watched,
       awaitingUs: r.awaiting_us === true,
       lastReply: (r.last_reply_text || r.latest || '').slice(0, 300),
       lastFrom: r.last_from || null,

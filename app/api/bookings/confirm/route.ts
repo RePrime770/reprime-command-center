@@ -10,6 +10,7 @@ import {
   PANEL_ACCOUNT_MAP,
 } from '@/lib/timelines/client'
 import { createActivity } from '@/lib/pipedrive/client'
+import { notifyGroup } from '@/lib/center/notify'
 
 export const dynamic = 'force-dynamic'
 
@@ -470,6 +471,10 @@ export async function POST(request: Request) {
     }
     })())
   }
+
+  // Task G — group nudge: someone just booked. The win, straight to the
+  // "Terminal invitations" group.
+  backgroundTasks.push(notifyGroup(`📅 ${inv.contact_name || firstName} just booked — ${slot.display}.`))
 
   // Push all background work to next/server after(). These run AFTER the
   // 303 redirect ships to the recipient, so the page lands in ~1-2s instead
