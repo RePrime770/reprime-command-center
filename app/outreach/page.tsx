@@ -391,38 +391,97 @@ function chip(active: boolean, color: string): CSSProperties {
   return { padding: '8px 16px', fontSize: 14, fontWeight: 700, borderRadius: 20, cursor: 'pointer', border: `1px solid ${active ? color : `rgba(${GOLD_RGB},0.25)`}`, background: active ? color : 'transparent', color: active ? NAVY : CREAM, fontFamily: FONT_BODY }
 }
 
-// ── QUEUE — every reply in one lane; answer one, it advances ────────────────
+// ── QUEUE — two lanes (WhatsApp · Email), awaiting band, funnel, cross-channel ─
+const dg9 = (s: string) => (s || '').replace(/\D/g, '').slice(-9)
+const pkey = (phone?: string, email?: string) => (phone ? 'p:' + dg9(phone) : email ? 'e:' + email.toLowerCase().trim() : '')
+
 function QueueView({ pass, data, loading, reload }: { pass: string; data: { count: number; items: InboxItem[]; errors: string[] } | null; loading: boolean; reload: () => void }) {
-  const [sel, setSel] = useState(0)
-  const items = data?.items || []
-  const active = items[sel] || null
+  const [track, setTrack] = useState<{ counts: Record<string, number>; awaitingUs: number; contacts: TrackContact[] } | null>(null)
+  const [sel, setSel] = useState<InboxItem | null>(null)
+  useEffect(() => { fetch('/api/center/track', { headers: { 'x-center-pass': pass } }).then((r) => r.json()).then(setTrack).catch(() => {}) }, [pass, data])
+
+  const contacts = track?.contacts || []
+  const cByKey = new Map<string, TrackContact>()
+  contacts.forEach((c) => { if (c.phone) cByKey.set('p:' + dg9(c.phone), c); if (c.email) cByKey.set('e:' + c.email.toLowerCase().trim(), c) })
+
+  const live = data?.items || []
+  const liveKeys = new Set(live.map((it) => pkey(it.phone, it.email)))
+  // people who wrote and we still owe a reply (from the roster) but aren't in the live feed → add them
+  const awaitingItems: InboxItem[] = contacts.filter((c) => c.awaitingUs && !liveKeys.has(pkey(c.phone, c.email))).map((c) => ({
+    channel: c.phone ? 'whatsapp' : 'email', who: c.name, handle: [c.phone, c.email].filter(Boolean).join('  ·  '),
+    preview: c.lastReply || '', at: null, link: c.phone ? `https://wa.me/${c.phone.replace(/\D/g, '')}` : '',
+    phone: c.phone || undefined, email: c.email || undefined, account: '305',
+  }))
+  const all = [...live, ...awaitingItems]
+  const wa = all.filter((i) => i.channel === 'whatsapp')
+  const email = all.filter((i) => i.channel === 'email')
+
+  const both = (it: InboxItem) => { const c = cByKey.get(pkey(it.phone, it.email)); return !!(c && c.phone && c.email) }
+  const isAwaiting = (it: InboxItem) => { const c = cByKey.get(pkey(it.phone, it.email)); return !!(c && c.awaitingUs) }
+
+  const total = contacts.length
+  const opened = contacts.filter((c) => c.opened).length
+  const watched = contacts.filter((c) => c.watched).length
+  const funnel = [
+    { label: 'In play', n: total, color: MUTE },
+    { label: 'Opened', n: opened, color: '#7CB0E0' },
+    { label: 'Watched', n: watched, color: '#C8A2FF' },
+    { label: 'Replied', n: track?.counts.replied || 0, color: GOLD },
+    { label: 'Booked', n: track?.counts.booked || 0, color: '#7CE0A8' },
+  ]
+
+  const card = (it: InboxItem, i: number) => {
+    const active = sel && pkey(sel.phone, sel.email) === pkey(it.phone, it.email)
+    return (
+      <div key={i} onClick={() => setSel(it)} style={{ cursor: 'pointer', padding: '10px 12px', borderRadius: 4, background: active ? PANEL : PANEL_2, borderLeft: `3px solid ${it.channel === 'whatsapp' ? '#7CE0A8' : '#7CB0E0'}`, border: active ? `1px solid ${GOLD}` : `1px solid ${LINE}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+          <span style={{ fontSize: 14.5, fontWeight: 600, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.who}</span>
+          <span style={{ display: 'flex', gap: 5, whiteSpace: 'nowrap' }}>
+            {both(it) && <span title="On WhatsApp + email" style={{ fontSize: 10.5, fontWeight: 700, color: GOLD }}>★ both</span>}
+            {isAwaiting(it) && <span style={{ fontSize: 10.5, fontWeight: 700, color: GOLD }}>↩</span>}
+          </span>
+        </div>
+        <div dir="auto" style={{ fontSize: 12, color: MUTE, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.preview || '(open to read)'}</div>
+      </div>
+    )
+  }
+
+  const lane = (title: string, color: string, list: InboxItem[]) => (
+    <div>
+      <div style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color, marginBottom: 8 }}>{title} · {list.length}</div>
+      <div style={{ display: 'grid', gap: 6, maxHeight: '62vh', overflowY: 'auto' }}>
+        {list.map(card)}
+        {list.length === 0 && <div style={{ color: MUTE, fontSize: 13, padding: 16, textAlign: 'center' }}>Empty.</div>}
+      </div>
+    </div>
+  )
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 18, alignItems: 'start' }}>
-      {/* The lane */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: GOLD, fontWeight: 600 }}>{items.length} in queue</div>
-          <button onClick={reload} disabled={loading} style={{ padding: '6px 12px', fontSize: 13, borderRadius: 14, border: `1px solid ${GOLD}`, background: 'transparent', color: GOLD, cursor: 'pointer', fontFamily: FONT_BODY }}>{loading ? '…' : '↻'}</button>
-        </div>
-        <div style={{ display: 'grid', gap: 6, maxHeight: '70vh', overflowY: 'auto' }}>
-          {items.map((it, i) => (
-            <div key={i} onClick={() => setSel(i)} style={{ cursor: 'pointer', padding: '10px 12px', borderRadius: 4, background: i === sel ? PANEL : PANEL_2, borderLeft: `3px solid ${it.channel === 'whatsapp' ? '#7CE0A8' : '#7CB0E0'}`, border: i === sel ? `1px solid ${GOLD}` : `1px solid ${LINE}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
-                <span style={{ fontSize: 14.5, fontWeight: 600, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.who}</span>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: it.channel === 'whatsapp' ? '#7CE0A8' : '#7CB0E0' }}>{it.channel === 'whatsapp' ? 'WA' : 'Email'}</span>
-              </div>
-              <div dir="auto" style={{ fontSize: 12, color: MUTE, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.preview || '(open to read)'}</div>
-            </div>
-          ))}
-          {items.length === 0 && !loading && <div style={{ color: MUTE, fontSize: 14, padding: 20, textAlign: 'center' }}>No replies waiting. Quiet is good.</div>}
-        </div>
-        {data?.errors && data.errors.length > 0 && <div style={{ marginTop: 10, fontSize: 11, color: '#8A8680' }}>Some sources slow: {data.errors.join('; ')}</div>}
+    <div>
+      {/* Funnel */}
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
+        {funnel.map((f) => (
+          <div key={f.label} style={{ minWidth: 96, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 4, padding: '10px 16px', textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 700, color: f.color, fontFamily: FONT_HEAD }}>{f.n}</div>
+            <div style={{ fontSize: 11, color: MUTE, textTransform: 'uppercase', letterSpacing: 0.5 }}>{f.label}</div>
+          </div>
+        ))}
       </div>
 
-      {/* The composer */}
-      {active ? <Composer key={active.handle + sel} pass={pass} item={active} onDone={() => { reload(); setSel(0) }} />
-        : <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 6, padding: 40, textAlign: 'center', color: MUTE }}>Pick someone from the queue to answer.</div>}
+      {/* Awaiting band */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: (track?.awaitingUs || 0) > 0 ? `rgba(${GOLD_RGB},0.1)` : PANEL, border: `1px solid ${(track?.awaitingUs || 0) > 0 ? GOLD : LINE}`, borderRadius: 4, padding: '10px 16px', marginBottom: 16 }}>
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 17, color: (track?.awaitingUs || 0) > 0 ? GOLD : MUTE, fontWeight: 600 }}>↩ {track?.awaitingUs || 0} awaiting your answer</div>
+        <button onClick={reload} disabled={loading} style={{ padding: '6px 14px', fontSize: 13, borderRadius: 14, border: `1px solid ${GOLD}`, background: 'transparent', color: GOLD, cursor: 'pointer', fontFamily: FONT_BODY }}>{loading ? 'Checking…' : '↻ Check now'}</button>
+      </div>
+
+      {/* Lanes + composer */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr', gap: 16, alignItems: 'start' }}>
+        {lane('WhatsApp', '#7CE0A8', wa)}
+        {lane('Email', '#7CB0E0', email)}
+        {sel ? <Composer key={pkey(sel.phone, sel.email)} pass={pass} item={sel} onDone={() => { reload(); setSel(null) }} />
+          : <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 6, padding: 40, textAlign: 'center', color: MUTE }}>Pick someone to answer. Their message comes up in Spanish + English; you reply and it goes out in Hebrew.</div>}
+      </div>
+      {data?.errors && data.errors.length > 0 && <div style={{ marginTop: 10, fontSize: 11, color: '#8A8680' }}>Some sources slow: {data.errors.join('; ')}</div>}
     </div>
   )
 }
