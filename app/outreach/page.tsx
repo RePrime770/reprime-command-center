@@ -33,6 +33,7 @@ export default function OutreachPage() {
   useEffect(() => { if (!authed) return; refreshStatus(); const t = setInterval(refreshStatus, 15000); return () => clearInterval(t) }, [authed, refreshStatus])
 
   async function check() {
+    if (!text.trim()) { setMsg('Paste at least one name in the box first.'); return }
     setBusy(true); setMsg(''); setCands(null)
     try {
       const r = await fetch('/api/center/check', { method: 'POST', headers: hdr(), body: JSON.stringify({ text }) })
@@ -87,8 +88,8 @@ export default function OutreachPage() {
           style={{ width: '100%', padding: 16, fontSize: 16, lineHeight: 1.6, borderRadius: 10, border: '1px solid #3a5688', background: '#13294f', color: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
 
         <div style={{ display: 'flex', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
-          <button onClick={check} disabled={busy || !text.trim()}
-            style={{ padding: '14px 28px', fontSize: 17, fontWeight: 700, borderRadius: 8, border: '1px solid #FFCC33', background: 'transparent', color: '#FFCC33', cursor: busy ? 'default' : 'pointer', opacity: busy || !text.trim() ? 0.6 : 1 }}>
+          <button onClick={check} disabled={busy}
+            style={{ padding: '14px 28px', fontSize: 17, fontWeight: 700, borderRadius: 8, border: '1px solid #FFCC33', background: 'transparent', color: '#FFCC33', cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
             {busy ? 'Checking…' : 'Check the list'}
           </button>
           {cands && freshCount > 0 && (
