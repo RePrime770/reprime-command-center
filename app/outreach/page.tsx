@@ -68,11 +68,14 @@ function Wordmark({ sub }: { sub: string }) {
 export default function OutreachPage() {
   const [pass, setPass] = useState('')
   const [authed, setAuthed] = useState(false)
-  const [tab, setTab] = useState<Tab>('queue')
+  const [tab, setTab] = useState<Tab>('track')
   const [inbox, setInbox] = useState<{ count: number; items: InboxItem[]; errors: string[] } | null>(null)
   const [inboxLoading, setInboxLoading] = useState(false)
   const [unseen, setUnseen] = useState(0)
   const firstLoad = useRef(true)
+  const [report, setReport] = useState<string | null>(null)
+  const [reportBusy, setReportBusy] = useState(false)
+  const [reportSent, setReportSent] = useState(false)
 
   useEffect(() => { const p = localStorage.getItem(PASS_KEY); if (p) { setPass(p); setAuthed(true) } }, [])
 
@@ -102,6 +105,16 @@ export default function OutreachPage() {
     const newest = (inbox?.items && inbox.items[0]?.at) || new Date().toISOString()
     localStorage.setItem(SEEN_KEY, newest); setUnseen(0)
   }, [inbox])
+
+  async function runReport(send: boolean) {
+    setReportBusy(true); setReportSent(false)
+    try {
+      const r = await fetch('/api/center/report', { method: send ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', 'x-center-pass': pass }, body: send ? '{"send":true}' : undefined })
+      const j = await r.json()
+      setReport(j.text || j.error || 'Could not build the report.')
+      if (j.sent) setReportSent(true)
+    } catch { setReport('Could not build the report.') } finally { setReportBusy(false) }
+  }
 
   if (!authed) {
     return (
@@ -134,10 +147,21 @@ export default function OutreachPage() {
     <main style={{ minHeight: '100vh', background: `radial-gradient(1400px 700px at 50% -15%, ${NAVY}, ${NAVY_DEEP})`, color: INK, fontFamily: FONT_BODY, padding: '20px 26px 60px' }}>
       <TerminalFonts />
       <div style={{ maxWidth: 1180, margin: '0 auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '6px 0 2px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '6px 0 2px', position: 'relative' }}>
           <div style={{ fontFamily: FONT_WORD, fontSize: 26, letterSpacing: 6, color: GOLD, fontWeight: 600 }}>TERMINAL</div>
           <div style={{ fontFamily: FONT_ITAL, fontStyle: 'italic', fontSize: 16, color: CREAM, opacity: 0.8 }}>Command Center</div>
+          <button onClick={() => runReport(false)} disabled={reportBusy} style={{ position: 'absolute', right: 0, top: 2, padding: '9px 18px', fontSize: 14, fontWeight: 700, borderRadius: 4, border: `1px solid ${GOLD}`, background: 'transparent', color: GOLD, cursor: 'pointer', fontFamily: FONT_BODY }}>{reportBusy ? '…' : '📊 Report'}</button>
         </div>
+
+        {report !== null && (
+          <div style={{ maxWidth: 760, margin: '12px auto 22px', background: PANEL, border: `1px solid ${GOLD}`, borderRadius: 6, padding: '18px 22px' }}>
+            <pre dir="auto" style={{ whiteSpace: 'pre-wrap', fontFamily: FONT_BODY, fontSize: 15, color: INK, lineHeight: 1.65, margin: 0 }}>{report}</pre>
+            <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'center' }}>
+              <button onClick={() => runReport(true)} disabled={reportBusy} style={pillBtn(true)}>{reportSent ? '✓ Sent to group' : reportBusy ? 'Sending…' : 'Send to WhatsApp group →'}</button>
+              <button onClick={() => { setReport(null); setReportSent(false) }} style={{ background: 'transparent', border: 'none', color: MUTE, fontSize: 14, cursor: 'pointer', fontFamily: FONT_BODY }}>Close</button>
+            </div>
+          </div>
+        )}
         <div style={{ borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 26 }}>
           {tabBtn('add', 'Add People')}
           {tabBtn('track', 'Track')}
