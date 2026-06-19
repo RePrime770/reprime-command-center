@@ -35,6 +35,7 @@ const PUBLIC_PATHS = [
   '/outreach',
   '/api/center',
   '/api/cron/center-drain',
+  '/api/cron/center-watch',
 ]
 
 export async function proxy(request: NextRequest) {

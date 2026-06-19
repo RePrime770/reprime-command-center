@@ -181,6 +181,28 @@ export async function getMessages(chatId: number): Promise<TimelinesMessage[]> {
   return json.data?.messages ?? []
 }
 
+/**
+ * Send a message into an EXISTING chat by its Timelines chat id — the only
+ * path that works for group chats (the by-phone /messages endpoint returns
+ * "no chats found for this group"). Used for the "Terminal invitations" group.
+ */
+export async function sendChatMessage(chatId: number, text: string): Promise<TimelinesMessage> {
+  const url = `${BASE_URL}/chats/${chatId}/messages`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: authHeaders(),
+    cache: 'no-store',
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    console.error('[timelines.sendChatMessage] FAILED', { status: res.status, url, bodyPreview: body.slice(0, 300) })
+    throw new Error(`Timelines sendChatMessage ${res.status}: ${body.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as TimelinesEnvelope<TimelinesMessage>
+  return (json.data ?? (json as unknown as TimelinesMessage)) as TimelinesMessage
+}
+
 export async function sendMessage(opts: {
   phone: string
   text: string

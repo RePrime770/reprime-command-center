@@ -1,6 +1,23 @@
 'use client'
 
-import { useEffect, useState, useCallback, type CSSProperties } from 'react'
+import { useEffect, useState, useCallback, useRef, type CSSProperties } from 'react'
+
+// Short "do-do-do" chime via WebAudio (no asset needed) when a new reply lands.
+function playChime() {
+  try {
+    const Ctx = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)
+    const ctx = new Ctx()
+    ;[0, 0.16, 0.32].forEach((t, i) => {
+      const o = ctx.createOscillator(); const g = ctx.createGain()
+      o.frequency.value = 880 + i * 120; o.type = 'sine'
+      o.connect(g); g.connect(ctx.destination)
+      g.gain.setValueAtTime(0.0001, ctx.currentTime + t)
+      g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + t + 0.02)
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.14)
+      o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.15)
+    })
+  } catch { /* audio blocked until first interaction — badge still shows */ }
+}
 
 type Cand = { name: string; phone: string; email: string; status: 'new' | 'already'; match: { when: string | null; inviteStatus: string; booked: boolean } | null }
 type TrackContact = { name: string; phone: string; email: string; stage: string; awaitingUs: boolean; lastReply: string; lastFrom: string | null; outcome: string; remindAt: string | null; followupNote: string; snoozed: boolean; due: boolean; row: number }
@@ -11,13 +28,49 @@ const PASS_KEY = 'center_pass'
 const STAGE_COLOR: Record<string, string> = { replied: '#FFCC33', sent: '#9fb0cf', booked: '#7CE0A8', declined: '#8A8680', unknown: '#c98b8b' }
 const STAGE_LABEL: Record<string, string> = { replied: 'Replied · needs you', sent: 'Sent · no reply yet', booked: 'Booked', declined: 'Declined / not relevant', unknown: 'Unknown' }
 
+const SEEN_KEY = 'center_inbox_seen'
+
 export default function OutreachPage() {
   const [pass, setPass] = useState('')
   const [authed, setAuthed] = useState(false)
   const [tab, setTab] = useState<Tab>('send')
+  const [inbox, setInbox] = useState<{ count: number; items: InboxItem[]; errors: string[] } | null>(null)
+  const [inboxLoading, setInboxLoading] = useState(false)
+  const [unseen, setUnseen] = useState(0)
+  const firstLoad = useRef(true)
   const hdr = useCallback(() => ({ 'Content-Type': 'application/json', 'x-center-pass': pass }), [pass])
 
   useEffect(() => { const p = localStorage.getItem(PASS_KEY); if (p) { setPass(p); setAuthed(true) } }, [])
+
+  // The inbox checks itself — first on load, then every 5 minutes — so a new
+  // reply surfaces a badge (and a chime) without anyone going to look for it.
+  const loadInbox = useCallback(async () => {
+    if (!pass) return
+    setInboxLoading(true)
+    try {
+      const r = await fetch('/api/center/inbox', { headers: { 'x-center-pass': pass } })
+      const j = await r.json()
+      setInbox(j)
+      const seen = (typeof window !== 'undefined' && localStorage.getItem(SEEN_KEY)) || ''
+      const fresh = (j.items || []).filter((it: InboxItem) => (it.at || '') > seen).length
+      setUnseen(fresh)
+      if (!firstLoad.current && fresh > 0) playChime()   // don't chime on the very first paint
+      firstLoad.current = false
+    } catch { /* leave last good state */ } finally { setInboxLoading(false) }
+  }, [pass])
+
+  useEffect(() => {
+    if (!authed) return
+    loadInbox()
+    const t = setInterval(loadInbox, 5 * 60 * 1000)
+    return () => clearInterval(t)
+  }, [authed, loadInbox])
+
+  const markInboxSeen = useCallback(() => {
+    const newest = (inbox?.items && inbox.items[0]?.at) || new Date().toISOString()
+    localStorage.setItem(SEEN_KEY, newest)
+    setUnseen(0)
+  }, [inbox])
 
   if (!authed) {
     return (
@@ -35,12 +88,17 @@ export default function OutreachPage() {
     )
   }
 
-  const tabBtn = (t: Tab, label: string) => (
-    <button onClick={() => setTab(t)} style={{
-      padding: '10px 22px', fontSize: 16, fontWeight: 700, borderRadius: 8, cursor: 'pointer',
+  const tabBtn = (t: Tab, label: string, badge = 0) => (
+    <button onClick={() => { setTab(t); if (t === 'inbox') markInboxSeen() }} style={{
+      position: 'relative', padding: '10px 22px', fontSize: 16, fontWeight: 700, borderRadius: 8, cursor: 'pointer',
       border: tab === t ? '1px solid #FFCC33' : '1px solid #2a4068',
       background: tab === t ? '#FFCC33' : 'transparent', color: tab === t ? '#0E3470' : '#cdd6e6',
-    }}>{label}</button>
+    }}>
+      {label}
+      {badge > 0 && (
+        <span style={{ position: 'absolute', top: -8, right: -8, minWidth: 20, height: 20, padding: '0 6px', borderRadius: 10, background: '#E0574C', color: '#fff', fontSize: 12, fontWeight: 800, lineHeight: '20px', textAlign: 'center', boxShadow: '0 0 0 2px #0E3470' }}>{badge}</span>
+      )}
+    </button>
   )
 
   return (
@@ -50,11 +108,16 @@ export default function OutreachPage() {
         <div style={{ display: 'flex', gap: 10, marginBottom: 22 }}>
           {tabBtn('send', 'Send')}
           {tabBtn('track', 'Track')}
-          {tabBtn('inbox', 'Inbox')}
+          {tabBtn('inbox', 'Inbox', unseen)}
         </div>
+        {unseen > 0 && tab !== 'inbox' && (
+          <div onClick={() => { setTab('inbox'); markInboxSeen() }} style={{ cursor: 'pointer', marginBottom: 18, padding: '12px 16px', borderRadius: 8, background: '#3a2018', border: '1px solid #E0574C', color: '#ffd9d2', fontSize: 15, fontWeight: 600 }}>
+            🔔 {unseen} new {unseen === 1 ? 'message' : 'messages'} to respond to — open the Inbox.
+          </div>
+        )}
         {tab === 'send' && <SendView hdr={hdr} onAuthFail={() => { setAuthed(false); localStorage.removeItem(PASS_KEY) }} />}
         {tab === 'track' && <TrackView pass={pass} />}
-        {tab === 'inbox' && <InboxView pass={pass} />}
+        {tab === 'inbox' && <InboxView data={inbox} loading={inboxLoading} reload={loadInbox} />}
       </div>
     </main>
   )
@@ -172,16 +235,12 @@ function TrackView({ pass }: { pass: string }) {
   )
 }
 
-function InboxView({ pass }: { pass: string }) {
-  const [data, setData] = useState<{ count: number; items: InboxItem[]; errors: string[] } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const load = useCallback(() => { setLoading(true); fetch('/api/center/inbox', { headers: { 'x-center-pass': pass } }).then((r) => r.json()).then(setData).catch(() => {}).finally(() => setLoading(false)) }, [pass])
-  useEffect(() => { load() }, [load])
+function InboxView({ data, loading, reload }: { data: { count: number; items: InboxItem[]; errors: string[] } | null; loading: boolean; reload: () => void }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <p style={{ color: '#aebcd6', fontSize: 15, margin: 0 }}>Every reply — WhatsApp and email — in one place, newest first.</p>
-        <button onClick={load} disabled={loading} style={{ padding: '8px 16px', fontSize: 14, fontWeight: 700, borderRadius: 8, border: '1px solid #FFCC33', background: 'transparent', color: '#FFCC33', cursor: 'pointer' }}>{loading ? 'Loading…' : 'Refresh'}</button>
+        <p style={{ color: '#aebcd6', fontSize: 15, margin: 0 }}>Every reply — WhatsApp and email — in one place, newest first. Checks itself every few minutes.</p>
+        <button onClick={reload} disabled={loading} style={{ padding: '8px 16px', fontSize: 14, fontWeight: 700, borderRadius: 8, border: '1px solid #FFCC33', background: 'transparent', color: '#FFCC33', cursor: 'pointer' }}>{loading ? 'Loading…' : 'Refresh'}</button>
       </div>
       {!loading && data && data.items.length === 0 && <div style={{ color: '#9fb0cf' }}>No new replies right now.</div>}
       <div style={{ display: 'grid', gap: 8 }}>
