@@ -18,10 +18,22 @@ export async function POST(request: Request) {
   if (!candidates.length) return NextResponse.json({ candidates: [] })
 
   const supabase = createServiceClient()
-  const { data: rows } = await supabase
-    .from('invitations')
-    .select('contact_name, contact_first_name, contact_email, contact_phone, status, created_at, confirmed_slot_iso')
-  const existing = rows || []
+  // Page through ALL invitations — PostgREST caps a single read at 1000 rows,
+  // which would silently miss recent sends in a large table (the dedup bug).
+  type Row = { contact_name: string | null; contact_first_name: string | null; contact_email: string | null; contact_phone: string | null; status: string; created_at: string | null; confirmed_slot_iso: string | null }
+  const existing: Row[] = []
+  const PAGE = 1000
+  for (let from = 0; from < 50000; from += PAGE) {
+    const { data: page, error } = await supabase
+      .from('invitations')
+      .select('contact_name, contact_first_name, contact_email, contact_phone, status, created_at, confirmed_slot_iso')
+      .order('created_at', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) break
+    const rows = (page || []) as Row[]
+    existing.push(...rows)
+    if (rows.length < PAGE) break
+  }
 
   const byPhone = new Map<string, typeof existing[number]>()
   const byEmail = new Map<string, typeof existing[number]>()
