@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, type CSSProperties } from 'react'
 
 type Cand = { name: string; phone: string; email: string; status: 'new' | 'already'; match: { when: string | null; inviteStatus: string; booked: boolean } | null }
-type TrackContact = { name: string; phone: string; email: string; stage: string; responded: boolean; latest: string; outcome: string; row: number }
+type TrackContact = { name: string; phone: string; email: string; stage: string; awaitingUs: boolean; lastReply: string; lastFrom: string | null; outcome: string; remindAt: string | null; followupNote: string; snoozed: boolean; due: boolean; row: number }
 type InboxItem = { channel: 'whatsapp' | 'email'; who: string; handle: string; preview: string; at: string | null; link: string }
 type Tab = 'send' | 'track' | 'inbox'
 
@@ -117,33 +117,54 @@ function SendView({ hdr, onAuthFail }: { hdr: () => Record<string, string>; onAu
 }
 
 function TrackView({ pass }: { pass: string }) {
-  const [data, setData] = useState<{ counts: Record<string, number>; needsFollowup: number; contacts: TrackContact[] } | null>(null)
-  const [filter, setFilter] = useState<string>('all')
+  const [data, setData] = useState<{ counts: Record<string, number>; needsFollowup: number; awaitingUs: number; dueToday: number; snoozed: number; contacts: TrackContact[] } | null>(null)
+  const [filter, setFilter] = useState<string>('todo')
   const [loading, setLoading] = useState(true)
-  useEffect(() => {
-    setLoading(true)
-    fetch('/api/center/track', { headers: { 'x-center-pass': pass } }).then((r) => r.json()).then(setData).catch(() => {}).finally(() => setLoading(false))
-  }, [pass])
+  const load = useCallback(() => { setLoading(true); fetch('/api/center/track', { headers: { 'x-center-pass': pass } }).then((r) => r.json()).then(setData).catch(() => {}).finally(() => setLoading(false)) }, [pass])
+  useEffect(() => { load() }, [load])
+  async function remind(row: number, days: number) {
+    const note = window.prompt('What to send when this comes back up? (optional)') ?? undefined
+    await fetch('/api/center/remind', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-center-pass': pass }, body: JSON.stringify({ row, days, note }) })
+    load()
+  }
   if (loading) return <div style={{ color: '#aebcd6' }}>Loading the board…</div>
   if (!data || !data.contacts) return <div style={{ color: '#FF6B6B' }}>Could not load. Try again.</div>
   const stages = ['replied', 'sent', 'booked', 'declined', 'unknown']
-  const list = filter === 'all' ? data.contacts : data.contacts.filter((c) => c.stage === filter)
+  let list = data.contacts
+  if (filter === 'todo') list = data.contacts.filter((c) => !c.snoozed && c.stage !== 'booked' && c.stage !== 'declined')
+  else if (filter === 'awaiting') list = data.contacts.filter((c) => c.awaitingUs && !c.snoozed)
+  else if (filter === 'due') list = data.contacts.filter((c) => c.due)
+  else if (filter === 'snoozed') list = data.contacts.filter((c) => c.snoozed)
+  else if (filter === 'all') list = data.contacts
+  else list = data.contacts.filter((c) => c.stage === filter)
+  // awaiting-you and due float to the top of any view
+  list = [...list].sort((a, b) => (Number(b.awaitingUs) - Number(a.awaitingUs)) || (Number(b.due) - Number(a.due)))
   return (
     <div>
-      <p style={{ color: '#aebcd6', fontSize: 15, marginTop: 0 }}>Your roster, by stage. Tap a stage to narrow it — work <b style={{ color: '#FFCC33' }}>Replied</b> and <b>Sent</b> down until each is a meeting or a no.</p>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-        <button onClick={() => setFilter('all')} style={chip(filter === 'all', '#FFCC33')}>All {data.contacts.length}</button>
-        {stages.map((s) => data.counts[s] > 0 && <button key={s} onClick={() => setFilter(s)} style={chip(filter === s, STAGE_COLOR[s])}>{STAGE_LABEL[s]} {data.counts[s]}</button>)}
+      <p style={{ color: '#aebcd6', fontSize: 15, marginTop: 0 }}>Work <b style={{ color: '#FFCC33' }}>To-do</b> down to a meeting or a no. "Remind" parks someone until a date and drops a note on your calendar; they come back in <b>Due</b>.</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        <button onClick={() => setFilter('todo')} style={chip(filter === 'todo', '#FFCC33')}>To-do {data.needsFollowup}</button>
+        {data.awaitingUs > 0 && <button onClick={() => setFilter('awaiting')} style={chip(filter === 'awaiting', '#FFCC33')}>Awaiting you {data.awaitingUs}</button>}
+        {data.dueToday > 0 && <button onClick={() => setFilter('due')} style={chip(filter === 'due', '#FF6B6B')}>Due {data.dueToday}</button>}
+        <button onClick={() => setFilter('booked')} style={chip(filter === 'booked', STAGE_COLOR.booked)}>Booked {data.counts.booked || 0}</button>
+        {data.snoozed > 0 && <button onClick={() => setFilter('snoozed')} style={chip(filter === 'snoozed', '#9fb0cf')}>Snoozed {data.snoozed}</button>}
+        <button onClick={() => setFilter('all')} style={chip(filter === 'all', '#9fb0cf')}>All {data.contacts.length}</button>
+        {stages.filter((s) => s !== 'booked').map((s) => (data.counts[s] || 0) > 0 && <button key={s} onClick={() => setFilter(s)} style={chip(filter === s, STAGE_COLOR[s])}>{STAGE_LABEL[s]} {data.counts[s]}</button>)}
       </div>
-      <div style={{ color: '#E0C56B', fontSize: 14, marginBottom: 14 }}>{data.needsFollowup} still need follow-up (replied or no reply, not booked).</div>
       <div style={{ display: 'grid', gap: 6 }}>
         {list.map((c, i) => (
-          <div key={i} style={{ padding: '11px 15px', borderRadius: 8, background: '#13294f', border: c.stage === 'replied' ? '1.5px solid #FFCC33' : '1px solid #2a4068' }}>
+          <div key={i} style={{ padding: '11px 15px', borderRadius: 8, background: '#13294f', border: c.awaitingUs ? '1.5px solid #FFCC33' : '1px solid #2a4068' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <div><div style={{ fontSize: 16, fontWeight: 600 }}>{c.name}</div><div style={{ fontSize: 12.5, color: '#9fb0cf' }}>{[c.phone, c.email].filter(Boolean).join('  ·  ')}</div></div>
+              <div><div style={{ fontSize: 16, fontWeight: 600 }}>{c.name}{c.awaitingUs && <span style={{ color: '#FFCC33', fontSize: 12.5, fontWeight: 700 }}> · ↩ awaiting you</span>}</div><div style={{ fontSize: 12.5, color: '#9fb0cf' }}>{[c.phone, c.email].filter(Boolean).join('  ·  ')}</div></div>
               <span style={{ color: STAGE_COLOR[c.stage], fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap' }}>{STAGE_LABEL[c.stage] || c.stage}</span>
             </div>
-            {c.latest && <div dir="auto" style={{ fontSize: 12.5, color: '#aebcd6', marginTop: 6, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{c.latest}</div>}
+            {c.lastReply && <div dir="auto" style={{ fontSize: 12.5, color: '#aebcd6', marginTop: 6, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{c.lastReply}</div>}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {c.snoozed && c.remindAt ? <span style={{ fontSize: 12.5, color: '#9fb0cf' }}>⏰ remind {new Date(c.remindAt).toLocaleDateString()}{c.followupNote ? ' — ' + c.followupNote : ''}</span> : <>
+                <span style={{ fontSize: 12, color: '#8194b5' }}>Remind:</span>
+                {[['4d', 4], ['5d', 5], ['1 mo', 30]].map(([lbl, d]) => <button key={lbl as string} onClick={() => remind(c.row, d as number)} style={{ padding: '4px 12px', fontSize: 13, borderRadius: 14, border: '1px solid #3a5688', background: 'transparent', color: '#cdd6e6', cursor: 'pointer' }}>{lbl}</button>)}
+              </>}
+            </div>
           </div>
         ))}
       </div>

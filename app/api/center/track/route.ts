@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   if (!centerAuthed(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   const supabase = createServiceClient()
 
-  type R = { source_row: number; name: string; phone: string | null; email: string | null; board_stage: string; responded: boolean; latest: string | null; outcome: string | null; raw_stage: string | null }
+  type R = { source_row: number; name: string; phone: string | null; email: string | null; board_stage: string; responded: boolean; latest: string | null; outcome: string | null; raw_stage: string | null; awaiting_us: boolean | null; last_reply_text: string | null; last_from: string | null; remind_at: string | null; followup_note: string | null }
   const { data: roster, error } = await supabase.from('roster').select('*').order('source_row', { ascending: true })
   if (error) return NextResponse.json({ error: error.message, contacts: [] }, { status: 500 })
 
@@ -27,18 +27,35 @@ export async function GET(request: Request) {
     if (rows.length < 1000) break
   }
 
+  const now = Date.now()
   const contacts = ((roster || []) as R[]).map((r) => {
     const isBooked = (r.phone && bookedPhones.has(dig9(r.phone))) || (r.email && bookedEmails.has((r.email || '').toLowerCase().trim()))
     const stage = isBooked ? 'booked' : r.board_stage
-    return { name: r.name, phone: r.phone || '', email: r.email || '', stage, responded: r.responded, latest: (r.latest || '').slice(0, 300), outcome: r.outcome || '', row: r.source_row }
+    const remindMs = r.remind_at ? new Date(r.remind_at).getTime() : null
+    return {
+      name: r.name, phone: r.phone || '', email: r.email || '', stage,
+      awaitingUs: r.awaiting_us === true,
+      lastReply: (r.last_reply_text || r.latest || '').slice(0, 300),
+      lastFrom: r.last_from || null,
+      outcome: r.outcome || '',
+      remindAt: r.remind_at || null,
+      followupNote: r.followup_note || '',
+      snoozed: remindMs != null && remindMs > now,   // parked until its date
+      due: remindMs != null && remindMs <= now,       // reminder has come due
+      row: r.source_row,
+    }
   })
 
+  const active = contacts.filter((c) => !c.snoozed && c.stage !== 'booked' && c.stage !== 'declined')
   const counts: Record<string, number> = { replied: 0, sent: 0, booked: 0, declined: 0, unknown: 0 }
   for (const c of contacts) counts[c.stage] = (counts[c.stage] || 0) + 1
 
   return NextResponse.json({
     counts,
-    needsFollowup: contacts.filter((c) => c.stage === 'replied' || c.stage === 'sent' || c.stage === 'unknown').length,
+    awaitingUs: contacts.filter((c) => c.awaitingUs && !c.snoozed).length,
+    dueToday: contacts.filter((c) => c.due).length,
+    snoozed: contacts.filter((c) => c.snoozed).length,
+    needsFollowup: active.length,
     contacts,
   })
 }
