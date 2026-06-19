@@ -268,6 +268,11 @@ export async function GET() {
           // Filter if overlaps existing calendar events
           if (overlaps(slotStart.getTime(), slotEnd.getTime(), busyTimes)) continue
 
+          // Gideon 2026-06-18: recipients are in Israel — never offer a time
+          // that's the middle of the night there. Keep only 8 AM–10 PM Israel.
+          const ilHour = parseInt(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: 'Asia/Jerusalem' }).format(slotStart), 10)
+          if (ilHour < 8 || ilHour >= 22) continue
+
           // Verify the slot's Chicago date matches (edge case near midnight)
           const slotDateStr = toChicagoDateStr(slotStart)
           if (slotDateStr !== dateStr) continue

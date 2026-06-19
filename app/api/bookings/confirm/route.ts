@@ -2,7 +2,7 @@ import { after } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createMeeting } from '@/lib/zoom/client'
-import { createCalendarEvent } from '@/lib/google/calendar'
+import { createCalendarEvent, getBusyTimes, slotOverlapsBusy } from '@/lib/google/calendar'
 import { triggerEvent } from '@/lib/pagerduty/events'
 import {
   getChats,
@@ -235,6 +235,41 @@ export async function POST(request: Request) {
     display: formatSlotDisplay(slotIso),
   }
 
+  // ── SLOT LOCK — never double-book. Gideon 2026-06-18 ────────────────────────
+  // Before confirming, reject the slot if it's already taken:
+  //  (A) another invitation is already confirmed at this exact time, or
+  //  (B) Gideon's calendar is otherwise busy then.
+  // On a clash, send the recipient to the open-calendar picker with a
+  // "just taken" notice — do NOT create a colliding meeting.
+  {
+    const slotStart = new Date(slot.iso)
+    const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000)
+    let taken = false
+    try {
+      const { data: clash } = await supabase
+        .from('invitations')
+        .select('id')
+        .eq('status', 'confirmed')
+        .eq('confirmed_slot_iso', slot.iso)
+        .neq('id', token)
+        .limit(1)
+      if (clash && clash.length > 0) taken = true
+    } catch { /* if the check fails, fall through to the freebusy check */ }
+    if (!taken) {
+      try {
+        const busy = await getBusyTimes(
+          new Date(slotStart.getTime() - 60_000).toISOString(),
+          new Date(slotEnd.getTime() + 60_000).toISOString(),
+        )
+        if (slotOverlapsBusy(slot.iso, 30, busy)) taken = true
+      } catch { /* freebusy unavailable — allow, the confirmed-row check above is primary */ }
+    }
+    if (taken) {
+      const appUrlBase = (process.env.NEXT_PUBLIC_APP_URL || 'https://project-7e87w.vercel.app').replace(/\/$/, '')
+      return new Response(null, { status: 303, headers: { Location: `${appUrlBase}/invite/${token}/choose?taken=1` } })
+    }
+  }
+
   const errors: Array<{ step: string; message: string }> = []
   let zoomMeetingId: string | null = null
   let zoomJoinUrl: string | null = null
@@ -315,9 +350,10 @@ export async function POST(request: Request) {
           endTime: end.toISOString(),
           // Gideon 2026-06-18: every booked Terminal meeting also lands on the
           // team's calendars. Recipient first, then the standing meeting team.
+          // Gideon 2026-06-18: removed Chaim from auto-invites; Shirel + Steve only.
           attendees: [
             ...(inv.contact_email ? [inv.contact_email] : []),
-            'chaim@reprime.com',
+            'shirel@reprime.com',
             'steve@reprime.com',
           ],
           zoomLink: zoomJoinUrl,

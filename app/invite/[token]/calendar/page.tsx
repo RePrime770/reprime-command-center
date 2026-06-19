@@ -118,6 +118,9 @@ function generateTimeSlotsForDate(
       const hh = String(h).padStart(2, '0')
       const min = String(m).padStart(2, '0')
       const iso = `${yyyy}-${mm}-${dd}T${hh}:${min}:00.000${offset}`
+      // Israel-hours cap: only 8 AM–10 PM Israel.
+      const ilHour = parseInt(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: 'Asia/Jerusalem' }).format(new Date(iso)), 10)
+      if (ilHour < 8 || ilHour >= 22) continue
       slots.push({ iso, display: formatDualFromIso(iso) })
     }
   }

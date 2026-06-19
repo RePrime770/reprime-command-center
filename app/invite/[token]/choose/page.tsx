@@ -115,6 +115,9 @@ function generateTimeSlotsForDate(
       const hh = String(h).padStart(2, '0')
       const min = String(m).padStart(2, '0')
       const iso = `${yyyy}-${mm}-${dd}T${hh}:${min}:00.000${offset}`
+      // Israel-hours cap: only 8 AM–10 PM Israel (no middle-of-the-night slots).
+      const ilHour = parseInt(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: 'Asia/Jerusalem' }).format(new Date(iso)), 10)
+      if (ilHour < 8 || ilHour >= 22) continue
       slots.push({ iso, display: formatDualFromIso(iso) })
     }
   }
@@ -252,10 +255,10 @@ export default async function ChooseTimePage({
   searchParams,
 }: {
   params: Promise<{ token: string }>
-  searchParams: Promise<{ month?: string; date?: string }>
+  searchParams: Promise<{ month?: string; date?: string; taken?: string }>
 }) {
   const { token } = await params
-  const { month: monthParam, date: dateParam } = await searchParams
+  const { month: monthParam, date: dateParam, taken: takenParam } = await searchParams
   const inv = await loadInvitation(token)
 
   if (!inv) return <NotValidPage message="This invitation link is not valid." />
@@ -343,7 +346,16 @@ export default async function ChooseTimePage({
           <div style={letterContent}>
             <div style={letterLabel}>A note from Gideon Gratsiani</div>
             <div style={letterGreeting}>{firstName} —</div>
-            <div style={letterBody}>Pick any day and time that works.</div>
+            {takenParam ? (
+              <div style={{
+                background: 'rgba(255, 204, 51, 0.12)', border: '1px solid rgba(255, 204, 51, 0.5)',
+                borderRadius: 6, padding: '12px 16px', margin: '4px 0 12px',
+                fontFamily: 'Poppins, sans-serif', fontSize: 14, color: '#FFCC33', lineHeight: 1.6,
+              }}>
+                That time was just booked by someone else — sorry about that. Pick any other time below; these are all open.
+              </div>
+            ) : null}
+            <div style={letterBody}>Pick any day and time that works — every time shows in Israel and Central.</div>
           </div>
         </div>
 
