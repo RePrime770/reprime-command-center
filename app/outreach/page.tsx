@@ -3,13 +3,13 @@
 import { useEffect, useState, useCallback, type CSSProperties } from 'react'
 
 type Cand = { name: string; phone: string; email: string; status: 'new' | 'already'; match: { when: string | null; inviteStatus: string; booked: boolean } | null }
-type TrackContact = { name: string; phone: string; email: string; stage: string; views: number; lastOpened: string | null; sentAt: string; inviteUrl: string }
+type TrackContact = { name: string; phone: string; email: string; stage: string; responded: boolean; latest: string; outcome: string; row: number }
 type InboxItem = { channel: 'whatsapp' | 'email'; who: string; handle: string; preview: string; at: string | null; link: string }
 type Tab = 'send' | 'track' | 'inbox'
 
 const PASS_KEY = 'center_pass'
-const STAGE_COLOR: Record<string, string> = { queued: '#E0C56B', sent: '#9fb0cf', opened: '#7CB0E0', booked: '#7CE0A8', failed: '#FF6B6B', cancelled: '#8A8680' }
-const STAGE_LABEL: Record<string, string> = { queued: 'Queued', sent: 'Sent · not opened', opened: 'Opened · not booked', booked: 'Booked', failed: 'Failed', cancelled: 'Cancelled' }
+const STAGE_COLOR: Record<string, string> = { replied: '#FFCC33', sent: '#9fb0cf', booked: '#7CE0A8', declined: '#8A8680', unknown: '#c98b8b' }
+const STAGE_LABEL: Record<string, string> = { replied: 'Replied · needs you', sent: 'Sent · no reply yet', booked: 'Booked', declined: 'Declined / not relevant', unknown: 'Unknown' }
 
 export default function OutreachPage() {
   const [pass, setPass] = useState('')
@@ -126,21 +126,24 @@ function TrackView({ pass }: { pass: string }) {
   }, [pass])
   if (loading) return <div style={{ color: '#aebcd6' }}>Loading the board…</div>
   if (!data || !data.contacts) return <div style={{ color: '#FF6B6B' }}>Could not load. Try again.</div>
-  const stages = ['queued', 'sent', 'opened', 'booked', 'failed', 'cancelled']
+  const stages = ['replied', 'sent', 'booked', 'declined', 'unknown']
   const list = filter === 'all' ? data.contacts : data.contacts.filter((c) => c.stage === filter)
   return (
     <div>
-      <p style={{ color: '#aebcd6', fontSize: 15, marginTop: 0 }}>Everyone, by stage. Tap a stage to narrow the list — work it down until only "booked" is left.</p>
+      <p style={{ color: '#aebcd6', fontSize: 15, marginTop: 0 }}>Your roster, by stage. Tap a stage to narrow it — work <b style={{ color: '#FFCC33' }}>Replied</b> and <b>Sent</b> down until each is a meeting or a no.</p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         <button onClick={() => setFilter('all')} style={chip(filter === 'all', '#FFCC33')}>All {data.contacts.length}</button>
         {stages.map((s) => data.counts[s] > 0 && <button key={s} onClick={() => setFilter(s)} style={chip(filter === s, STAGE_COLOR[s])}>{STAGE_LABEL[s]} {data.counts[s]}</button>)}
       </div>
-      <div style={{ color: '#E0C56B', fontSize: 14, marginBottom: 14 }}>{data.needsFollowup} still need follow-up (sent or opened, not booked yet).</div>
+      <div style={{ color: '#E0C56B', fontSize: 14, marginBottom: 14 }}>{data.needsFollowup} still need follow-up (replied or no reply, not booked).</div>
       <div style={{ display: 'grid', gap: 6 }}>
         {list.map((c, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '11px 15px', borderRadius: 8, background: '#13294f', border: '1px solid #2a4068' }}>
-            <div><div style={{ fontSize: 16, fontWeight: 600 }}>{c.name}</div><div style={{ fontSize: 12.5, color: '#9fb0cf' }}>{[c.phone, c.email].filter(Boolean).join('  ·  ')}</div></div>
-            <div style={{ textAlign: 'right' }}><span style={{ color: STAGE_COLOR[c.stage], fontWeight: 700, fontSize: 13.5 }}>{STAGE_LABEL[c.stage] || c.stage}</span>{c.views > 0 && <div style={{ fontSize: 12, color: '#7CB0E0' }}>opened {c.views}×</div>}</div>
+          <div key={i} style={{ padding: '11px 15px', borderRadius: 8, background: '#13294f', border: c.stage === 'replied' ? '1.5px solid #FFCC33' : '1px solid #2a4068' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div><div style={{ fontSize: 16, fontWeight: 600 }}>{c.name}</div><div style={{ fontSize: 12.5, color: '#9fb0cf' }}>{[c.phone, c.email].filter(Boolean).join('  ·  ')}</div></div>
+              <span style={{ color: STAGE_COLOR[c.stage], fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap' }}>{STAGE_LABEL[c.stage] || c.stage}</span>
+            </div>
+            {c.latest && <div dir="auto" style={{ fontSize: 12.5, color: '#aebcd6', marginTop: 6, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{c.latest}</div>}
           </div>
         ))}
       </div>
