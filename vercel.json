@@ -15,6 +15,10 @@
   ],
   "crons": [
     {
+      "path": "/api/cron/center-drain",
+      "schedule": "*/1 * * * *"
+    },
+    {
       "path": "/api/cron/dispatch-alerts",
       "schedule": "*/1 * * * *"
     },
