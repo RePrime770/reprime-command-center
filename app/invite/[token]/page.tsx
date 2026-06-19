@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Cinzel, EB_Garamond, Playfair_Display } from 'next/font/google'
+import { redirect } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getBusyTimes, slotOverlapsBusy } from '@/lib/google/calendar'
 
@@ -677,6 +678,21 @@ export default async function InvitePage({
     invitation.proposed_slots?.find((s) => s.iso === preselectedSlotIso)
 
   if (matchedPreselect) {
+    // Gideon 2026-06-18: never present "Confirm this time" on a slot that's
+    // already been taken since the email/WhatsApp went out. Re-check first;
+    // if it's gone, send them straight to the open calendar with the notice.
+    // (redirect() throws internally, so it must run OUTSIDE the try/catch.)
+    let preselectTaken = false
+    try {
+      const s = new Date(matchedPreselect.iso)
+      const busy = await getBusyTimes(
+        new Date(s.getTime() - 60_000).toISOString(),
+        new Date(s.getTime() + 31 * 60_000).toISOString(),
+      )
+      preselectTaken = slotOverlapsBusy(matchedPreselect.iso, 30, busy)
+    } catch { /* freebusy unavailable — fall through and let the confirm step guard */ }
+    if (preselectTaken) redirect(`/invite/${token}/choose?taken=1`)
+
     const slotDate = new Date(matchedPreselect.iso)
     const TZ = 'America/Chicago'
     const dayLine = new Intl.DateTimeFormat('en-US', {
