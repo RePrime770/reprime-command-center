@@ -30,6 +30,11 @@ const PUBLIC_PATHS = [
   // Public health endpoint — read-only env presence + DB ping. No secrets in
   // response. Used by extension4 / extension6 to verify deploys without auth.
   '/api/health',
+  // Command Center outreach tool — password-gated by sbh770 inside each route
+  // (x-center-pass header), so it must bypass the dashboard Supabase login.
+  '/outreach',
+  '/api/center',
+  '/api/cron/center-drain',
 ]
 
 export async function proxy(request: NextRequest) {
