@@ -36,19 +36,26 @@ export async function GET(request: Request) {
     if (rows.length < 1000) break
   }
 
-  const contacts = all.map((r) => ({
-    name: r.contact_name || r.contact_first_name || '(no name)',
-    phone: r.contact_phone || '',
-    email: r.contact_email || '',
-    stage: stageOf(r),
-    views: r.view_count || 0,
-    lastOpened: r.last_opened_at,
-    sentAt: r.created_at,
-    inviteUrl: `https://reprime-terminal.com/invite/${r.id}`,
-  }))
+  // Drop test/self rows, then DEDUPE to unique people — the same person minted
+  // more than once must count once. Keep the furthest-along record per person.
+  const isTest = (r: Row) => /test/i.test(r.contact_name || '') || (r.contact_email || '').toLowerCase().trim() === 'g@reprime.com'
+  const dig9 = (s: string) => (s || '').replace(/\D/g, '').slice(-9)
+  const rank: Record<Stage, number> = { cancelled: -1, failed: 0, queued: 1, sent: 2, opened: 3, booked: 4 }
+  const byPerson = new Map<string, ReturnType<typeof toContact>>()
+  function toContact(r: Row) {
+    return { name: r.contact_name || r.contact_first_name || '(no name)', phone: r.contact_phone || '', email: r.contact_email || '', stage: stageOf(r), views: r.view_count || 0, lastOpened: r.last_opened_at, sentAt: r.created_at, inviteUrl: `https://reprime-terminal.com/invite/${r.id}` }
+  }
+  for (const r of all) {
+    if (isTest(r)) continue
+    const key = (r.contact_email && r.contact_email.toLowerCase().trim()) || (r.contact_phone && dig9(r.contact_phone)) || r.id
+    const c = toContact(r)
+    const prev = byPerson.get(key)
+    if (!prev || rank[c.stage as Stage] > rank[prev.stage as Stage]) byPerson.set(key, c)
+  }
+  const contacts = Array.from(byPerson.values())
 
   const counts: Record<Stage, number> = { queued: 0, sent: 0, opened: 0, booked: 0, failed: 0, cancelled: 0 }
-  for (const c of contacts) counts[c.stage]++
+  for (const c of contacts) counts[c.stage as Stage]++
 
   return NextResponse.json({
     counts,
