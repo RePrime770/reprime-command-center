@@ -22,6 +22,15 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/api/cron/inforuptcy-poll': ['node_modules/@sparticuz/chromium/bin/**/*'],
   },
+  // The Command Center must always show the latest deploy. Without this the
+  // browser caches the /outreach HTML and serves a stale build ("nothing
+  // changed") after every push. Hashed JS chunks stay immutable/cached; only
+  // the entry document is forced fresh.
+  async headers() {
+    return [
+      { source: '/outreach', headers: [{ key: 'Cache-Control', value: 'no-store, must-revalidate' }] },
+    ]
+  },
 }
 
 export default withSentryConfig(nextConfig, {
