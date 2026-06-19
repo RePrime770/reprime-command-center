@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   //  opened  — they opened the invite link (view_count / first_opened_at)
   //  watched — they clicked the tracked video link (first_video_at)
   const bookedPhones = new Set<string>(); const bookedEmails = new Set<string>()
-  const openedKeys = new Set<string>(); const watchedKeys = new Set<string>()
+  const openedKeys = new Set<string>(); const watchedKeys = new Set<string>(); const messagedKeys = new Set<string>()
   const keysOf = (r: { contact_email: string | null; contact_phone: string | null }) => {
     const ks: string[] = []
     if (r.contact_phone) ks.push('p:' + dig9(r.contact_phone))
@@ -38,7 +38,8 @@ export async function GET(request: Request) {
       const opened = (r.view_count ?? 0) > 0 || !!r.first_opened_at
       const watched = !!r.first_video_at
       if (booked) { if (r.contact_phone) bookedPhones.add(dig9(r.contact_phone)); if (r.contact_email) bookedEmails.add(r.contact_email.toLowerCase().trim()) }
-      for (const k of keysOf(r)) { if (opened) openedKeys.add(k); if (watched) watchedKeys.add(k) }
+      const isQueuedOrSent = r.status === 'queued' || r.status === 'sending' || r.status === 'sent' || r.status === 'confirmed' || booked
+      for (const k of keysOf(r)) { if (opened) openedKeys.add(k); if (watched) watchedKeys.add(k); if (isQueuedOrSent) messagedKeys.add(k) }
     }
     if (rows.length < 1000) break
   }
@@ -50,11 +51,13 @@ export async function GET(request: Request) {
     const isBooked = (r.phone && bookedPhones.has(dig9(r.phone))) || (r.email && bookedEmails.has((r.email || '').toLowerCase().trim()))
     const opened = (!!pk && openedKeys.has(pk)) || (!!ek && openedKeys.has(ek))
     const watched = (!!pk && watchedKeys.has(pk)) || (!!ek && watchedKeys.has(ek))
+    const reachable = !!(r.phone || r.email)
+    const messaged = (!!pk && messagedKeys.has(pk)) || (!!ek && messagedKeys.has(ek))
     const stage = isBooked ? 'booked' : r.board_stage
     const remindMs = r.remind_at ? new Date(r.remind_at).getTime() : null
     return {
       name: r.name, phone: r.phone || '', email: r.email || '', stage,
-      opened, watched,
+      opened, watched, reachable, messaged,
       awaitingUs: r.awaiting_us === true,
       lastReply: (r.last_reply_text || r.latest || '').slice(0, 300),
       lastFrom: r.last_from || null,
@@ -77,6 +80,7 @@ export async function GET(request: Request) {
     dueToday: contacts.filter((c) => c.due).length,
     snoozed: contacts.filter((c) => c.snoozed).length,
     needsFollowup: active.length,
+    notMessaged: contacts.filter((c) => c.reachable && !c.messaged).length,
     contacts,
   })
 }

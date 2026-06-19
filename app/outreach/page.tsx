@@ -41,7 +41,7 @@ function playChime() {
 }
 
 type Cand = { name: string; phone: string; email: string; status: 'new' | 'already'; match: { when: string | null; inviteStatus: string; booked: boolean } | null }
-type TrackContact = { name: string; phone: string; email: string; stage: string; opened: boolean; watched: boolean; awaitingUs: boolean; lastReply: string; lastFrom: string | null; outcome: string; remindAt: string | null; followupNote: string; snoozed: boolean; due: boolean; row: number }
+type TrackContact = { name: string; phone: string; email: string; stage: string; opened: boolean; watched: boolean; reachable: boolean; messaged: boolean; awaitingUs: boolean; lastReply: string; lastFrom: string | null; outcome: string; remindAt: string | null; followupNote: string; snoozed: boolean; due: boolean; row: number }
 type InboxItem = { channel: 'whatsapp' | 'email'; who: string; handle: string; preview: string; at: string | null; link: string; phone?: string; email?: string; account?: '305' | '718'; subject?: string }
 type Tab = 'add' | 'track' | 'queue'
 
@@ -323,7 +323,7 @@ function pillBtn(primary: boolean): CSSProperties {
 
 // ── TRACK — the board, everyone to the end ──────────────────────────────────
 function TrackView({ pass }: { pass: string }) {
-  const [data, setData] = useState<{ counts: Record<string, number>; needsFollowup: number; awaitingUs: number; dueToday: number; snoozed: number; contacts: TrackContact[] } | null>(null)
+  const [data, setData] = useState<{ counts: Record<string, number>; needsFollowup: number; awaitingUs: number; dueToday: number; snoozed: number; notMessaged: number; contacts: TrackContact[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('todo')
   const load = useCallback(() => { setLoading(true); fetch('/api/center/track', { headers: { 'x-center-pass': pass } }).then((r) => r.json()).then(setData).catch(() => {}).finally(() => setLoading(false)) }, [pass])
@@ -344,6 +344,7 @@ function TrackView({ pass }: { pass: string }) {
   else if (filter === 'awaiting') list = data.contacts.filter((c) => c.awaitingUs && !c.snoozed)
   else if (filter === 'due') list = data.contacts.filter((c) => c.due)
   else if (filter === 'snoozed') list = data.contacts.filter((c) => c.snoozed)
+  else if (filter === 'notmessaged') list = data.contacts.filter((c) => c.reachable && !c.messaged)
   else if (filter !== 'all') list = data.contacts.filter((c) => c.stage === filter)
   list = [...list].sort((a, b) => (Number(b.awaitingUs) - Number(a.awaitingUs)) || (Number(b.due) - Number(a.due)))
 
@@ -353,6 +354,7 @@ function TrackView({ pass }: { pass: string }) {
         <button onClick={() => setFilter('todo')} style={chip(filter === 'todo', GOLD)}>To do {data.needsFollowup}</button>
         {data.awaitingUs > 0 && <button onClick={() => setFilter('awaiting')} style={chip(filter === 'awaiting', GOLD)}>↩ Awaiting you {data.awaitingUs}</button>}
         {data.dueToday > 0 && <button onClick={() => setFilter('due')} style={chip(filter === 'due', '#7CB0E0')}>Due today {data.dueToday}</button>}
+        {data.notMessaged > 0 && <button onClick={() => setFilter('notmessaged')} style={chip(filter === 'notmessaged', RED)}>Not yet sent {data.notMessaged}</button>}
         <button onClick={() => setFilter('booked')} style={chip(filter === 'booked', '#7CE0A8')}>Booked {data.counts.booked || 0}</button>
         {data.snoozed > 0 && <button onClick={() => setFilter('snoozed')} style={chip(filter === 'snoozed', MUTE)}>Snoozed {data.snoozed}</button>}
         <button onClick={() => setFilter('all')} style={chip(filter === 'all', CREAM)}>All {data.contacts.length}</button>
@@ -497,8 +499,22 @@ function Composer({ pass, item, onDone }: { pass: string; item: InboxItem; onDon
 
   useEffect(() => {
     setLoadingA(true); setAnalysis(null); setDraft(''); setFinalText(''); setSent(false); setErr('')
-    fetch('/api/center/translate', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-center-pass': pass }, body: JSON.stringify({ action: 'analyze', thread: item.preview, latest: item.preview }) })
-      .then((r) => r.json()).then((j) => { if (j.error) setErr('Translate: ' + j.error); else setAnalysis(j) }).catch(() => setErr('Translate failed')).finally(() => setLoadingA(false))
+    const run = async () => {
+      // Pull this person's recorded history from the memory (roster), then
+      // analyze the latest message against that real context.
+      let thread = item.preview
+      try {
+        const q = new URLSearchParams({ phone: item.phone || '', email: item.email || '' })
+        const h = await (await fetch('/api/center/history?' + q.toString(), { headers: { 'x-center-pass': pass } })).json()
+        if (h.found && h.thread) thread = h.thread + '\n\nLatest from them: ' + item.preview
+      } catch { /* fall back to the latest message */ }
+      try {
+        const r = await fetch('/api/center/translate', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-center-pass': pass }, body: JSON.stringify({ action: 'analyze', thread, latest: item.preview }) })
+        const j = await r.json()
+        if (j.error) setErr('Translate: ' + j.error); else setAnalysis(j)
+      } catch { setErr('Translate failed') } finally { setLoadingA(false) }
+    }
+    run()
   }, [pass, item])
 
   const target = analysis?.lang === 'en' ? 'en' : 'he'
