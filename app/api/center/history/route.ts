@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { centerAuthed } from '@/lib/center/auth'
-import { getChats, getMessages } from '@/lib/timelines/client'
+import { getMessages } from '@/lib/timelines/client'
 import { listRecent, getMessage, parseFromHeader } from '@/lib/google/gmail'
 
 export const dynamic = 'force-dynamic'
@@ -21,10 +21,17 @@ function fmtDate(ts: string | number | undefined): string {
 }
 
 async function waThread(phone: string): Promise<Array<{ who: string; date: string; text: string }>> {
-  for (const panel of ['305', '718'] as const) {
+  const TL = process.env.TIMELINES_API_KEY
+  if (!TL) return []
+  // Targeted by-phone lookup (the paginated chat list misses anyone past the
+  // first ~100 recent chats). Returns the exact chat for this number.
+  for (const acct of ['+13057784861', '+17185505500']) {
     try {
-      const chats = [...(await getChats(panel, 1)), ...(await getChats(panel, 2))]
-      const chat = chats.find((c) => !c.is_group && c.phone && dig9(c.phone) === dig9(phone))
+      const r = await fetch(`https://app.timelines.ai/integrations/api/chats?phone=${encodeURIComponent(phone)}&whatsapp_account_phone=${encodeURIComponent(acct)}`, { headers: { Authorization: 'Bearer ' + TL }, cache: 'no-store' })
+      if (!r.ok) continue
+      const j = await r.json()
+      const chats = (j.data && j.data.chats) || []
+      const chat = chats.find((c: { phone?: string; is_group?: boolean }) => !c.is_group && (c.phone || '').replace(/\D/g, '').includes(dig9(phone))) || chats[0]
       if (!chat) continue
       const msgs = await getMessages(chat.id)
       if (!msgs.length) continue
