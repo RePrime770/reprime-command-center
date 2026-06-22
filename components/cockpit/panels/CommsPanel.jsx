@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Send, X, Star, Mic, Calendar, Paperclip, Clock, Video, Home } from 'lucide-react';
 import { brand, ink, channel as CH, tier as TIER, semantic } from '../lib/colors.js';
-import { threads, threadsByChannel, findThread } from '../data/threads.js';
 import { fmtRelative } from '../lib/format.js';
 import { ListenButton, DictateButtons } from '../lib/voice.jsx';
 import { useDemo } from '../demo/DemoContext.jsx';
+import { useLiveData } from '../live/CockpitLiveData.jsx';
 import PanelShell from './PanelShell.jsx';
 
 /**
@@ -56,6 +56,7 @@ const SUB_PILLARS = [
 
 export default function CommsPanel({ width }) {
   const { state, set } = useDemo();
+  const { threads, threadsByChannel, findThread } = useLiveData();
   const [openThread, setOpenThread] = useState({ '305': null, '718': null, inv: null, staff: null });
 
   // Per-message 1-hour reminders — lifted into the panel so the gold "set" state
@@ -118,6 +119,9 @@ export default function CommsPanel({ width }) {
             divider={i < SUB_PILLARS.length - 1}
             remindIds={remindIds}
             toggleRemind={toggleRemind}
+            threads={threads}
+            threadsByChannel={threadsByChannel}
+            findThread={findThread}
           />
         ))}
       </div>
@@ -125,7 +129,7 @@ export default function CommsPanel({ width }) {
   );
 }
 
-function SubPillar({ sp, openId, setOpen, divider, remindIds, toggleRemind }) {
+function SubPillar({ sp, openId, setOpen, divider, remindIds, toggleRemind, threads, threadsByChannel, findThread }) {
   // Staff lane filters by thread.staffTag === true (mirrors the isInvestor pattern).
   // 305/718 still pull from threadsByChannel; inv pulls the investor cohort.
   const allThreads =

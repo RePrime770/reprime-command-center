@@ -1,9 +1,9 @@
 import React from 'react';
 import { Video, Phone, Coffee } from 'lucide-react';
 import { ink, tier as TIER, semantic, brand } from '../lib/colors.js';
-import { events } from '../data/calendar.js';
 import { fmtTime } from '../lib/format.js';
 import { ListenButton, DictateButtons } from '../lib/voice.jsx';
+import { useLiveData } from '../live/CockpitLiveData.jsx';
 import PanelShell from './PanelShell.jsx';
 
 const ICON_BY_TYPE = {
@@ -15,7 +15,8 @@ const ICON_BY_TYPE = {
 };
 
 export default function CalendarPanel({ width }) {
-  const today = events.filter((e) => e.date === '2026-05-11');
+  const { events, today: todayDate } = useLiveData();
+  const today = events.filter((e) => e.date === todayDate);
   return (
     <PanelShell width={width} accent="#00897B" title="CALENDAR" subtitle="MON · MAY 11">
       {/* Religious calendar pill */}
