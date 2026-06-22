@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createServerClient } from '@/lib/supabase/server'
+import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,6 +55,32 @@ function sanitizeHistory(history: unknown): ChatTurn[] {
   }
   // Keep the last 20 turns to bound the prompt.
   return turns.slice(-20)
+}
+
+/**
+ * Persist the user message and assistant reply to nora_chat_messages so the
+ * conversation survives a cockpit reload. Best-effort: never blocks or fails
+ * the chat response. If the table hasn't been migrated yet (see
+ * supabase/migrations/2026-06-22-nora-chat.sql) this silently no-ops.
+ */
+async function persistTurn(
+  userMessage: string,
+  userLanguage: 'en' | 'he',
+  reply: string,
+  replyLanguage: 'en' | 'he',
+): Promise<void> {
+  try {
+    const service = createServiceClient()
+    const { error } = await service.from('nora_chat_messages').insert([
+      { role: 'user', content: userMessage, language: userLanguage },
+      { role: 'assistant', content: reply, language: replyLanguage },
+    ])
+    if (error) {
+      console.error('[nora/chat] persist failed', error.message)
+    }
+  } catch (err) {
+    console.error('[nora/chat] persist threw', (err as Error).message)
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -113,6 +139,10 @@ export async function POST(request: NextRequest) {
       .trim()
 
     const language: 'en' | 'he' = HEBREW_RE.test(reply) ? 'he' : 'en'
+    if (reply) {
+      const userLanguage: 'en' | 'he' = HEBREW_RE.test(message) ? 'he' : 'en'
+      await persistTurn(message, userLanguage, reply, language)
+    }
     return NextResponse.json({ reply, language })
   } catch (err) {
     // Never leak the API key or raw SDK internals.

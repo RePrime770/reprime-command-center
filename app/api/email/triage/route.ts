@@ -23,6 +23,7 @@ type EmailScoreRow = {
 type ReasonsPayload = {
   list?: string[]
   from_name?: string | null
+  snippet?: string | null
   received_at?: string | null
   account_email?: string | null
   gmail_thread_id?: string | null
@@ -133,6 +134,7 @@ export async function GET(request: Request) {
         from_name: fromName || resolved.pipedrive_name || '',
         pipedrive_id: resolved.pipedrive_id,
         subject: r.subject || '',
+        snippet: reasons.snippet || '',
         score: r.score,
         reasons: reasons.list ?? [],
         signals: reasons.signals ?? null,

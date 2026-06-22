@@ -197,8 +197,21 @@ function EmailRow({ email, onOpen, reminded, onToggleRemind }) {
       >
         {email.subject}
       </div>
-      {email.height === 'tall' && (
-        <div className={isHe ? 'hebrew' : ''} style={{ fontSize: 16, color: ink[500], marginTop: 4, lineHeight: 1.4 }}>
+      {email.preview && email.height !== 'compact' && (
+        <div
+          className={isHe ? 'hebrew' : ''}
+          style={{
+            fontSize: email.height === 'tall' ? 16 : 13,
+            color: ink[500],
+            marginTop: 4,
+            lineHeight: 1.4,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: email.height === 'tall' ? 3 : 1,
+            WebkitBoxOrient: 'vertical'
+          }}
+        >
           {email.preview}
         </div>
       )}
