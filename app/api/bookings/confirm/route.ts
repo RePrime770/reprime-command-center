@@ -245,16 +245,21 @@ export async function POST(request: Request) {
   {
     const slotStart = new Date(slot.iso)
     const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000)
+    const slotMs = slotStart.getTime()
     let taken = false
     try {
-      const { data: clash } = await supabase
-        .from('invitations')
-        .select('id')
-        .eq('status', 'confirmed')
-        .eq('confirmed_slot_iso', slot.iso)
-        .neq('id', token)
-        .limit(1)
-      if (clash && clash.length > 0) taken = true
+      // Compare by INSTANT, not by text. A slot stored as "…-05:00" and the same
+      // moment stored as "…Z" are different strings but the same time — exact
+      // string matching missed that and double-booked. Page all confirmed rows
+      // and flag any whose 30-min window overlaps this one.
+      const confirmed: Array<{ id: string; confirmed_slot_iso: string | null }> = []
+      for (let from = 0; from < 50000; from += 1000) {
+        const { data } = await supabase.from('invitations').select('id, confirmed_slot_iso').eq('status', 'confirmed').neq('id', token).range(from, from + 999)
+        const rows = (data || []) as Array<{ id: string; confirmed_slot_iso: string | null }>
+        confirmed.push(...rows)
+        if (rows.length < 1000) break
+      }
+      if (confirmed.some((r) => { const t = r.confirmed_slot_iso ? new Date(r.confirmed_slot_iso).getTime() : NaN; return !isNaN(t) && Math.abs(t - slotMs) < 30 * 60 * 1000 })) taken = true
     } catch { /* if the check fails, fall through to the freebusy check */ }
     if (!taken) {
       try {
