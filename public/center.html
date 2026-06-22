@@ -348,8 +348,18 @@
         if(cur&&cur.name===o.name) paintDraft();
       }).catch(function(){});
   }
+  function loadHistory(o){
+    var qs=new URLSearchParams({phone:o._phone||'',email:o._email||''});
+    fetch('/api/center/history?'+qs,{headers:{'x-center-pass':PASS}}).then(function(r){return r.json();}).then(function(h){
+      if(h&&h.found&&h.chain&&h.chain.length){
+        o.chain=h.chain.map(function(c){return {who:c.who,b:(c.who==='them'?o.bucket:undefined),date:c.date,he:c.he,es:c.es,en:c.en};});
+        var cur=PEOPLE.filter(function(p){return p.queued;})[state.qi];
+        if(cur&&cur.name===o.name){renderQueue();bindQueue();}
+      }
+    }).catch(function(){});
+  }
   var _rq=window.renderQueue;
-  window.renderQueue=function(){ _rq(); var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi]; if(!o)return; if(state._draftFor!==o.name){state._draftFor=o.name;state._draft=null;state._sugs=null;loadDraft(o);} paintDraft(); };
+  window.renderQueue=function(){ _rq(); var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi]; if(!o)return; if(state._histFor!==o.name){state._histFor=o.name;loadHistory(o);} if(state._draftFor!==o.name){state._draftFor=o.name;state._draft=null;state._sugs=null;loadDraft(o);} paintDraft(); };
   var _bq=window.bindQueue;
   window.bindQueue=function(){
     _bq();
