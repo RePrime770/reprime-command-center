@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { ink, tier as TIER, semantic, brand } from '../lib/colors.js';
 import { ListenButton } from '../lib/voice.jsx';
@@ -168,21 +168,91 @@ function Section({ sec }) {
 }
 
 function EveningContent() {
-  // No live source for an evening wrap-up yet (the briefing API returns the
-  // morning brief only). Show an honest empty state rather than stale mock
-  // business strings.
+  // Live end-of-day recap from GET /api/briefing/evening (same-origin cookie).
+  const [data, setData] = useState(null);
+  const [status, setStatus] = useState('loading'); // loading | ready | error
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/briefing/evening', { credentials: 'same-origin' });
+        if (!res.ok) {
+          if (!cancelled) setStatus('error');
+          return;
+        }
+        const json = await res.json();
+        if (!cancelled) {
+          setData(json);
+          setStatus('ready');
+        }
+      } catch {
+        if (!cancelled) setStatus('error');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (status === 'loading') {
+    return <div style={{ padding: '24px 16px', textAlign: 'center', color: ink[300], fontSize: 15 }}>Loading evening wrap-up…</div>;
+  }
+  if (status === 'error' || !data) {
+    return <div style={{ padding: '24px 16px', textAlign: 'center', color: ink[500], fontSize: 15 }}>Evening wrap-up unavailable right now.</div>;
+  }
+
+  const { handled = {}, open = {}, loose_ends = [] } = data;
+  const stats = [
+    { label: 'Handled today', value: handled.replies_closed_today ?? 0, color: '#16A34A' },
+    { label: 'Meetings today', value: handled.meetings_today ?? 0, color: '#5C6BC0' },
+    { label: 'Still unread', value: open.unread_total ?? 0, color: '#F9A825' },
+    { label: 'Overdue follow-ups', value: open.overdue_followups ?? 0, color: '#E53935' },
+    { label: 'Open tasks', value: open.open_tasks ?? 0, color: '#7C3AED' },
+    { label: 'Expiring invites', value: open.expiring_invitations ?? 0, color: '#0EA5E9' },
+  ];
+
   return (
-    <div
-      style={{
-        padding: '24px 16px',
-        textAlign: 'center',
-        color: ink[500],
-        fontSize: 15,
-        lineHeight: 1.5
-      }}
-    >
-      Evening wrap-up isn't wired to live data yet.
-    </div>
+    <>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: 6 }}>
+        {stats.map((s) => (
+          <div key={s.label} style={{ background: '#FFFFFF', border: `1px solid ${semantic.divider}`, borderLeft: `4px solid ${s.color}`, borderRadius: 6, padding: '6px 10px' }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: ink[500], letterSpacing: '0.04em', marginTop: 2 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ padding: '4px 8px', fontSize: 13, letterSpacing: '0.14em', color: ink[500], fontWeight: 800, textTransform: 'uppercase' }}>
+        Loose ends
+      </div>
+      {loose_ends.length === 0 ? (
+        <div style={{ padding: '12px', textAlign: 'center', color: ink[300], fontSize: 14, fontWeight: 600 }}>
+          Nothing left hanging. Clean close.
+        </div>
+      ) : (
+        loose_ends.map((it) => {
+          const isHe = isHebrew(it.who) || isHebrew(it.detail);
+          return (
+            <div
+              key={it.id}
+              style={{
+                background: '#FFFFFF',
+                border: `1px solid ${semantic.divider}`,
+                borderRadius: 6,
+                padding: '6px 10px',
+                marginBottom: 3,
+                direction: isHe ? 'rtl' : 'ltr',
+                textAlign: isHe ? 'right' : 'left',
+              }}
+            >
+              <div className={isHe ? 'hebrew' : ''} style={{ fontSize: 16, fontWeight: 700, color: ink[700] }}>{it.who}</div>
+              <div className={isHe ? 'hebrew' : ''} style={{ fontSize: 14, color: ink[500], marginTop: 1, lineHeight: 1.4 }}>{it.detail}</div>
+            </div>
+          );
+        })
+      )}
+    </>
   );
 }
 
