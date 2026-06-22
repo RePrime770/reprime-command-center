@@ -13,6 +13,7 @@ import EmailPanel from './panels/EmailPanel.jsx';
 import CalendarPanel from './panels/CalendarPanel.jsx';
 import BriefPanel from './panels/BriefPanel.jsx';
 import NorasDesk from './panels/NorasDesk.jsx';
+import NotesPanel from './panels/NotesPanel.jsx';
 
 // Slot windows — Zoom only (lean center keeps only the meeting window)
 import ZoomWindow from './windows/ZoomWindow.jsx';
@@ -28,6 +29,7 @@ const PANEL_WIDTHS = {
   calendar: 360,
   brief: 380,
   email: 600,
+  notes: 340,
   comms: 1840,
   norasdesk: 660
 };
@@ -93,6 +95,7 @@ function Cockpit() {
             <CalendarPanel width={PANEL_WIDTHS.calendar} />
             <BriefPanel width={PANEL_WIDTHS.brief} />
             <EmailPanel width={PANEL_WIDTHS.email} />
+            <NotesPanel width={PANEL_WIDTHS.notes} />
           </ZoneLabel>
 
           <ZoneDivider color="#FFCC33" />
