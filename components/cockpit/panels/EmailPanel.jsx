@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PenSquare, X, Send, Reply, Star, Paperclip, Mic, Clock, Video } from 'lucide-react';
 import { ink, channel as CH, tier as TIER, semantic, emailInbox as EI } from '../lib/colors.js';
 import { useLiveData } from '../live/CockpitLiveData.jsx';
@@ -249,6 +249,44 @@ function OpenedEmail({ email, onClose }) {
     || `${(email.fromShort || email.from || '').split(/[ <]/)[0] || 'Hi'} — confirming receipt. Reviewing internally; I'll revert by EOD. — Gideon`;
   const [replyMode, setReplyMode] = useState('draft');
   const [replyText, setReplyText] = useState(defaultDraft);
+  const [draftLoading, setDraftLoading] = useState(false);
+
+  // Nora drafts the reply in Gideon's voice (POST /api/email/draft). Runs once
+  // per opened email; replaces the placeholder only while still in 'draft' mode
+  // (never clobbers an edit the user has started).
+  useEffect(() => {
+    let cancelled = false;
+    setDraftLoading(true);
+    (async () => {
+      try {
+        const res = await fetch('/api/email/draft', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject: email.subject,
+            from: email.from,
+            snippet: email.preview,
+            language: email.language === 'he' ? 'he' : 'en',
+          }),
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const draft = typeof data?.draft === 'string' ? data.draft.trim() : '';
+        if (draft && !cancelled) {
+          setReplyText((prev) => (replyMode === 'draft' ? draft : prev));
+        }
+      } catch {
+        /* keep the placeholder draft on any failure */
+      } finally {
+        if (!cancelled) setDraftLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email.id]);
 
   const inviteToZoom = () => {
     const digits = String(Math.floor(10000000000 + Math.random() * 89999999999)); // 11 digits
