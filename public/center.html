@@ -324,8 +324,10 @@
   function mapContact(c){
     var channel=(c.phone&&c.email)?'both':(c.phone?'wa':'email');
     var b=bucketOf(c), who=c.lastFrom==='us'?'us':'them', msg=c.lastReply||'';
-    var he=/[֐-׿]/.test(msg)?msg:'';
-    var chain=msg?[{who:who,b:(who==='them'?b:undefined),date:'',he:he,es:msg,en:msg}]:[];
+    var snip=msg.length>120?msg.slice(0,120).trim()+'…':msg;            // card = quick summary, not the whole message
+    var he=/[֐-׿]/.test(snip)?snip:'';
+    var chain=snip?[{who:who,b:(who==='them'?b:undefined),date:'',he:he,es:snip,en:snip}]
+                  :[{who:'us',b:undefined,date:'',he:'',es:'Invitación enviada — esperando respuesta',en:'Invitation sent — awaiting reply'}];
     return {name:c.name,channel:channel,bucket:b,fu:(c.awaitingUs?'reply':(b==='mtg'?'mtg':'silent')),fuDate:(c.remindAt?new Date(c.remindAt).toLocaleDateString():''),chain:chain,booked:c.stage==='booked',queued:!!c.awaitingUs,_phone:c.phone,_email:c.email,_row:c.row,_acct:'305'};
   }
   window.loadLive=function(){
