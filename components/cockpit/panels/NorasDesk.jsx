@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Phone, Bell, HelpCircle, Video, Mic, Send, AlertTriangle, CornerDownRight } from 'lucide-react';
+import React from 'react';
+import { Phone, Bell, HelpCircle, Video, AlertTriangle, CornerDownRight } from 'lucide-react';
 import { ink, semantic } from '../lib/colors.js';
 import { ListenButton } from '../lib/voice.jsx';
-import { noraQuickCommands } from '../data/noraDesk.js';
 import { useLiveData } from '../live/CockpitLiveData.jsx';
+import { useDemo } from '../demo/DemoContext.jsx';
 import PanelShell from './PanelShell.jsx';
+import NoraChat from './NoraChat.jsx';
 
 /**
  * NORA'S DESK — the two-way box (Gideon's design, 2026-06-16).
@@ -33,8 +34,8 @@ export default function NorasDesk({ width }) {
   // Live Nora's Desk from the cockpit provider (bucket + secretary asks).
   // Falls back to static while the first fetch is in flight or on error.
   const { noraDesk } = useLiveData();
+  const { state } = useDemo();
   const noraToYou = Array.isArray(noraDesk?.noraToYou) ? noraDesk.noraToYou : [];
-  const youToNora = Array.isArray(noraDesk?.youToNora) ? noraDesk.youToNora : [];
   const needsYou = noraToYou.length;
   return (
     <PanelShell
@@ -51,14 +52,11 @@ export default function NorasDesk({ width }) {
           <SectionLabel
             color={NORA}
             left="YOU → NORA"
-            right="tell her to call, Zoom, or remind you"
+            right="ask her, or tell her to call, Zoom, or remind you"
           />
-          <CommandBar />
-          <div style={{ padding: '4px 8px 8px', display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 130, overflowY: 'auto' }}>
-            {youToNora.map((m) => (
-              <CommandLine key={m.id} m={m} />
-            ))}
-          </div>
+          {/* Live chat — grounded in cockpit data, text + voice. Replaces the
+              old static command log (which had no live two-way source). */}
+          <NoraChat focusSignal={state.noraFocus} />
         </div>
 
         {/* BOTTOM — NORA → YOU (her cards push up from below) */}
@@ -189,84 +187,6 @@ function NoraCard({ item }) {
   );
 }
 
-function CommandLine({ m }) {
-  const isYou = m.from === 'you';
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: isYou ? 'flex-end' : 'flex-start'
-      }}
-    >
-      <div
-        style={{
-          maxWidth: '88%',
-          background: isYou ? '#F1F5F9' : NORA_FADED,
-          border: `1px solid ${isYou ? semantic.border : `${NORA}33`}`,
-          borderRadius: 8,
-          padding: '5px 10px',
-          fontSize: 15,
-          lineHeight: 1.4,
-          color: ink[700]
-        }}
-      >
-        <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', color: isYou ? ink[300] : '#9333EA', display: 'block', marginBottom: 1 }}>
-          {isYou ? 'YOU' : 'NORA'}
-        </span>
-        {m.text}
-      </div>
-    </div>
-  );
-}
-
-function CommandBar() {
-  const [val, setVal] = useState('');
-  return (
-    <div style={{ padding: '8px 8px 6px', background: '#FFFFFF' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          border: `2px solid ${NORA}`,
-          borderRadius: 8,
-          padding: '4px 6px 4px 10px',
-          background: '#FFFFFF'
-        }}
-      >
-        <input
-          type="text"
-          value={val}
-          onChange={(e) => setVal(e.target.value)}
-          placeholder="Tell Nora to call someone, set a Zoom, or remind you…"
-          style={{
-            flex: 1,
-            border: 'none',
-            outline: 'none',
-            background: 'transparent',
-            fontSize: 16,
-            color: ink[700],
-            fontFamily: 'inherit'
-          }}
-        />
-        <button type="button" style={micButtonStyle()} title="Speak to Nora" aria-label="Speak to Nora">
-          <Mic size={15} strokeWidth={2.4} />
-        </button>
-        <button type="button" style={sendButtonStyle()} title="Send to Nora" aria-label="Send to Nora">
-          <Send size={14} strokeWidth={2.6} />
-        </button>
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
-        {noraQuickCommands.map((c) => (
-          <button key={c} type="button" style={quickChipStyle()}>
-            {c}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function primaryActionStyle(color) {
   return {
     background: color,
@@ -295,44 +215,3 @@ function ghostActionStyle() {
   };
 }
 
-function micButtonStyle() {
-  return {
-    background: '#F3E8FF',
-    color: NORA,
-    border: `1px solid ${NORA}55`,
-    borderRadius: 6,
-    padding: '5px 8px',
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    display: 'inline-flex',
-    alignItems: 'center'
-  };
-}
-
-function sendButtonStyle() {
-  return {
-    background: NORA,
-    color: '#FFFFFF',
-    border: 'none',
-    borderRadius: 6,
-    padding: '6px 10px',
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    display: 'inline-flex',
-    alignItems: 'center'
-  };
-}
-
-function quickChipStyle() {
-  return {
-    background: NORA_FADED,
-    color: '#6B21A8',
-    border: `1px solid ${NORA}33`,
-    borderRadius: 999,
-    padding: '3px 10px',
-    fontSize: 14,
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontFamily: 'inherit'
-  };
-}

@@ -54,6 +54,72 @@ const SUB_PILLARS = [
   }
 ];
 
+/**
+ * Derive the messages-API panel ('305' | '718') from a cockpit channel key.
+ * Only WhatsApp lanes have a live message source this pass.
+ * @param {string | undefined} channel
+ * @returns {'305' | '718' | null}
+ */
+function panelFromChannel(channel) {
+  if (channel === '305-WA') return '305';
+  if (channel === '718-WA') return '718';
+  return null;
+}
+
+/**
+ * Load a thread's real message bodies from /api/whatsapp/messages by phone+panel
+ * (cockpit thread.id is the phone). Adapts DashboardMessage -> the cockpit
+ * message shape ThreadView renders: { id, from, ts, body }.
+ *
+ * Returns messages=null when there is no live source (non-WA channel) so the
+ * caller falls back to any static thread.messages instead of showing empty.
+ * @param {object} thread
+ * @returns {{ messages: Array<object> | null, loading: boolean }}
+ */
+function useThreadMessages(thread) {
+  const [messages, setMessages] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+  const phone = thread?.id;
+  const panel = panelFromChannel(thread?.channel);
+  const contactId = thread?.contactId;
+
+  React.useEffect(() => {
+    if (!phone || !panel) {
+      setMessages(null);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setMessages(null);
+    const url = `/api/whatsapp/messages?phone=${encodeURIComponent(phone)}&panel=${panel}`;
+    fetch(url, { credentials: 'same-origin' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const rows = Array.isArray(data?.messages) ? data.messages : [];
+        const adapted = rows.map((m) => ({
+          id: m.id,
+          from: m.direction === 'out' ? 'me' : (contactId ?? 'them'),
+          ts: m.sent_at,
+          body: m.body || (m.media_filename ? `[${m.media_type || 'attachment'}]` : ''),
+        }));
+        setMessages(adapted);
+      })
+      .catch(() => {
+        if (!cancelled) setMessages([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [phone, panel, contactId]);
+
+  return { messages, loading };
+}
+
 export default function CommsPanel({ width }) {
   const { state, set } = useDemo();
   const { threads, threadsByChannel, findThread } = useLiveData();
@@ -319,8 +385,15 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
   const ch = CH[thread.channel];
   const fadedBg = ch?.faded || '#F9FAFB';
 
+  // Live message bodies — cockpit thread.id is the phone, so fetch by phone+panel.
+  // Only WhatsApp lanes have a live source this pass ('305-WA' / '718-WA').
+  const { messages: liveMessages, loading: liveLoading } = useThreadMessages(thread);
+  // Prefer live messages once they arrive; fall back to any static thread.messages.
+  const baseMessages =
+    liveMessages !== null ? liveMessages : (thread.messages || []);
+
   // Newest first sort
-  const sortedMessages = [...(thread.messages || [])].sort(
+  const sortedMessages = [...baseMessages].sort(
     (a, b) => new Date(b.ts || 0) - new Date(a.ts || 0)
   );
   const newestMessage = sortedMessages[0];
@@ -427,9 +500,19 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
         }}
         dir={isHe ? 'rtl' : 'ltr'}
       >
-        {olderMessages.map((m) => (
-          <Message key={m.id} m={m} ch={ch} contactName={thread.contactName} isHe={isHe} />
-        ))}
+        {liveLoading && baseMessages.length === 0 ? (
+          <div style={{ fontSize: 15, color: ink[300], fontStyle: 'italic', padding: '6px 2px' }}>
+            Loading conversation…
+          </div>
+        ) : sortedMessages.length === 0 ? (
+          <div style={{ fontSize: 15, color: ink[300], fontStyle: 'italic', padding: '6px 2px' }}>
+            No messages in this conversation yet.
+          </div>
+        ) : (
+          olderMessages.map((m) => (
+            <Message key={m.id} m={m} ch={ch} contactName={thread.contactName} isHe={isHe} />
+          ))
+        )}
       </div>
     </div>
   );

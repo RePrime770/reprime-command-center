@@ -24,6 +24,9 @@ export default function TalkToNoraPtt() {
   const cycle = () => {
     const next = { idle: 'active', active: 'idle', note: 'idle', mission: 'idle' }[state.pttState];
     set('pttState', next || 'idle');
+    // Open/focus the Nora chat input in Nora's Desk. A monotonically-rising
+    // counter is the focus signal NoraChat watches (any change -> focus()).
+    set('noraFocus', (state.noraFocus || 0) + 1);
   };
 
   return (

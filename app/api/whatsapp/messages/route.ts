@@ -32,6 +32,76 @@ function messageToRow(msg: TimelinesMessage, threadId: string, panel: Panel) {
   }
 }
 
+/**
+ * Map a Timelines message to the DashboardMessage shape directly, without a DB
+ * round-trip. Used by the phone+panel lookup path (cockpit), which has no
+ * whatsapp_threads row id to key the DB cache on.
+ * @param {TimelinesMessage} msg
+ * @param {string} threadId  synthetic id (the phone) — purely for the response
+ * @param {Panel} panel
+ * @returns {DashboardMessage}
+ */
+function messageToDashboard(
+  msg: TimelinesMessage,
+  threadId: string,
+  panel: Panel
+): DashboardMessage {
+  const sentAt = msg.timestamp
+    ? parseTimelinesTimestamp(msg.timestamp).toISOString()
+    : null
+  return {
+    id: msg.uid,
+    thread_id: threadId,
+    panel,
+    channel_type: 'whatsapp',
+    direction: msg.from_me ? 'out' : 'in',
+    body: msg.text || null,
+    media_url: msg.attachment_url,
+    media_type: getMediaType(msg.attachment_filename),
+    media_filename: msg.attachment_filename,
+    timelines_uid: msg.uid,
+    from_phone: msg.sender_phone || null,
+    from_name: msg.sender_name || null,
+    sent_at: sentAt,
+    status: msg.status || null,
+    is_group_message: false,
+  }
+}
+
+/**
+ * Fetch a thread's messages directly from Timelines by phone, mapping straight
+ * to DashboardMessage[]. No DB lookup, no upsert — used when the caller has the
+ * phone but not the Supabase row id (the cockpit, where thread.id = phone).
+ */
+async function fetchMessagesByPhone(
+  phone: string,
+  panel: Panel
+): Promise<DashboardMessage[]> {
+  const normalized = normalizePhone(phone) ?? phone
+  let messages: TimelinesMessage[] = []
+  try {
+    const allChats = await getAllChats(panel)
+    const matchingChat = allChats.find(
+      (c) => normalizePhone(c.phone) === normalized || c.phone === phone
+    )
+    if (matchingChat) {
+      messages = await getMessages(matchingChat.id)
+    } else {
+      console.warn('[messages/GET] no matching Timelines chat for phone', { phone, panel, totalChats: allChats.length })
+    }
+  } catch (err) {
+    const msg = (err as Error).message ?? ''
+    console.warn('[messages/GET] Timelines failed (phone path)', { phone, panel, error: msg.slice(0, 200) })
+  }
+  return messages
+    .map((m) => messageToDashboard(m, phone, panel))
+    .sort((a, b) => {
+      const ta = a.sent_at ? new Date(a.sent_at).getTime() : 0
+      const tb = b.sent_at ? new Date(b.sent_at).getTime() : 0
+      return ta - tb
+    })
+}
+
 export async function GET(request: NextRequest) {
   const supabase = await createServerClient()
   const {
@@ -41,9 +111,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
+  // Phone + panel path (cockpit): cockpit thread.id is the phone, not the
+  // Supabase row id. Fetch directly from Timelines and skip the row lookup.
+  // The thread_id path below is unchanged (the main dashboard uses it).
+  const phoneParam = request.nextUrl.searchParams.get('phone')
+  const panelParam = request.nextUrl.searchParams.get('panel')
+  if (phoneParam) {
+    if (panelParam !== '305' && panelParam !== '718') {
+      return NextResponse.json({ error: 'panel must be 305 or 718' }, { status: 400 })
+    }
+    const messages = await fetchMessagesByPhone(phoneParam, panelParam)
+    return NextResponse.json({ messages })
+  }
+
   const threadId = request.nextUrl.searchParams.get('thread_id')
   if (!threadId) {
-    return NextResponse.json({ error: 'thread_id required' }, { status: 400 })
+    return NextResponse.json({ error: 'thread_id or phone required' }, { status: 400 })
   }
 
   const service = createServiceClient()

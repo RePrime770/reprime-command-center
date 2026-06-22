@@ -35,6 +35,7 @@ export const initialDemoState = {
 
   // VOICE / PTT
   pttState: 'idle',                // 'idle' | 'active' | 'note' | 'mission'
+  noraFocus: 0,                    // monotonically-rising; bump to focus Nora chat input
 
   // MEETING
   meetingState: null,              // null | 'zoom-with-susan' | 'conflict' | 'post-summary'
