@@ -322,7 +322,11 @@ function OpenedEmail({ email, onClose }) {
         >
           <Video size={12} strokeWidth={2.6} /> Zoom
         </button>
-        <ListenButton compact />
+        <ListenButton
+          compact
+          language={isHe ? 'he' : 'en'}
+          getText={() => [email.subject, `from ${email.from}`, email.preview].filter(Boolean).join('. ')}
+        />
         <button
           type="button"
           onClick={onClose}
@@ -345,6 +349,8 @@ function OpenedEmail({ email, onClose }) {
         replyText={replyText}
         setReplyText={setReplyText}
         isHe={isHe}
+        toAddr={email.fromAddr}
+        subject={email.subject}
       />
 
       {/* Email body (the message being replied to) */}
@@ -473,7 +479,29 @@ function NoraEmailRead({ email, ib }) {
   );
 }
 
-function EmailReplyZone({ ib, defaultDraft, replyMode, setReplyMode, replyText, setReplyText, isHe }) {
+function EmailReplyZone({ ib, defaultDraft, replyMode, setReplyMode, replyText, setReplyText, isHe, toAddr, subject }) {
+  const [sendState, setSendState] = useState('idle'); // idle | sending | sent | error
+  const canSend = Boolean(toAddr) && replyText.trim().length > 0 && sendState !== 'sending';
+
+  const doSend = async () => {
+    if (!canSend) return;
+    setSendState('sending');
+    try {
+      const replySubject = subject
+        ? /^re:/i.test(subject) ? subject : `Re: ${subject}`
+        : 'Re:';
+      const res = await fetch('/api/email/send', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: toAddr, subject: replySubject, body: replyText.trim() }),
+      });
+      setSendState(res.ok ? 'sent' : 'error');
+    } catch {
+      setSendState('error');
+    }
+  };
+
   const labelText = {
     draft:   'NORA DRAFT · tap to edit',
     editing: 'EDITING NORA’S DRAFT',
@@ -592,25 +620,36 @@ function EmailReplyZone({ ib, defaultDraft, replyMode, setReplyMode, replyText, 
       >
         <button
           type="button"
+          onClick={doSend}
+          disabled={!canSend}
+          title={!toAddr ? 'No sender address to reply to' : sendState === 'sent' ? 'Sent via g@reprime.com' : 'Send reply'}
           style={{
-            background: ib.color,
+            background: sendState === 'sent' ? '#16A34A' : sendState === 'error' ? '#B91C1C' : ib.color,
             color: '#FFFFFF',
             border: 'none',
             borderRadius: 6,
             padding: '6px 14px',
             fontSize: 18,
             fontWeight: 800,
-            cursor: 'pointer',
+            cursor: canSend ? 'pointer' : 'default',
+            opacity: canSend || sendState === 'sent' || sendState === 'error' ? 1 : 0.5,
             fontFamily: 'inherit',
             display: 'inline-flex',
             alignItems: 'center',
             gap: 5
           }}
         >
-          <Send size={12} strokeWidth={2.6} /> {sendLabel}
+          <Send size={12} strokeWidth={2.6} />{' '}
+          {sendState === 'sending' ? 'Sending…' : sendState === 'sent' ? 'Sent ✓' : sendState === 'error' ? 'Retry' : sendLabel}
         </button>
-        {/* Dictation — two explicit language buttons (Gideon 2026-06-16) */}
-        <DictateButtons />
+        {/* Dictation — two explicit language buttons (Gideon 2026-06-16): transcript fills the reply */}
+        <DictateButtons
+          onText={(t) => {
+            setReplyText((prev) => (prev ? `${prev} ${t}` : t));
+            setReplyMode('editing');
+            setSendState('idle');
+          }}
+        />
         {replyMode !== 'editing' && (
           <button type="button" onClick={() => setReplyMode('editing')} style={emailReplyActionStyle()}>Edit</button>
         )}
@@ -642,7 +681,7 @@ function EmailReplyZone({ ib, defaultDraft, replyMode, setReplyMode, replyText, 
           <Paperclip size={14} strokeWidth={2.4} />
         </button>
         <VoiceMessageButton />
-        <ListenButton compact />
+        <ListenButton compact getText={() => replyText} language={isHe ? 'he' : 'en'} />
       </div>
     </div>
   );

@@ -584,7 +584,7 @@ function NoraElevatedRead({ block, channel: ch }) {
             {TIER[block.tier]?.label}
           </span>
         </div>
-        <ListenButton compact />
+        <ListenButton compact getText={() => block.content} />
       </div>
       <div style={{ fontSize: 18, lineHeight: 1.55, color: ink[700], marginBottom: 8 }}>
         {block.content}
@@ -758,8 +758,14 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
         >
           <Send size={12} strokeWidth={2.6} /> {sendLabel}
         </button>
-        {/* Dictation — two explicit language buttons (Gideon 2026-06-16): tap the language you'll speak */}
-        <DictateButtons />
+        {/* Dictation — two explicit language buttons (Gideon 2026-06-16): tap the language you'll speak.
+            Transcript appends into the reply box and flips it into editable mode. */}
+        <DictateButtons
+          onText={(t) => {
+            setReplyText((prev) => (prev ? `${prev} ${t}` : t));
+            setReplyMode('editing');
+          }}
+        />
         {/* Attachment — WhatsApp-style paperclip (mock: no real file picker) */}
         <button
           type="button"
@@ -800,8 +806,8 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
           </button>
         )}
         <span style={{ flex: 1 }} />
-        {/* Listen (TTS) on every reply box — dictation is the two language buttons above */}
-        <ListenButton compact />
+        {/* Listen (TTS) on every reply box — reads the current draft back at 2x */}
+        <ListenButton compact getText={() => replyText} language={isHe ? 'he' : 'en'} />
       </div>
     </div>
   );

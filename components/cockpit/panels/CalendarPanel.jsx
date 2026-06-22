@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Video, Phone, Coffee } from 'lucide-react';
 import { ink, tier as TIER, semantic, brand } from '../lib/colors.js';
 import { fmtTime } from '../lib/format.js';
@@ -28,6 +28,14 @@ function nextFridayLabel() {
 export default function CalendarPanel({ width }) {
   const { events, today: todayDate } = useLiveData();
   const today = events.filter((e) => e.date === todayDate);
+  const [memo, setMemo] = useState('');
+  // Listen reads back the dictated memo if present, else the live agenda.
+  const agendaText = today.length
+    ? `Today: ${today
+        .map((e) => `${e.time ? `${e.time} ` : ''}${e.title || e.label || ''}`.trim())
+        .filter(Boolean)
+        .join('. ')}`
+    : 'Nothing on the calendar today.';
   const _d = new Date(`${todayDate}T00:00:00`);
   const calSubtitle = Number.isNaN(_d.getTime())
     ? ''
@@ -64,9 +72,44 @@ export default function CalendarPanel({ width }) {
         }}
       >
         <span style={{ fontSize: 14, fontWeight: 800, color: ink[500], letterSpacing: '0.08em' }}>Memo</span>
-        <DictateButtons compact />
-        <ListenButton compact />
+        <DictateButtons compact onText={(t) => setMemo((m) => (m ? `${m} ${t}` : t))} />
+        <ListenButton compact getText={() => memo || agendaText} />
       </div>
+
+      {memo && (
+        <div
+          style={{
+            padding: '6px 12px',
+            background: '#F1F5F9',
+            borderBottom: `1px solid ${semantic.divider}`,
+            fontSize: 14,
+            color: ink[700],
+            lineHeight: 1.4,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 6,
+          }}
+        >
+          <span style={{ flex: 1 }}>{memo}</span>
+          <button
+            type="button"
+            onClick={() => setMemo('')}
+            title="Clear memo"
+            style={{
+              border: 'none',
+              background: 'transparent',
+              color: ink[300],
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            clear
+          </button>
+        </div>
+      )}
 
       {/* Agenda list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 6 }}>

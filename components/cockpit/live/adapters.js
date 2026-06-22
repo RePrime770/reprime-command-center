@@ -285,6 +285,8 @@ export function adaptNoraDesk(bucket, asks) {
     const who = ask.recipient_identifier || 'Follow-up';
     cards.push({
       id: `ask-${ask.id}`,
+      source: 'ask',
+      sourceId: ask.id,
       type: 'question',
       who,
       when: whenLabel(ask.sent_at),
@@ -292,7 +294,7 @@ export function adaptNoraDesk(bucket, asks) {
       nudge: 'overdue',
       summary: ask.body || `Sent via ${ask.channel || 'message'} — no reply yet.`,
       ask: 'Follow up, or close it out?',
-      actions: ['Follow up', 'Mark replied', 'Snooze'],
+      actions: ['Mark replied', 'Snooze'],
     });
   }
 
@@ -301,13 +303,15 @@ export function adaptNoraDesk(bucket, asks) {
     const who = ask.recipient_identifier || 'Follow-up';
     cards.push({
       id: `ask-${ask.id}`,
+      source: 'ask',
+      sourceId: ask.id,
       type: 'question',
       who,
       when: whenLabel(ask.sent_at),
       urgent: false,
       summary: ask.body || `Sent via ${ask.channel || 'message'} — awaiting reply.`,
       ask: 'Nudge them, or wait?',
-      actions: ['Nudge', 'Mark replied', 'Snooze'],
+      actions: ['Mark replied', 'Snooze'],
     });
   }
 
@@ -317,6 +321,8 @@ export function adaptNoraDesk(bucket, asks) {
     const urgent = typeof it.priority === 'number' && it.priority <= 1;
     cards.push({
       id: `bucket-${it.id}`,
+      source: 'bucket',
+      sourceId: it.id,
       type: 'reminder',
       who: it.title || 'Task',
       when: it.due_at ? `due ${whenLabel(it.due_at)}` : '',

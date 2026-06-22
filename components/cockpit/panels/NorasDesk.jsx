@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Phone, Bell, HelpCircle, Video, AlertTriangle, CornerDownRight } from 'lucide-react';
 import { ink, semantic } from '../lib/colors.js';
 import { ListenButton } from '../lib/voice.jsx';
@@ -33,7 +33,7 @@ const TYPE_META = {
 export default function NorasDesk({ width }) {
   // Live Nora's Desk from the cockpit provider (bucket + secretary asks).
   // Falls back to static while the first fetch is in flight or on error.
-  const { noraDesk } = useLiveData();
+  const { noraDesk, refresh } = useLiveData();
   const { state } = useDemo();
   const noraToYou = Array.isArray(noraDesk?.noraToYou) ? noraDesk.noraToYou : [];
   const needsYou = noraToYou.length;
@@ -72,7 +72,7 @@ export default function NorasDesk({ width }) {
             </div>
           ) : (
             noraToYou.map((item) => (
-              <NoraCard key={item.id} item={item} />
+              <NoraCard key={item.id} item={item} onMutated={refresh} />
             ))
           )}
         </div>
@@ -104,10 +104,79 @@ function SectionLabel({ color, left, right }) {
   );
 }
 
-function NoraCard({ item }) {
+/**
+ * Map a card action label + its source to a real API mutation.
+ * Returns a fetch promise, or null when the action has no backend yet
+ * (those stay inert rather than faking success).
+ */
+function mutationFor(item, action) {
+  const a = action.toLowerCase();
+  if (item.source === 'bucket') {
+    if (a === 'done') {
+      return fetch(`/api/bucket/${item.sourceId}`, {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'done' }),
+      });
+    }
+    if (a === 'snooze') {
+      const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      return fetch(`/api/bucket/${item.sourceId}`, {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ due_at: tomorrow }),
+      });
+    }
+  }
+  if (item.source === 'ask') {
+    if (a === 'mark replied') {
+      return fetch('/api/secretary/asks', {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item.sourceId, action: 'replied' }),
+      });
+    }
+    if (a === 'snooze') {
+      return fetch('/api/secretary/asks', {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item.sourceId, action: 'snooze' }),
+      });
+    }
+  }
+  return null;
+}
+
+function NoraCard({ item, onMutated }) {
   const meta = TYPE_META[item.type] || TYPE_META.question;
   const Icon = meta.icon;
   const stripe = item.urgent ? '#E53935' : meta.color;
+  const [busy, setBusy] = useState(false);
+  const [doneLabel, setDoneLabel] = useState(null);
+
+  const runAction = (action) => async (e) => {
+    e?.stopPropagation();
+    const req = mutationFor(item, action);
+    if (!req || busy) return;
+    setBusy(true);
+    try {
+      const res = await req;
+      if (res.ok) {
+        setDoneLabel(action);
+        onMutated?.(); // re-pull live data so the card list reflects the change
+      }
+    } catch {
+      /* leave the card; a failed mutation just re-enables the buttons */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const listenText = [item.who, item.summary, item.ask].filter(Boolean).join('. ');
   return (
     <div
       style={{
@@ -175,19 +244,35 @@ function NoraCard({ item }) {
         </span>
       </div>
 
-      {/* one-tap actions */}
+      {/* one-tap actions — wired to real bucket / secretary mutations */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
-        {item.actions.map((a, i) => (
-          <button
-            key={a}
-            type="button"
-            style={i === 0 ? primaryActionStyle(meta.color) : ghostActionStyle()}
-          >
-            {a}
-          </button>
-        ))}
+        {doneLabel ? (
+          <span style={{ fontSize: 14, fontWeight: 800, color: meta.color, letterSpacing: '0.04em' }}>
+            ✓ {doneLabel}
+          </span>
+        ) : (
+          item.actions.map((a, i) => {
+            const wired = mutationFor(item, a) !== null;
+            return (
+              <button
+                key={a}
+                type="button"
+                onClick={wired ? runAction(a) : undefined}
+                disabled={busy || !wired}
+                title={wired ? a : `${a} — not yet wired`}
+                style={{
+                  ...(i === 0 ? primaryActionStyle(meta.color) : ghostActionStyle()),
+                  opacity: busy ? 0.5 : wired ? 1 : 0.55,
+                  cursor: wired && !busy ? 'pointer' : 'default',
+                }}
+              >
+                {a}
+              </button>
+            );
+          })
+        )}
         <span style={{ flex: 1 }} />
-        <ListenButton compact />
+        <ListenButton compact text={listenText} />
       </div>
     </div>
   );

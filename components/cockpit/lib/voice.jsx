@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
 import { Volume2, Pause, Mic, Square, Globe } from 'lucide-react';
 import { brand, ink } from './colors.js';
+import { useSpeech, useDictation } from './voiceClient.js';
 
 /**
- * Listen button — Speechify trigger.
+ * Listen button — Speechify trigger, now a REAL TTS round-trip.
+ * Pass `text` (or a `getText` getter) and it speaks it via ElevenLabs
+ * (POST /api/voice/speak). `language` is auto-detected from the text when
+ * omitted. `onPlay` is still called for back-compat (analytics/side effects).
  * Always shows BOTH "Listen" (EN) and "האזן" (HE) labels per dispatch.
- * Per Gideon's review fix #4 — visible on every expanded view.
  */
-export function ListenButton({ onPlay, compact = false }) {
-  const [playing, setPlaying] = useState(false);
+export function ListenButton({ text, getText, language, onPlay, compact = false }) {
+  const { playing, toggle: speakToggle } = useSpeech(getText || text || '', { language });
   const Icon = playing ? Pause : Volume2;
   const toggle = (e) => {
     e?.stopPropagation();
-    setPlaying((p) => !p);
     if (!playing) onPlay?.();
+    speakToggle();
   };
 
   if (compact) {
@@ -122,18 +125,33 @@ export function RecordButton({ onRecord, recording: controlled, label }) {
  * Tap the language you're about to speak; Whisper transcribes in that language for accuracy.
  * Active button turns red (recording) and shows a stop square. Replaces the old single
  * bilingual Record button everywhere a reply is composed (all comms columns + email + calendar memo).
+ *
+ * REAL round-trip: records via MediaRecorder, posts to /api/voice/transcribe-(he|en),
+ * and hands the transcript to `onText`. Tapping the same language again stops & transcribes;
+ * tapping the other language switches before recording.
  */
-export function DictateButtons({ compact = false }) {
+export function DictateButtons({ compact = false, onText }) {
   const [active, setActive] = useState(null); // 'he' | 'en' | null
+  const { recording, start, stop } = useDictation({ language: 'en', onText });
   const langs = [
     { key: 'he', label: 'עברית',  he: true,  full: 'Hebrew' },
     { key: 'en', label: 'English', he: false, full: 'English' }
   ];
-  const click = (k) => (e) => { e?.stopPropagation(); setActive((a) => (a === k ? null : k)); };
+  const click = (k) => (e) => {
+    e?.stopPropagation();
+    if (active === k && recording) {
+      stop();
+      setActive(null);
+    } else {
+      if (recording) stop();
+      setActive(k);
+      start(k);
+    }
+  };
   return (
     <span style={{ display: 'inline-flex', gap: 4 }}>
       {langs.map((l) => {
-        const on = active === l.key;
+        const on = active === l.key && recording;
         const Icon = on ? Square : Mic;
         return (
           <button

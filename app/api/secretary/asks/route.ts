@@ -83,3 +83,65 @@ export async function GET(_request: NextRequest) {
     replied_recent: (repliedRes.data ?? []) as OutboundAsk[],
   })
 }
+
+/**
+ * PATCH /api/secretary/asks
+ *
+ * Manual desk actions on a follow-up the auto-engine hasn't closed:
+ *   { id, action: 'replied' }  → status='replied', closed_at=now (clears the card)
+ *   { id, action: 'snooze' }   → expected_reply_by = now + (days|1), stays open
+ *                                (moves an overdue card back into "awaiting")
+ *
+ * The WhatsApp webhook auto-closes asks on inbound reply; this is the human
+ * override for email asks and for replies that arrived out-of-band.
+ */
+export async function PATCH(request: NextRequest) {
+  const supabase = await createServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user || user.email !== ALLOWED_EMAIL) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  let payload: { id?: string; action?: 'replied' | 'snooze'; days?: number }
+  try {
+    payload = (await request.json()) as typeof payload
+  } catch {
+    return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
+  }
+
+  const { id, action } = payload
+  if (!id) return NextResponse.json({ error: 'id_required' }, { status: 400 })
+  if (action !== 'replied' && action !== 'snooze') {
+    return NextResponse.json({ error: 'invalid_action' }, { status: 400 })
+  }
+
+  const service = createServiceClient()
+  const nowIso = new Date().toISOString()
+
+  const update =
+    action === 'replied'
+      ? { status: 'replied' as const, closed_at: nowIso }
+      : {
+          expected_reply_by: new Date(
+            Date.now() + Math.max(1, Math.min(payload.days ?? 1, 30)) * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          reminded_at: null,
+        }
+
+  const { data, error } = await service
+    .from('outbound_asks')
+    .update(update)
+    .eq('id', id)
+    .select('id')
+    .maybeSingle()
+
+  if (error) {
+    return NextResponse.json({ error: 'update_failed', message: error.message }, { status: 500 })
+  }
+  if (!data) {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 })
+  }
+  return NextResponse.json({ ok: true, id: data.id, action })
+}

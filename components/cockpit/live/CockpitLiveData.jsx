@@ -75,6 +75,7 @@ const EMPTY_VALUE = {
   threads: [],
   threadsByChannel: () => [],
   findThread: () => undefined,
+  refresh: () => {},
   events: [],
   today: (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`; })(),
   morningBrief: { date: '', greeting: 'Boker tov, Gideon.', apex: null, sections: [], degraded: false, unreadTotal: 0 },
@@ -171,7 +172,7 @@ export function CockpitLiveDataProvider({ children }) {
   }, [load]);
 
   return (
-    <CockpitLiveDataContext.Provider value={value}>
+    <CockpitLiveDataContext.Provider value={{ ...value, refresh: load }}>
       {children}
     </CockpitLiveDataContext.Provider>
   );

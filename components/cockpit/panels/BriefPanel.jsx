@@ -109,7 +109,7 @@ function MorningContent({ morningBrief }) {
                 {a}
               </button>
             ))}
-            <ListenButton compact />
+            <ListenButton compact text={[apex.title, apex.body].filter(Boolean).join('. ')} />
           </div>
         </div>
       )}
