@@ -42,6 +42,21 @@ export default function NoraChat({ focusSignal }) {
     if (focusSignal) inputRef.current?.focus();
   }, [focusSignal]);
 
+  // Any cockpit button can route an action to Nora by dispatching a global
+  // `nora:prefill` event with the text. We prefill + focus (not auto-send) so
+  // Gideon reviews before it goes. This is what makes otherwise-dead suggestion
+  // buttons (brief apex actions, quick replies) actually do something.
+  useEffect(() => {
+    const handler = (e) => {
+      const text = typeof e.detail === 'string' ? e.detail : '';
+      if (!text) return;
+      setInput((prev) => (prev ? `${prev} ${text}` : text));
+      inputRef.current?.focus();
+    };
+    window.addEventListener('nora:prefill', handler);
+    return () => window.removeEventListener('nora:prefill', handler);
+  }, []);
+
   // Hydrate the transcript from persisted history on mount so the conversation
   // survives a reload. Best-effort: if the fetch fails (or the table isn't
   // migrated yet → { messages: [] }), we just start empty.

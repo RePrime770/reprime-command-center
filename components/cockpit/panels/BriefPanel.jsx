@@ -94,6 +94,14 @@ function MorningContent({ morningBrief }) {
               <button
                 key={a}
                 type="button"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent('nora:prefill', {
+                      detail: typeof a === 'string' ? a : '',
+                    })
+                  )
+                }
+                title="Hand this to Nora"
                 style={{
                   background: brand.gold,
                   color: brand.navy,
