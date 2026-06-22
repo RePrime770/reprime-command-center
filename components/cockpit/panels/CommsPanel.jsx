@@ -3,6 +3,7 @@ import { Send, X, Star, Mic, Calendar, Paperclip, Clock, Video, Home } from 'luc
 import { brand, ink, channel as CH, tier as TIER, semantic } from '../lib/colors.js';
 import { fmtRelative } from '../lib/format.js';
 import { ListenButton, DictateButtons } from '../lib/voice.jsx';
+import { uploadAttachment } from '../lib/uploads.js';
 import { useDemo } from '../demo/DemoContext.jsx';
 import { useLiveData } from '../live/CockpitLiveData.jsx';
 import PanelShell from './PanelShell.jsx';
@@ -630,6 +631,38 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
   const [sendState, setSendState] = React.useState('idle'); // idle | sending | sent | error
   const canSend = Boolean(phone && panel) && replyText.trim().length > 0 && sendState !== 'sending';
 
+  // Attach a file: pick → upload to Supabase → send as WhatsApp media (with confirm).
+  const fileInputRef = React.useRef(null);
+  const [attaching, setAttaching] = React.useState(false);
+  const onPickFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = '';
+    if (!file || !phone || !panel) return;
+    const who = contactName || phone;
+    if (typeof window !== 'undefined' && !window.confirm(`Send "${file.name}" to ${who} on ${panel}?`)) return;
+    setAttaching(true);
+    try {
+      const up = await uploadAttachment(file, panel, phone);
+      await fetch('/api/whatsapp/messages', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone,
+          panel,
+          body: replyText.trim() || undefined,
+          attachment_url: up.url,
+          attachment_filename: up.filename,
+          attachment_type: up.type,
+        }),
+      });
+    } catch {
+      /* upload/send failed — button re-enables */
+    } finally {
+      setAttaching(false);
+    }
+  };
+
   // Real WhatsApp send via the live API (POST /api/whatsapp/messages with
   // phone+panel). Guarded by an explicit confirm naming the recipient + channel
   // so a wrong-thread misfire can't happen silently (spec: "send confirm by name").
@@ -803,18 +836,26 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
             setReplyMode('editing');
           }}
         />
-        {/* Attachment — WhatsApp-style paperclip (mock: no real file picker) */}
+        {/* Attachment — real file picker → Supabase upload → send as WhatsApp media */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,application/pdf,audio/*"
+          style={{ display: 'none' }}
+          onChange={onPickFile}
+        />
         <button
           type="button"
-          onClick={() => { /* mock attach */ }}
-          style={replyIconActionStyle()}
-          title="Attach a file"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={!phone || attaching}
+          style={{ ...replyIconActionStyle(), opacity: phone && !attaching ? 1 : 0.5 }}
+          title={attaching ? 'Uploading…' : 'Attach a file'}
           aria-label="Attach a file"
         >
           <Paperclip size={15} strokeWidth={2.2} />
         </button>
-        {/* Voice message — records & "sends" a voice NOTE (distinct from the dictation Record button) */}
-        <VoiceNoteButton channelColor={channelColor} />
+        {/* Voice message — records → uploads → sends a real WhatsApp voice note */}
+        <VoiceNoteButton channelColor={channelColor} phone={phone} panel={panel} contactName={contactName} />
         {replyMode !== 'editing' && (
           <button
             type="button"
@@ -1024,32 +1065,105 @@ function replyIconActionStyle() {
  * Distinct from RecordButton (which is dictation → transcribes into the text box).
  * Idle = "Voice note" mic; recording = red "Send note" stop affordance. Mock-only: no real audio.
  */
-function VoiceNoteButton({ channelColor }) {
-  const [recording, setRecording] = React.useState(false);
+function VoiceNoteButton({ channelColor, phone, panel, contactName }) {
+  const [state, setState] = React.useState('idle'); // idle | recording | sending | sent | error
+  const mrRef = React.useRef(null);
+  const chunksRef = React.useRef([]);
+
+  const start = async () => {
+    if (!phone || !panel || !navigator.mediaDevices?.getUserMedia) {
+      setState('error');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.addEventListener('dataavailable', (ev) => {
+        if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data);
+      });
+      mr.addEventListener('stop', async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
+        if (!blob.size) {
+          setState('idle');
+          return;
+        }
+        const who = contactName || phone;
+        if (typeof window !== 'undefined' && !window.confirm(`Send this voice note to ${who} on ${panel}?`)) {
+          setState('idle');
+          return;
+        }
+        setState('sending');
+        try {
+          const up = await uploadAttachment(blob, panel, phone, 'voice-note.webm');
+          const res = await fetch('/api/whatsapp/messages', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phone,
+              panel,
+              attachment_url: up.url,
+              attachment_filename: up.filename,
+              attachment_type: up.type,
+            }),
+          });
+          setState(res.ok ? 'sent' : 'error');
+        } catch {
+          setState('error');
+        }
+      });
+      mrRef.current = mr;
+      mr.start();
+      setState('recording');
+    } catch {
+      setState('error');
+    }
+  };
+
+  const stop = () => {
+    const mr = mrRef.current;
+    if (mr && mr.state !== 'inactive') mr.stop();
+  };
+
+  const onClick = () => {
+    if (state === 'recording') stop();
+    else if (state !== 'sending') start();
+  };
+
+  const recording = state === 'recording';
+  const label =
+    state === 'recording' ? <><Send size={13} strokeWidth={2.6} /> Send note</>
+    : state === 'sending' ? <>Sending…</>
+    : state === 'sent' ? <>Sent ✓</>
+    : state === 'error' ? <><Mic size={13} strokeWidth={2.4} /> Retry</>
+    : <><Mic size={13} strokeWidth={2.4} /> Voice note</>;
+
   return (
     <button
       type="button"
-      onClick={() => setRecording((r) => !r)}
+      onClick={onClick}
+      disabled={!phone || state === 'sending'}
       title={recording ? 'Stop & send voice note' : 'Record a voice note'}
       aria-label={recording ? 'Stop and send voice note' : 'Record a voice note'}
       style={{
-        background: recording ? '#E53935' : '#F8FAFC',
-        color: recording ? '#FFFFFF' : ink[700],
-        border: `1px solid ${recording ? '#E53935' : semantic.border}`,
+        background: recording ? '#E53935' : state === 'sent' ? '#16A34A' : '#F8FAFC',
+        color: recording || state === 'sent' ? '#FFFFFF' : ink[700],
+        border: `1px solid ${recording ? '#E53935' : state === 'sent' ? '#16A34A' : semantic.border}`,
         borderRadius: 6,
         padding: '5px 10px',
         fontSize: 16,
         fontWeight: 700,
-        cursor: 'pointer',
+        cursor: phone && state !== 'sending' ? 'pointer' : 'default',
+        opacity: phone ? 1 : 0.5,
         fontFamily: 'inherit',
         display: 'inline-flex',
         alignItems: 'center',
         gap: 5
       }}
     >
-      {recording
-        ? <><Send size={13} strokeWidth={2.6} /> Send note</>
-        : <><Mic size={13} strokeWidth={2.4} /> Voice note</>}
+      {label}
     </button>
   );
 }
