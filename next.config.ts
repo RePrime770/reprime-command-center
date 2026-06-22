@@ -27,9 +27,17 @@ const nextConfig: NextConfig = {
   // changed") after every push. Hashed JS chunks stay immutable/cached; only
   // the entry document is forced fresh.
   async headers() {
+    // Force the entry documents fresh on every visit so a reload always shows
+    // the latest deploy — never a cached "old" shell. Hashed JS/CSS chunks stay
+    // immutable/cached; only these HTML entry points are no-store.
+    const noStore = [{ key: 'Cache-Control', value: 'no-store, must-revalidate' }]
     return [
-      { source: '/outreach', headers: [{ key: 'Cache-Control', value: 'no-store, must-revalidate' }] },
-      { source: '/center.html', headers: [{ key: 'Cache-Control', value: 'no-store, must-revalidate' }] },
+      { source: '/', headers: noStore },
+      { source: '/cockpit', headers: noStore },
+      { source: '/login', headers: noStore },
+      { source: '/legacy', headers: noStore },
+      { source: '/outreach', headers: noStore },
+      { source: '/center.html', headers: noStore },
     ]
   },
   // /outreach serves the approved standalone Command Center (public/center.html),
