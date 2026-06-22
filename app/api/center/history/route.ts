@@ -1,76 +1,87 @@
 import { NextResponse } from 'next/server'
 import { centerAuthed } from '@/lib/center/auth'
+import { createServiceClient } from '@/lib/supabase/server'
 import { getMessages } from '@/lib/timelines/client'
 import { listRecent, getMessage, parseFromHeader } from '@/lib/google/gmail'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-// The real thread, live. Pulls the last few WhatsApp messages (Timelines, both
-// lines) — or recent email — for one person, so the queue shows the actual
-// back-and-forth like the WhatsApp app, not a single line. Hebrew messages get
-// es/en added so the secretary reads them. This is the "copy of WhatsApp."
-const dig9 = (s: string) => (s || '').replace(/\D/g, '').slice(-9)
+// The thread, from OUR live store. Every WhatsApp message is pushed into
+// whatsapp_messages by the Timelines webhook (always current, media included),
+// so we read it from there — fast, complete, no rate-limit — instead of
+// polling Timelines. Falls back to a live Timelines/Gmail pull only if a
+// person has nothing stored yet. Hebrew gets es/en for the secretary.
+const dig = (s: string) => (s || '').replace(/\D/g, '')
 const isHe = (s: string) => /[֐-׿]/.test(s || '')
+const fmtDate = (ts: string | number | undefined) => { if (!ts) return ''; const d = new Date(ts); return isNaN(d.getTime()) ? '' : new Intl.DateTimeFormat('en-US', { month: 'numeric', day: 'numeric' }).format(d) }
 
-function fmtDate(ts: string | number | undefined): string {
-  if (!ts) return ''
-  const d = new Date(typeof ts === 'number' ? ts : ts)
-  if (isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat('en-US', { month: 'numeric', day: 'numeric' }).format(d)
+type Msg = { who: string; date: string; text: string }
+
+async function storeThread(phone: string): Promise<Msg[]> {
+  const supabase = createServiceClient()
+  const last7 = dig(phone).slice(-7)
+  if (!last7) return []
+  const { data: threads } = await supabase.from('whatsapp_threads').select('id, phone').ilike('phone', `%${last7}%`)
+  const ids = (threads || []).map((t: { id: number }) => t.id)
+  if (!ids.length) return []
+  const { data: msgs } = await supabase.from('whatsapp_messages')
+    .select('direction, body, media_type, sent_at').in('thread_id', ids)
+    .order('sent_at', { ascending: false }).limit(8)
+  const rows = (msgs || []) as Array<{ direction: string; body: string | null; media_type: string | null; sent_at: string }>
+  return rows.reverse().map((m) => ({
+    who: m.direction === 'out' ? 'us' : 'them',
+    date: fmtDate(m.sent_at),
+    text: (m.body && m.body.trim()) ? m.body.slice(0, 500) : (m.media_type ? '📎 ' + m.media_type : '📎 media'),
+  }))
 }
 
-async function waThread(phone: string): Promise<Array<{ who: string; date: string; text: string }>> {
+async function waThreadLive(phone: string): Promise<Msg[]> {
   const TL = process.env.TIMELINES_API_KEY
   if (!TL) return []
-  // Targeted by-phone lookup (the paginated chat list misses anyone past the
-  // first ~100 recent chats). Returns the exact chat for this number.
   for (const acct of ['+13057784861', '+17185505500']) {
     try {
       const r = await fetch(`https://app.timelines.ai/integrations/api/chats?phone=${encodeURIComponent(phone)}&whatsapp_account_phone=${encodeURIComponent(acct)}`, { headers: { Authorization: 'Bearer ' + TL }, cache: 'no-store' })
       if (!r.ok) continue
       const j = await r.json()
       const chats = (j.data && j.data.chats) || []
-      const chat = chats.find((c: { phone?: string; is_group?: boolean }) => !c.is_group && (c.phone || '').replace(/\D/g, '').includes(dig9(phone))) || chats[0]
+      const chat = chats.find((c: { phone?: string; is_group?: boolean }) => !c.is_group && dig(c.phone || '').endsWith(dig(phone).slice(-9))) || chats[0]
       if (!chat) continue
       const msgs = await getMessages(chat.id)
       if (!msgs.length) continue
-      return msgs.slice(-6).map((m) => ({ who: m.from_me ? 'us' : 'them', date: fmtDate((m as { timestamp?: string }).timestamp), text: (m.text || '[media]').slice(0, 500) }))
-    } catch { /* try next line */ }
+      return msgs.slice(-8).map((m) => ({ who: m.from_me ? 'us' : 'them', date: fmtDate((m as { timestamp?: string }).timestamp), text: (m.text && m.text.trim()) ? m.text.slice(0, 500) : '📎 media' }))
+    } catch { /* next */ }
   }
   return []
 }
 
-async function emailThread(email: string): Promise<Array<{ who: string; date: string; text: string }>> {
+async function emailThread(email: string): Promise<Msg[]> {
   try {
     const recent = await listRecent('me', 60)
-    const out: Array<{ who: string; date: string; text: string }> = []
+    const out: Msg[] = []
     for (const m of recent) {
-      if (out.length >= 6) break
+      if (out.length >= 8) break
       try {
         const msg = await getMessage(m.id)
         const from = parseFromHeader(msg.headers['from'])
         const to = (msg.headers['to'] || '').toLowerCase()
-        const isThem = from.address === email.toLowerCase()
-        const isUs = /reprime\.com/.test(from.address) && to.includes(email.toLowerCase())
-        if (!isThem && !isUs) continue
-        out.push({ who: isThem ? 'them' : 'us', date: fmtDate(msg.receivedAt), text: ((msg.headers['subject'] ? msg.headers['subject'] + ' — ' : '') + (msg.snippet || '')).slice(0, 400) })
+        const them = from.address === email.toLowerCase()
+        const us = /reprime\.com/.test(from.address) && to.includes(email.toLowerCase())
+        if (!them && !us) continue
+        out.push({ who: them ? 'them' : 'us', date: fmtDate(msg.receivedAt), text: ((msg.headers['subject'] ? msg.headers['subject'] + ' — ' : '') + (msg.snippet || '')).slice(0, 400) })
       } catch { /* skip */ }
     }
     return out.reverse()
   } catch { return [] }
 }
 
-async function translateChain(chain: Array<{ who: string; date: string; text: string }>) {
+async function translateChain(chain: Msg[]) {
   const key = process.env.ANTHROPIC_API_KEY
   if (!key || !chain.length) return chain.map((c) => ({ ...c, he: isHe(c.text) ? c.text : '', es: c.text, en: c.text }))
   try {
-    const sys = 'Translate each WhatsApp/email line for an Israeli real-estate desk. Return STRICT JSON array (no fences), one object per input line in order, keys: es (natural Spanish), en (natural English). Keep it faithful and short.'
+    const sys = 'Translate each WhatsApp/email line for an Israeli real-estate desk. Return STRICT JSON array (no fences), one object per input line IN ORDER, keys: es (natural Spanish), en (natural English). Keep media markers (📎 …) as-is. Faithful and short.'
     const user = chain.map((c, i) => `${i + 1}. ${c.text}`).join('\n')
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 1500, system: sys, messages: [{ role: 'user', content: user }] }),
-    })
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 1500, system: sys, messages: [{ role: 'user', content: user }] }) })
     const j = await r.json()
     let t = (j.content || []).map((c: { text?: string }) => c.text || '').join('')
     t = t.slice(t.indexOf('['), t.lastIndexOf(']') + 1)
@@ -87,11 +98,13 @@ export async function GET(request: Request) {
   const phone = url.searchParams.get('phone') || ''
   const email = url.searchParams.get('email') || ''
 
-  let raw: Array<{ who: string; date: string; text: string }> = []
-  if (phone) raw = await waThread(phone)
-  if (!raw.length && email) raw = await emailThread(email)
-  if (!raw.length) return NextResponse.json({ found: false, chain: [] })
+  let raw: Msg[] = []
+  let source = 'none'
+  if (phone) { raw = await storeThread(phone); if (raw.length) source = 'store' }
+  if (!raw.length && phone) { raw = await waThreadLive(phone); if (raw.length) source = 'timelines' }
+  if (!raw.length && email) { raw = await emailThread(email); if (raw.length) source = 'gmail' }
+  if (!raw.length) return NextResponse.json({ found: false, chain: [], source })
 
   const chain = await translateChain(raw)
-  return NextResponse.json({ found: true, chain })
+  return NextResponse.json({ found: true, source, chain })
 }
