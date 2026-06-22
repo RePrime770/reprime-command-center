@@ -251,6 +251,29 @@ function OpenedEmail({ email, onClose }) {
   const [replyText, setReplyText] = useState(defaultDraft);
   const [draftLoading, setDraftLoading] = useState(false);
 
+  // Read/unread toggle via Gmail (needs gmail.modify on the token).
+  const [isUnread, setIsUnread] = useState(email.unread === true);
+  const [readBusy, setReadBusy] = useState(false);
+  const toggleRead = async () => {
+    if (readBusy) return;
+    const markRead = isUnread; // currently unread -> mark read
+    setReadBusy(true);
+    setIsUnread(!markRead); // optimistic
+    try {
+      const res = await fetch('/api/email/mark-read', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message_id: email.id, read: markRead }),
+      });
+      if (!res.ok) setIsUnread(markRead); // revert on failure
+    } catch {
+      setIsUnread(markRead);
+    } finally {
+      setReadBusy(false);
+    }
+  };
+
   // Nora drafts the reply in Gideon's voice (POST /api/email/draft). Runs once
   // per opened email; replaces the placeholder only while still in 'draft' mode
   // (never clobbers an edit the user has started).
@@ -365,6 +388,27 @@ function OpenedEmail({ email, onClose }) {
           language={isHe ? 'he' : 'en'}
           getText={() => [email.subject, `from ${email.from}`, email.preview].filter(Boolean).join('. ')}
         />
+        <button
+          type="button"
+          onClick={toggleRead}
+          disabled={readBusy}
+          title={isUnread ? 'Mark as read' : 'Mark as unread'}
+          aria-label={isUnread ? 'Mark as read' : 'Mark as unread'}
+          style={{
+            background: isUnread ? ib.color : '#F1F5F9',
+            color: isUnread ? '#FFFFFF' : ink[500],
+            border: `1px solid ${isUnread ? ib.color : semantic.border}`,
+            borderRadius: 6,
+            padding: '4px 9px',
+            fontSize: 13,
+            fontWeight: 800,
+            cursor: readBusy ? 'default' : 'pointer',
+            fontFamily: 'inherit',
+            letterSpacing: '0.03em',
+          }}
+        >
+          {isUnread ? '● unread' : '✓ read'}
+        </button>
         <button
           type="button"
           onClick={onClose}
