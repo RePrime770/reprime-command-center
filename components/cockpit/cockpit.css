@@ -1,0 +1,240 @@
+
+:root {
+  /* === CANVAS — off-white, neutral, NOT cream === */
+  --canvas: #FAFAFA;
+  --panel-bg: #FFFFFF;
+  --panel-border: rgba(15, 23, 42, 0.08);
+  --panel-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+
+  /* === BRAND CHROME (OUTBOUND-ONLY — do NOT use --brand-navy* inside cockpit) === */
+  --brand-navy: #0E3470;
+  --brand-navy-mid: #102E5C;
+  --brand-navy-deep: #080F24;
+  --brand-gold: #FFCC33;
+  --brand-gold-soft: rgba(255, 204, 51, 0.55);
+
+  /* === SLATE-DARK TopChrome gradient (v4 §B2 — cockpit replacement for brand navy) === */
+  --slate-dark-900: #0F172A;
+  --slate-dark-950: #020617;
+
+  /* === NEUTRAL SCALE (legacy "warm" key — now true grays) === */
+  --warm-50: #FAFAFA;
+  --warm-100: #F5F5F5;
+  --warm-200: #EEEEEE;
+  --warm-300: #FAFAFA;
+  --warm-400: #E0E0E0;
+  --warm-500: #BDBDBD;
+  --warm-600: #9E9E9E;
+  --warm-700: #757575;
+  --warm-800: #616161;
+
+  /* === INK SCALE === */
+  --ink-100: #94A3B8;
+  --ink-300: #64748B;
+  --ink-500: #475569;
+  --ink-700: #1E293B;
+  --ink-900: #0F172A;
+
+  /* === SEMANTIC FAMILIES === */
+  --info-50:  #E3F2FD;
+  --info-100: #BBDEFB;
+  --info-300: #64B5F6;
+  --info-500: #1E88E5;
+  --info-700: #1565C0;
+  --info-900: #0D47A1;
+
+  --success-50:  #E8F5E9;
+  --success-100: #C8E6C9;
+  --success-300: #66BB6A;
+  --success-500: #43A047;
+  --success-700: #2E7D32;
+  --success-900: #1B5E20;
+
+  --warning-50:  #FFF8E1;
+  --warning-100: #FFECB3;
+  --warning-300: #FFCA28;
+  --warning-500: #FFA726;
+  --warning-700: #FB8C00;
+  --warning-900: #E65100;
+
+  --danger-50:  #FFEBEE;
+  --danger-100: #FFCDD2;
+  --danger-300: #EF5350;
+  --danger-500: #E53935;
+  --danger-700: #C62828;
+  --danger-900: #B71C1C;
+
+  /* === L1-L7 URGENCY LADDER (per dispatch) === */
+  --tier-l1: #5F249F;   /* PARK violet */
+  --tier-l2: #FBC02D;   /* SCAN yellow-gold */
+  --tier-l3: #FF4F00;   /* FLAG orange */
+  --tier-l4: #E91E63;   /* WORK pink */
+  --tier-l5: #C0DC2E;   /* CHASE lime */
+  --tier-l6: #D32F2F;   /* HUNT red */
+  --tier-l7: #00E676;   /* STRIKE neon green */
+
+  /* === CHANNEL COLORS (v4 §M6 — Comms 5 + Investor magenta + Email neutral) === */
+  --ch-305-wa:  #F59E0B;
+  --ch-305-sms: #EF4444;
+  --ch-718-wa:  #10B981;
+  --ch-718-sms: #8B5CF6;
+  --ch-718-im:  #0EA5E9;
+  --ch-investor: #DB2777;
+  --ch-email:   #475569;
+
+  /* Faded card-bg tints */
+  --ch-305-wa-faded:  #FEF3C7;
+  --ch-305-sms-faded: #FEE2E2;
+  --ch-718-wa-faded:  #D1FAE5;
+  --ch-718-sms-faded: #EDE9FE;
+  --ch-718-im-faded:  #E0F2FE;
+  --ch-investor-faded: #FCE7F3;
+  --ch-email-faded:   #E2E8F0;
+
+  /* Text on faded */
+  --ch-305-wa-text:  #92400E;
+  --ch-305-sms-text: #991B1B;
+  --ch-718-wa-text:  #065F46;
+  --ch-718-sms-text: #5B21B6;
+  --ch-718-im-text:  #075985;
+  --ch-investor-text: #9D174D;
+  --ch-email-text:   #1E293B;
+
+  /* === EMAIL INBOX (4 inboxes per v4 §M / handoff §3.1) === */
+  --email-reprime:        #2563EB;
+  --email-reprime-faded:  #DBEAFE;
+  --email-reprime-text:   #1E3A8A;
+  --email-fst:            #0D9488;
+  --email-fst-faded:      #CCFBF1;
+  --email-fst-text:       #115E59;
+  --email-crpro:          #4F46E5;
+  --email-crpro-faded:    #E0E7FF;
+  --email-crpro-text:     #3730A3;
+  --email-all:            #475569;
+  --email-all-faded:      #E2E8F0;
+  --email-all-text:       #1E293B;
+
+  /* === TIER ABCD medal palette (v4 §B28 — investor quality badges) === */
+  --tier-a: #EAB308;   /* gold — top capital */
+  --tier-b: #94A3B8;   /* platinum — solid actives */
+  --tier-c: #CD7F32;   /* bronze — middling */
+  --tier-d: #A8A29E;   /* bone sand — cold */
+
+  /* === ROLE CHIPS (v4 §B33 — non-investor role tags) === */
+  --role-attorney:  #1E3A8A;
+  --role-rabbi:     #7B1FA2;
+  --role-broker:    #0D9488;
+  --role-vendor:    #57534E;
+  --role-community: #DB2777;
+  --role-family:    #43A047;
+  --role-other:     #94A3B8;
+
+  /* === IL_Tagged badge (v4 §B32 — Monday.com Israel cohort, strict) === */
+  --il-tagged: #4F46E5;
+
+  /* Aliases */
+  --ink: var(--ink-700);
+  --divider: rgba(15, 23, 42, 0.08);
+  --border: rgba(15, 23, 42, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  word-spacing: 0;
+  font-variant-numeric: tabular-nums lining-nums slashed-zero;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 5120px;
+  height: 1440px;
+  position: relative;
+  overflow: hidden;
+  background: var(--canvas);
+}
+
+body {
+  overflow-x: auto;
+  overflow-y: auto;
+  min-height: 1440px;
+}
+
+/* RTL helpers — tier stripe stays LEFT EDGE regardless of direction */
+[dir='rtl'] { text-align: right; }
+[dir='rtl'] .tier-stripe { left: 0; right: auto; }
+
+.hebrew {
+  font-family: 'Inter', 'Arial Hebrew', 'David', 'Times New Roman', sans-serif;
+  font-feature-settings: 'kern' on;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(15, 23, 42, 0.32); }
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--brand-gold);
+  outline-offset: 2px;
+}
+
+.panel-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--panel-shadow);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tier-stripe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+}
+
+@keyframes pulseRing {
+  0% { transform: scale(1); opacity: 0.7; }
+  70% { transform: scale(1.7); opacity: 0; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+@keyframes meetingPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.6); }
+  50% { box-shadow: 0 0 0 12px rgba(229, 57, 53, 0); }
+}
+@keyframes briefDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+@keyframes activityIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.pulse-ring { animation: pulseRing 2s infinite ease-out; }
+.meeting-pulse { animation: meetingPulse 2s infinite; }
+.brief-dot { animation: briefDot 1.6s infinite ease-in-out; }
+.activity-row { animation: activityIn 0.3s ease-out; }

@@ -24,6 +24,7 @@
     "@upstash/redis": "^1.37.0",
     "@vercel/og": "^0.11.1",
     "googleapis": "^171.4.0",
+    "lucide-react": "^0.469.0",
     "next": "16.2.4",
     "openai": "^6.35.0",
     "playwright-core": "^1.59.1",
