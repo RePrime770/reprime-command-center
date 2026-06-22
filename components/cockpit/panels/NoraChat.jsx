@@ -28,6 +28,7 @@ export default function NoraChat({ focusSignal }) {
   const [error, setError] = useState(null);
   const [muted, setMuted] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [voiceLang, setVoiceLang] = useState('en'); // 'en' | 'he' — mic transcription language
 
   const inputRef = useRef(null);
   const transcriptRef = useRef(null);
@@ -39,6 +40,36 @@ export default function NoraChat({ focusSignal }) {
   useEffect(() => {
     if (focusSignal) inputRef.current?.focus();
   }, [focusSignal]);
+
+  // Hydrate the transcript from persisted history on mount so the conversation
+  // survives a reload. Best-effort: if the fetch fails (or the table isn't
+  // migrated yet → { messages: [] }), we just start empty.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/nora/history', { credentials: 'same-origin' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const messages = Array.isArray(data?.messages) ? data.messages : [];
+        if (cancelled || messages.length === 0) return;
+        setTurns(
+          messages
+            .filter((m) => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+            .map((m) => ({
+              role: m.role,
+              content: m.content,
+              language: m.language === 'he' ? 'he' : 'en',
+            }))
+        );
+      } catch {
+        /* start empty on any error */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Keep the transcript scrolled to the newest turn.
   useEffect(() => {
@@ -142,7 +173,8 @@ export default function NoraChat({ focusSignal }) {
         try {
           const form = new FormData();
           form.append('audio', blob, 'nora-input.webm');
-          const res = await fetch('/api/voice/transcribe-en', {
+          const endpoint = voiceLang === 'he' ? '/api/voice/transcribe-he' : '/api/voice/transcribe-en';
+          const res = await fetch(endpoint, {
             method: 'POST',
             credentials: 'same-origin',
             body: form,
@@ -167,7 +199,7 @@ export default function NoraChat({ focusSignal }) {
     } catch {
       setError('Microphone permission denied.');
     }
-  }, []);
+  }, [voiceLang]);
 
   const stopRecording = useCallback(() => {
     const mr = mediaRecorderRef.current;
@@ -230,6 +262,23 @@ export default function NoraChat({ focusSignal }) {
           style={iconBtn(muted ? '#F1F5F9' : NORA_FADED, muted ? ink[300] : NORA)}
         >
           {muted ? <VolumeX size={15} strokeWidth={2.4} /> : <Volume2 size={15} strokeWidth={2.4} />}
+        </button>
+        <button
+          type="button"
+          onClick={() => setVoiceLang((l) => (l === 'en' ? 'he' : 'en'))}
+          disabled={recording}
+          title={voiceLang === 'he' ? 'Mic language: Hebrew — tap for English' : 'Mic language: English — tap for Hebrew'}
+          aria-label={voiceLang === 'he' ? 'Switch mic language to English' : 'Switch mic language to Hebrew'}
+          style={{
+            ...iconBtn(NORA_FADED, NORA),
+            padding: '5px 7px',
+            fontSize: 12,
+            fontWeight: 800,
+            letterSpacing: '0.04em',
+            opacity: recording ? 0.5 : 1,
+          }}
+        >
+          {voiceLang === 'he' ? 'HE' : 'EN'}
         </button>
         <button
           type="button"

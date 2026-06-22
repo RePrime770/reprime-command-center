@@ -213,6 +213,8 @@ async function runSync(request: Request) {
       const reasonsPayload = {
         list: result.reasons,
         from_name: fromName,
+        // Gmail's one-line preview — surfaced to the cockpit email rows.
+        snippet: msg.snippet || '',
         received_at: msg.receivedAt,
         account_email: ACCOUNT_EMAIL,
         gmail_thread_id: msg.threadId,

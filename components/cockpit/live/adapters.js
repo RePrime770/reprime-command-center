@@ -336,8 +336,11 @@ export function adaptNoraDesk(bucket, asks) {
  * EmailPanel (data/emails.js). Triage returns scored Gmail messages:
  *   { from_name, from_address, subject, received_at, unread, score,
  *     gmail_url, message_id, ... }
- * No live tier/preview/body source, so those are omitted (degrade gracefully).
- * Row height is derived from the score so high-signal mail renders larger.
+ * The triage score now drives both the row height AND a priority stripe: it's
+ * mapped to the L1–L7 urgency ladder (colors.js `tier`) so high-signal mail
+ * shows a hotter stripe. The Gmail one-line `snippet` (when stored — see
+ * sync/route.ts reasonsPayload.snippet) becomes the row `preview`; absent it
+ * the field stays empty and the row degrades gracefully.
  * @param {{ items?: Array<Record<string, any>> } | null} payload
  * @returns {Array<object>}
  */
@@ -351,21 +354,39 @@ export function adaptEmails(payload) {
       'Unknown';
     const score = typeof e.score === 'number' ? e.score : 0;
     const height = score >= 12 ? 'tall' : score >= 6 ? 'standard' : 'compact';
+    const snippet = typeof e.snippet === 'string' ? e.snippet : '';
     return {
       id: e.message_id || `em-live-${i}`,
       height,
-      tier: null, // no live tier source
+      tier: tierFromScore(score), // L-level stripe derived from triage score
       from: fromName,
       fromAddr: e.from_address || '',
       inbox: 'g@reprime.com', // single-mailbox in v1 (triage is g@reprime.com)
       subject,
-      preview: '', // triage has no body/snippet; omit rather than fabricate
+      preview: snippet, // Gmail snippet when stored; '' degrades gracefully
       ts: e.received_at || e.scored_at || null,
       unread: e.unread === true,
-      language: detectLanguage(subject),
+      language: detectLanguage(snippet || subject),
       gmailUrl: e.gmail_url || null,
     };
   });
+}
+
+/**
+ * Map a triage score (0..~15+) to an L1–L7 priority tier for the stripe.
+ * Higher score = hotter tier. Keys match colors.js `tier`. Returns null below
+ * the surfacing floor so quiet mail shows no stripe.
+ * @param {number} score
+ * @returns {('L2'|'L3'|'L4'|'L5'|'L6'|'L7')|null}
+ */
+function tierFromScore(score) {
+  if (score >= 14) return 'L7';
+  if (score >= 12) return 'L6';
+  if (score >= 10) return 'L5';
+  if (score >= 8) return 'L4';
+  if (score >= 6) return 'L3';
+  if (score >= 5) return 'L2';
+  return null;
 }
 
 /**
