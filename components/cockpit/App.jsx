@@ -20,6 +20,8 @@ import ZoomWindow from './windows/ZoomWindow.jsx';
 
 // Toasts
 import ToastStack from './toasts/ToastStack.jsx';
+// Live reminder toasts — Supabase Realtime on `reminders` (fired by the cron).
+import ReminderToast from '@/components/center/ReminderToast';
 
 // === Lean two-zone widths === (Gideon 2026-06-16: Email moved LEFT, Nora's Desk takes the right)
 // LEFT FLANK:  calendar 360 + brief 380 + email 600 = 1340
@@ -113,6 +115,8 @@ function Cockpit() {
 
       {/* TOASTS */}
       <ToastStack />
+      {/* Live reminder toasts — surfaces reminders the cron fires (Realtime) */}
+      <ReminderToast />
     </div>
   );
 }

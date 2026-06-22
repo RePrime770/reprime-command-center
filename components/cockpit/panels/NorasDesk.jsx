@@ -244,6 +244,9 @@ function NoraCard({ item, onMutated }) {
         </span>
       </div>
 
+      {/* Reminder picker — bucket items only; POSTs a real reminder the cron fires */}
+      {item.source === 'bucket' && <RemindPicker item={item} />}
+
       {/* one-tap actions — wired to real bucket / secretary mutations */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
         {doneLabel ? (
@@ -274,6 +277,73 @@ function NoraCard({ item, onMutated }) {
         <span style={{ flex: 1 }} />
         <ListenButton compact text={listenText} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * RemindPicker — 1h / 3h / Tomorrow 9am chips that create a real reminder via
+ * POST /api/bucket/[id]/remind. The fire-reminders cron stamps fired_at and the
+ * mounted <ReminderToast/> surfaces it live. Closes the "reminders fire into a void" gap.
+ */
+function RemindPicker({ item }) {
+  const [state, setState] = useState('idle'); // idle | saving | set | error
+  const fireFor = (key) => {
+    const now = Date.now();
+    if (key === '1h') return new Date(now + 60 * 60 * 1000);
+    if (key === '3h') return new Date(now + 3 * 60 * 60 * 1000);
+    // tomorrow 09:00 local
+    const d = new Date(now + 24 * 60 * 60 * 1000);
+    d.setHours(9, 0, 0, 0);
+    return d;
+  };
+  const set = (key) => async (e) => {
+    e?.stopPropagation();
+    if (state === 'saving') return;
+    setState('saving');
+    try {
+      const res = await fetch(`/api/bucket/${item.sourceId}/remind`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fire_at: fireFor(key).toISOString(),
+          payload: { title: item.who || 'Reminder', body: item.summary || '' },
+        }),
+      });
+      setState(res.ok ? 'set' : 'error');
+    } catch {
+      setState('error');
+    }
+  };
+  if (state === 'set') {
+    return <div style={{ fontSize: 13, fontWeight: 700, color: '#0891B2', marginBottom: 6 }}>⏰ Reminder set</div>;
+  }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6, flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 12, fontWeight: 700, color: ink[300], letterSpacing: '0.06em' }}>REMIND</span>
+      {[['1h', '+1h'], ['3h', '+3h'], ['tom', 'Tomorrow']].map(([key, label]) => (
+        <button
+          key={key}
+          type="button"
+          onClick={set(key)}
+          disabled={state === 'saving'}
+          style={{
+            background: '#ECFEFF',
+            color: '#0E7490',
+            border: '1px solid #A5F0FC',
+            borderRadius: 999,
+            padding: '2px 10px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: state === 'saving' ? 'default' : 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          {label}
+        </button>
+      ))}
+      {state === 'error' && <span style={{ fontSize: 12, color: '#B91C1C' }}>failed</span>}
     </div>
   );
 }
