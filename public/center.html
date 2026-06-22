@@ -371,7 +371,7 @@
     }).catch(function(){});
   }
   var _rq=window.renderQueue;
-  window.renderQueue=function(){ _rq(); var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi]; if(!o)return; if(state._histFor!==o.name){state._histFor=o.name;loadHistory(o);} if(state._draftFor!==o.name){state._draftFor=o.name;state._draft=null;state._sugs=null;loadDraft(o);} paintDraft(); };
+  window.renderQueue=function(){ _rq(); var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi]; if(!o)return; if(!o._histLoaded){o._histLoaded=true;loadHistory(o);} if(state._draftFor!==o.name){state._draftFor=o.name;state._draft=null;state._sugs=null;loadDraft(o);} paintDraft(); };
   var _bq=window.bindQueue;
   window.bindQueue=function(){
     _bq();
