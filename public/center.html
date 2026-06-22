@@ -341,13 +341,15 @@
     // every card shows the back-and-forth, not just one line. Fall back to the
     // single last message, then to the invitation-sent line.
     var tj=null; if(c.threadJson){ try{ tj=JSON.parse(c.threadJson); }catch(e){} }
+    var anchor={who:'us',b:undefined,date:'',he:'',es:'Invitación Terminal enviada',en:'Terminal invitation sent'};
     var chain;
     if(tj&&tj.length){
-      chain=tj.slice(-8).map(function(m){var t=(m.text||'').trim();return {who:(m.who==='us'?'us':'them'),b:(m.who==='us'?undefined:b),date:m.date||'',he:/[֐-׿]/.test(t)?t:'',es:t,en:t};});
+      chain=tj.slice(-40).map(function(m){var t=(m.text||'').trim();return {who:(m.who==='us'?'us':'them'),b:(m.who==='us'?undefined:b),date:m.date||'',he:/[֐-׿]/.test(t)?t:'',es:t,en:t};});
+      chain.unshift(anchor);
     } else if(snip){
-      chain=[{who:who,b:(who==='them'?b:undefined),date:'',he:he,es:snip,en:snip}];
+      chain=[anchor,{who:who,b:(who==='them'?b:undefined),date:'',he:he,es:snip,en:snip}];
     } else {
-      chain=[{who:'us',b:undefined,date:'',he:'',es:'Invitación enviada — esperando respuesta',en:'Invitation sent — awaiting reply'}];
+      chain=[{who:'us',b:undefined,date:'',he:'',es:'Invitación Terminal enviada — esperando respuesta',en:'Terminal invitation sent — awaiting reply'}];
     }
     return {name:c.name,channel:channel,bucket:b,fu:(c.awaitingUs?'reply':(b==='mtg'?'mtg':'silent')),fuDate:(c.remindAt?new Date(c.remindAt).toLocaleDateString():''),chain:chain,booked:c.stage==='booked',queued:!!c.awaitingUs,_phone:c.phone,_email:c.email,_row:c.row,_acct:'305'};
   }
@@ -375,9 +377,16 @@
     var qs=new URLSearchParams({phone:o._phone||'',email:o._email||''});
     fetch('/api/center/history?'+qs,{headers:{'x-center-pass':PASS}}).then(function(r){return r.json();}).then(function(h){
       if(h&&h.found&&h.chain&&h.chain.length){
-        o.chain=h.chain.map(function(c){return {who:c.who,b:(c.who==='them'?o.bucket:undefined),date:c.date,he:c.he,es:c.es,en:c.en};});
-        var cur=PEOPLE.filter(function(p){return p.queued;})[state.qi];
-        if(cur&&cur.name===o.name){renderQueue();bindQueue();}
+        // Never let a rate-limited, inbound-only live pull clobber the stored
+        // two-sided thread. Only replace if the live result actually has OUR
+        // side too (or what we have now has no thread yet).
+        var liveHasUs=h.chain.some(function(c){return c.who==='us';});
+        var haveUs=(o.chain||[]).some(function(c){return c.who==='us';});
+        if(liveHasUs || !haveUs || (o.chain||[]).length<=2){
+          o.chain=h.chain.map(function(c){return {who:c.who,b:(c.who==='them'?o.bucket:undefined),date:c.date,he:c.he,es:c.es,en:c.en};});
+          var cur=PEOPLE.filter(function(p){return p.queued;})[state.qi];
+          if(cur&&cur.name===o.name){renderQueue();bindQueue();}
+        }
       }
     }).catch(function(){});
   }
