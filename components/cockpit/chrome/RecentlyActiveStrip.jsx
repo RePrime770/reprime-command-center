@@ -1,7 +1,7 @@
 import React from 'react';
 import { Star, Home, Users } from 'lucide-react';
 import { channel as CH, ink, semantic, roleChip } from '../lib/colors.js';
-import { threads } from '../data/threads.js';
+import { useLiveData } from '../live/CockpitLiveData.jsx';
 import { useDemo } from '../demo/DemoContext.jsx';
 
 /**
@@ -15,12 +15,18 @@ import { useDemo } from '../demo/DemoContext.jsx';
  * NOT the comms lanes (305 / 718 / Staff / Investors) — those live in the Comms hub below.
  * Click a chip → opens that conversation in the Comms hub (set openChat).
  */
-const byRecent = (a, b) => new Date(b.lastTs) - new Date(a.lastTs);
+const byRecent = (a, b) => new Date(b.lastTs || 0) - new Date(a.lastTs || 0);
 
 export default function RecentlyActiveStrip({ top }) {
-  const investorThreads = threads.filter((t) => t.isInvestor).sort(byRecent).slice(0, 8);
-  const familyThreads   = threads.filter((t) => t.familyTag).sort(byRecent).slice(0, 8);
-  const otherThreads    = threads
+  // Live threads from the cockpit provider (falls back to static mock while the
+  // first fetch is in flight). familyTag/staffTag have no live source yet, so
+  // Family degrades to empty and Others = everyone not flagged investor.
+  const { threads } = useLiveData();
+  const list = Array.isArray(threads) ? threads : [];
+
+  const investorThreads = list.filter((t) => t.isInvestor).sort(byRecent).slice(0, 8);
+  const familyThreads   = list.filter((t) => t.familyTag).sort(byRecent).slice(0, 8);
+  const otherThreads    = list
     .filter((t) => !t.isInvestor && !t.staffTag && !t.familyTag)
     .sort(byRecent)
     .slice(0, 8);

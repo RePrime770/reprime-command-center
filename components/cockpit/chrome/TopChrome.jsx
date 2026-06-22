@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   MessageSquarePlus, StickyNote, Mail, Sun,
   Mic, Volume2,
@@ -425,19 +425,94 @@ function ConciergeCluster() {
   );
 }
 
+// Approx local Shabbat window: candle-lighting ~Friday 18:00, ends ~Saturday 19:30.
+const SHABBAT_START_HOUR = 18; // Friday candle-lighting (local, approx)
+const SHABBAT_END_HOUR = 19;
+const SHABBAT_END_MIN = 30; // Saturday ~19:30 local
+const MS_PER_HOUR = 3_600_000;
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * Compute the Shabbat countdown label from a real Date.
+ * Returns 'שבת now' during the Fri 18:00 → Sat 19:30 window, else
+ * 'שבת in Nd' (>1 day out) or 'שבת in Nh' (<24h out). All local time.
+ * @param {Date} now
+ * @returns {string}
+ */
+function shabbatLabel(now) {
+  // Upcoming Friday 18:00 local. getDay(): Sun=0 … Fri=5, Sat=6.
+  const day = now.getDay();
+  const start = new Date(now);
+  start.setHours(SHABBAT_START_HOUR, 0, 0, 0);
+  // Days until Friday (5). If today is Fri and already past 18:00, this Friday
+  // is the active window — handled by the "now" branch below, not advanced.
+  let daysToFri = (5 - day + 7) % 7;
+  start.setDate(start.getDate() + daysToFri);
+
+  // Shabbat ends Saturday ~19:30 — one day after candle-lighting.
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  end.setHours(SHABBAT_END_HOUR, SHABBAT_END_MIN, 0, 0);
+
+  // If we're inside the current window (Fri 18:00 → Sat 19:30), say "now".
+  // The start computed above could be a future Friday when we're mid-window,
+  // so check the window anchored to the most recent Friday too.
+  const windowStart = new Date(start);
+  if (daysToFri !== 0) {
+    // Most recent Friday 18:00 (could be earlier this week)
+    windowStart.setDate(windowStart.getDate() - 7);
+  }
+  const windowEnd = new Date(windowStart);
+  windowEnd.setDate(windowEnd.getDate() + 1);
+  windowEnd.setHours(SHABBAT_END_HOUR, SHABBAT_END_MIN, 0, 0);
+
+  if (now >= windowStart && now <= windowEnd) return 'שבת now';
+  if (now >= start && now <= end) return 'שבת now';
+
+  const ms = start.getTime() - now.getTime();
+  if (ms <= 0) return 'שבת now';
+  if (ms < MS_PER_DAY) {
+    const hours = Math.max(1, Math.round(ms / MS_PER_HOUR));
+    return `שבת in ${hours}h`;
+  }
+  const days = Math.round(ms / MS_PER_DAY);
+  return `שבת in ${days}d`;
+}
+
 // Lean clock + Shabbat countdown — replaces the old StatusCluster noise
 // (DailyMomentum meter, PWA pill, and fake all-green service dot-row removed).
+// Live: ticks every second off the real local clock. The component mounts in a
+// client tree ('use client' upstream), so the interval is safe.
 function ClockShabbat() {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const time = now.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  // Build "Mon · May 11" with the cockpit's middot separator (en-US locale
+  // would render "Mon, May 11" — we want the existing dot style).
+  const weekday = now.toLocaleDateString('en-US', { weekday: 'short' });
+  const monthDay = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const date = `${weekday} · ${monthDay}`;
+  const shabbat = shabbatLabel(now);
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
       <div style={{ textAlign: 'right' }}>
         <div className="mono" style={{ color: brand.gold, fontSize: 16, fontWeight: 700, lineHeight: 1 }}>
-          09:14
+          {time}
         </div>
-        <div style={{ color: brand.goldSoft, fontSize: 9 }}>Mon · May 11</div>
+        <div style={{ color: brand.goldSoft, fontSize: 9 }}>{date}</div>
       </div>
       <span style={{ ...pillBtn({ bg: 'rgba(102,187,106,0.18)', fg: '#A5D6A7' }), padding: '3px 9px' }}>
-        שבת in 4d
+        {shabbat}
       </span>
     </div>
   );

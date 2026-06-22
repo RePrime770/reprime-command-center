@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PenSquare, X, Send, Reply, Star, Paperclip, Mic, Clock, Video } from 'lucide-react';
 import { ink, channel as CH, tier as TIER, semantic, emailInbox as EI } from '../lib/colors.js';
-import { emails } from '../data/emails.js';
+import { useLiveData } from '../live/CockpitLiveData.jsx';
 import { fmtRelative } from '../lib/format.js';
 import { ListenButton, RecordButton, DictateButtons } from '../lib/voice.jsx';
 import PanelShell from './PanelShell.jsx';
@@ -17,6 +17,10 @@ function inboxMeta(key) {
 }
 
 export default function EmailPanel({ width }) {
+  // Live triaged inbox from the cockpit provider (GET /api/email/triage).
+  // Falls back to static while the first fetch is in flight or on error.
+  const { emails: liveEmails } = useLiveData();
+  const emails = Array.isArray(liveEmails) ? liveEmails : [];
   const [inbox, setInbox] = useState('all');
   const [openedId, setOpenedId] = useState(null);
   const [remindIds, setRemindIds] = useState(() => new Set());

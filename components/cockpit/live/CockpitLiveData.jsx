@@ -26,8 +26,17 @@ import {
 } from '../data/threads.js';
 import { events as mockEvents, today as mockToday } from '../data/calendar.js';
 import { morningBrief as mockMorningBrief } from '../data/morningBrief.js';
+import { noraToYou as mockNoraToYou, youToNora as mockYouToNora } from '../data/noraDesk.js';
+import { emails as mockEmails } from '../data/emails.js';
 
-import { adaptThreads, adaptCalendar, adaptBrief, makeThreadHelpers } from './adapters.js';
+import {
+  adaptThreads,
+  adaptCalendar,
+  adaptBrief,
+  adaptNoraDesk,
+  adaptEmails,
+  makeThreadHelpers,
+} from './adapters.js';
 
 const REFRESH_MS = 60_000;
 
@@ -71,6 +80,13 @@ function asEventRows(payload) {
   return [];
 }
 
+// Static fallback Nora's Desk (data/noraDesk.js shape) for use until the first
+// successful live fetch. youToNora has no live source — always static.
+const FALLBACK_NORA_DESK = {
+  noraToYou: mockNoraToYou,
+  youToNora: mockYouToNora,
+};
+
 // Static fallback value — used until the first successful live fetch.
 const FALLBACK_VALUE = {
   threads: mockThreads,
@@ -79,6 +95,8 @@ const FALLBACK_VALUE = {
   events: mockEvents,
   today: mockToday,
   morningBrief: mockMorningBrief,
+  noraDesk: FALLBACK_NORA_DESK,
+  emails: mockEmails,
   loading: true,
   error: null,
   lastUpdated: null,
@@ -90,23 +108,31 @@ export function CockpitLiveDataProvider({ children }) {
   const hasLiveRef = useRef(false);
 
   const load = useCallback(async () => {
-    const [t305, t718, cal, brief] = await Promise.allSettled([
-      fetchJsonSafe('/api/whatsapp/threads?panel=305'),
-      fetchJsonSafe('/api/whatsapp/threads?panel=718'),
-      fetchJsonSafe('/api/calendar/today'),
-      fetchJsonSafe('/api/briefing/today'),
-    ]);
+    const [t305, t718, cal, brief, bucket, asks, emailTriage] =
+      await Promise.allSettled([
+        fetchJsonSafe('/api/whatsapp/threads?panel=305'),
+        fetchJsonSafe('/api/whatsapp/threads?panel=718'),
+        fetchJsonSafe('/api/calendar/today'),
+        fetchJsonSafe('/api/briefing/today'),
+        fetchJsonSafe('/api/bucket?status=open'),
+        fetchJsonSafe('/api/secretary/asks'),
+        fetchJsonSafe('/api/email/triage'),
+      ]);
 
     const rows305 = t305.status === 'fulfilled' ? asThreadRows(t305.value) : [];
     const rows718 = t718.status === 'fulfilled' ? asThreadRows(t718.value) : [];
     const calPayload = cal.status === 'fulfilled' ? cal.value : null;
     const briefPayload = brief.status === 'fulfilled' ? brief.value : null;
+    const bucketPayload = bucket.status === 'fulfilled' ? bucket.value : null;
+    const asksPayload = asks.status === 'fulfilled' ? asks.value : null;
+    const emailPayload = emailTriage.status === 'fulfilled' ? emailTriage.value : null;
 
     // If every source came back null/empty AND we have never had live data,
     // keep the static fallback rather than wiping the screen.
     const everySourceFailed =
       t305.status !== 'fulfilled' && t718.status !== 'fulfilled' &&
-      !calPayload && !briefPayload;
+      !calPayload && !briefPayload && !bucketPayload && !asksPayload &&
+      !emailPayload;
 
     if (everySourceFailed && !hasLiveRef.current) {
       setValue((prev) => ({
@@ -122,6 +148,25 @@ export function CockpitLiveDataProvider({ children }) {
     const { today, events } = adaptCalendar(asEventRows(calPayload));
     const morningBrief = briefPayload ? adaptBrief(briefPayload) : mockMorningBrief;
 
+    // Nora's Desk: live cards from bucket + asks. youToNora has no live source,
+    // so keep the static command log. If neither live source returned, fall
+    // back to the full static desk rather than showing an empty box.
+    let noraDesk = FALLBACK_NORA_DESK;
+    if (bucketPayload || asksPayload) {
+      const { noraToYou } = adaptNoraDesk(bucketPayload, asksPayload);
+      noraDesk = {
+        noraToYou: noraToYou.length > 0 ? noraToYou : mockNoraToYou,
+        youToNora: mockYouToNora,
+      };
+    }
+
+    // Email triage: live scored inbox. Fall back to static while unavailable.
+    let emails = mockEmails;
+    if (emailPayload) {
+      const live = adaptEmails(emailPayload);
+      emails = live.length > 0 ? live : mockEmails;
+    }
+
     hasLiveRef.current = true;
     setValue({
       threads: liveThreads,
@@ -130,6 +175,8 @@ export function CockpitLiveDataProvider({ children }) {
       events,
       today,
       morningBrief,
+      noraDesk,
+      emails,
       loading: false,
       error: null,
       lastUpdated: new Date().toISOString(),

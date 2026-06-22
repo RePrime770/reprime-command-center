@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Phone, Bell, HelpCircle, Video, Mic, Send, AlertTriangle, CornerDownRight } from 'lucide-react';
 import { ink, semantic } from '../lib/colors.js';
 import { ListenButton } from '../lib/voice.jsx';
-import { noraToYou, youToNora, noraQuickCommands } from '../data/noraDesk.js';
+import { noraQuickCommands } from '../data/noraDesk.js';
+import { useLiveData } from '../live/CockpitLiveData.jsx';
 import PanelShell from './PanelShell.jsx';
 
 /**
@@ -29,6 +30,11 @@ const TYPE_META = {
 };
 
 export default function NorasDesk({ width }) {
+  // Live Nora's Desk from the cockpit provider (bucket + secretary asks).
+  // Falls back to static while the first fetch is in flight or on error.
+  const { noraDesk } = useLiveData();
+  const noraToYou = Array.isArray(noraDesk?.noraToYou) ? noraDesk.noraToYou : [];
+  const youToNora = Array.isArray(noraDesk?.youToNora) ? noraDesk.youToNora : [];
   const needsYou = noraToYou.length;
   return (
     <PanelShell

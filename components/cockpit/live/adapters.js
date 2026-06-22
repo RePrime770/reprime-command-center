@@ -247,6 +247,128 @@ function formatMoney(value, currency) {
 }
 
 /**
+ * Format an ISO timestamp as a short local time label ('9:42 AM') for cards.
+ * @param {string | null | undefined} iso
+ * @returns {string}
+ */
+function whenLabel(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+/**
+ * Build Nora's Desk data from the live /api/bucket and /api/secretary/asks
+ * payloads. Maps to the shape data/noraDesk.js exports:
+ *   { noraToYou: [...], youToNora: [...], noraQuickCommands: [...] }
+ *
+ * - noraToYou : overdue asks (urgent) + awaiting asks (follow-ups) + open
+ *               bucket items (reminders/tasks). Never fabricated — only real
+ *               rows are mapped, and fields with no live source are omitted.
+ * - youToNora : no live two-way command-log source exists yet, so the caller
+ *               supplies the static fallback (we return null to signal that).
+ *
+ * @param {{ items?: Array<Record<string, any>> } | null} bucket
+ * @param {{ awaiting?: Array<Record<string, any>>, overdue?: Array<Record<string, any>>, replied_recent?: Array<Record<string, any>> } | null} asks
+ * @returns {{ noraToYou: Array<object> }}
+ */
+export function adaptNoraDesk(bucket, asks) {
+  const bucketItems = Array.isArray(bucket?.items) ? bucket.items : [];
+  const overdue = Array.isArray(asks?.overdue) ? asks.overdue : [];
+  const awaiting = Array.isArray(asks?.awaiting) ? asks.awaiting : [];
+
+  const cards = [];
+
+  // Overdue follow-ups — these are the hard nudges (waiting past the reply-by).
+  for (const ask of overdue) {
+    const who = ask.recipient_identifier || 'Follow-up';
+    cards.push({
+      id: `ask-${ask.id}`,
+      type: 'question',
+      who,
+      when: whenLabel(ask.sent_at),
+      urgent: true,
+      nudge: 'overdue',
+      summary: ask.body || `Sent via ${ask.channel || 'message'} — no reply yet.`,
+      ask: 'Follow up, or close it out?',
+      actions: ['Follow up', 'Mark replied', 'Snooze'],
+    });
+  }
+
+  // Awaiting follow-ups — open, reply still expected (not yet overdue).
+  for (const ask of awaiting) {
+    const who = ask.recipient_identifier || 'Follow-up';
+    cards.push({
+      id: `ask-${ask.id}`,
+      type: 'question',
+      who,
+      when: whenLabel(ask.sent_at),
+      urgent: false,
+      summary: ask.body || `Sent via ${ask.channel || 'message'} — awaiting reply.`,
+      ask: 'Nudge them, or wait?',
+      actions: ['Nudge', 'Mark replied', 'Snooze'],
+    });
+  }
+
+  // Open bucket items — reminders/tasks Gideon (or Nora) captured.
+  for (const it of bucketItems) {
+    // priority 1 = highest; treat 1 as urgent so it nudges hard.
+    const urgent = typeof it.priority === 'number' && it.priority <= 1;
+    cards.push({
+      id: `bucket-${it.id}`,
+      type: 'reminder',
+      who: it.title || 'Task',
+      when: it.due_at ? `due ${whenLabel(it.due_at)}` : '',
+      urgent,
+      ...(urgent ? { nudge: 'priority' } : {}),
+      summary: it.body || it.title || 'Open item in your bucket.',
+      ask: 'Mark it done, or snooze?',
+      actions: ['Done', 'Snooze'],
+    });
+  }
+
+  return { noraToYou: cards };
+}
+
+/**
+ * Adapt the live /api/email/triage payload -> the emails array shape used by
+ * EmailPanel (data/emails.js). Triage returns scored Gmail messages:
+ *   { from_name, from_address, subject, received_at, unread, score,
+ *     gmail_url, message_id, ... }
+ * No live tier/preview/body source, so those are omitted (degrade gracefully).
+ * Row height is derived from the score so high-signal mail renders larger.
+ * @param {{ items?: Array<Record<string, any>> } | null} payload
+ * @returns {Array<object>}
+ */
+export function adaptEmails(payload) {
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  return items.map((e, i) => {
+    const subject = typeof e.subject === 'string' ? e.subject : '';
+    const fromName =
+      (typeof e.from_name === 'string' && e.from_name) ||
+      (typeof e.from_address === 'string' && e.from_address) ||
+      'Unknown';
+    const score = typeof e.score === 'number' ? e.score : 0;
+    const height = score >= 12 ? 'tall' : score >= 6 ? 'standard' : 'compact';
+    return {
+      id: e.message_id || `em-live-${i}`,
+      height,
+      tier: null, // no live tier source
+      from: fromName,
+      fromAddr: e.from_address || '',
+      inbox: 'g@reprime.com', // single-mailbox in v1 (triage is g@reprime.com)
+      subject,
+      preview: '', // triage has no body/snippet; omit rather than fabricate
+      ts: e.received_at || e.scored_at || null,
+      unread: e.unread === true,
+      language: detectLanguage(subject),
+      gmailUrl: e.gmail_url || null,
+    };
+  });
+}
+
+/**
  * Build threadsByChannel / findThread helpers over a LIVE adapted threads array.
  * Mirrors the semantics in data/threads.js exactly.
  * @param {Array<object>} threads
