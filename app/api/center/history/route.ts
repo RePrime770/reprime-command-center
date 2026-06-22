@@ -27,7 +27,7 @@ async function storeThread(phone: string): Promise<Msg[]> {
   if (!ids.length) return []
   const { data: msgs } = await supabase.from('whatsapp_messages')
     .select('direction, body, media_type, sent_at').in('thread_id', ids)
-    .order('sent_at', { ascending: false }).limit(12)
+    .order('sent_at', { ascending: false }).limit(60)
   const rows = (msgs || []) as Array<{ direction: string; body: string | null; media_type: string | null; sent_at: string }>
   return rows.map((m) => ({
     who: m.direction === 'out' ? 'us' : 'them',
@@ -61,8 +61,8 @@ async function waThreadLive(phone: string): Promise<Msg[]> {
       if (!chat) continue
       const msgs = await getMessages(chat.id)
       if (!msgs.length) continue
-      // Timelines returns messages NEWEST-FIRST — take the newest 12, not the oldest.
-      return msgs.slice(0, 12).map((m) => { const tsv = (m as { timestamp?: string }).timestamp; return { who: m.from_me ? 'us' : 'them', date: fmtDate(tsv), text: (m.text && m.text.trim()) ? m.text.slice(0, 500) : '📎 media', ts: new Date(tsv || 0).getTime() || 0 } })
+      // Timelines returns messages NEWEST-FIRST — take the newest 60, not the oldest.
+      return msgs.slice(0, 60).map((m) => { const tsv = (m as { timestamp?: string }).timestamp; return { who: m.from_me ? 'us' : 'them', date: fmtDate(tsv), text: (m.text && m.text.trim()) ? m.text.slice(0, 500) : '📎 media', ts: new Date(tsv || 0).getTime() || 0 } })
     } catch { /* next */ }
   }
   return []
@@ -116,7 +116,7 @@ export async function GET(request: Request) {
   if (phone) {
     // Store (current inbound) + live Timelines (carries our outgoing) → both sides.
     const [store, live] = await Promise.all([storeThread(phone), waThreadLive(phone)])
-    raw = merge(store, live).slice(-8)
+    raw = merge(store, live).slice(-40)
     if (raw.length) source = store.length && live.length ? 'store+live' : store.length ? 'store' : 'timelines'
   }
   if (!raw.length && email) { raw = await emailThread(email); if (raw.length) source = 'gmail' }

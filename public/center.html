@@ -203,7 +203,7 @@
     // Column cards = a quick READABLE summary, not the whole thread dumped.
     // Show the last 3 messages (whoever spoke last) + the follow-up note.
     // Never a bare name: if nothing yet, say so plainly.
-    var tail=(p.chain||[]).slice(-3);
+    var tail=(p.chain||[]).slice(-2);
     var body = tail.length
       ? tail.map(cmHTML).join('')
       : '<div class="cm within"><div class="x">'+esc(state.lang==='es'?'Invitación enviada — esperando respuesta':'Invitation sent — awaiting reply')+'</div></div>';
