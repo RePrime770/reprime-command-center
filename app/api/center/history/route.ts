@@ -124,6 +124,6 @@ export async function GET(request: Request) {
 
   const chain = await translateChain(raw)
   // Every thread begins at the invitation — anything before it is irrelevant.
-  chain.unshift({ who: 'us', date: '', text: 'Terminal invitation sent', ts: 0, he: '', es: 'Invitación Terminal enviada', en: 'Terminal invitation sent' } as unknown as typeof chain[number])
+  chain.unshift({ who: 'us', date: '', text: 'Terminal invitation sent', ts: 0, he: '', es: 'Invitación Terminal enviada', en: 'Terminal invitation sent' })
   return NextResponse.json({ found: true, source, chain })
 }
