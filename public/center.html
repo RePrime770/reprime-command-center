@@ -72,11 +72,12 @@
   .fu{display:flex;justify-content:space-between;padding:7px 11px;background:var(--fu-bg);color:var(--fu-tx);font-size:13px;font-weight:600}
   .fu .d{font-weight:900}
   .chain{padding:8px 9px;display:flex;flex-direction:column;gap:7px}
-  .cm{border-radius:8px;padding:6px 9px}
+  .cm{border-radius:8px;padding:6px 9px;background:#fff;color:#111;border:1px solid #e7e7e7}
+  .cm.them{background:#fff;color:#111;border:1px solid #e7e7e7}
   .cm .h{font-size:9.5px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;margin-bottom:2px;opacity:.85}
   .cm .x{font-size:13px;line-height:1.45}
   .cm .tr{font-size:11px;margin-top:3px;opacity:.85;direction:ltr;text-align:left}
-  .cm.us{background:var(--us-bg);color:var(--us-tx)} .cm.last{background:var(--last-bg);color:var(--last-tx)}
+  .cm.us{background:#d9fdd3;color:#0b3d0b;border:1px solid #c5e8ba} .cm.last{background:var(--last-bg);color:var(--last-tx)}
   .cm.within{background:var(--within-bg);color:var(--within-tx)} .cm.silent{background:var(--silent-bg);color:var(--silent-tx)}
   .cm.next{background:var(--next-bg);color:var(--next-tx)} .cm.owe{background:var(--owe-bg);color:var(--owe-tx)}
   .cfoot{display:flex;justify-content:flex-end;padding:0 9px 9px}
@@ -193,7 +194,7 @@
     }).join('');
   }
   function cmHTML(c){
-    var cls=c.who==='us'?'us':(c.b||'within');
+    var cls=c.who==='us'?'us':'them';
     var head=(c.who==='us'?l().us:l().them)+' · '+c.date;
     var main = c.he ? '<div class="x he">'+esc(c.he)+'</div>' : '<div class="x">'+esc(c[state.lang==='es'?'es':'en'])+'</div>';
     var tr = c.he ? '<div class="tr">'+l().tr+' · “'+esc(c[state.lang==='es'?'es':'en'])+'”</div>' : '';

@@ -73,7 +73,7 @@ async function emailThread(email: string): Promise<Msg[]> {
     const recent = await listRecent('me', 60)
     const out: Msg[] = []
     for (const m of recent) {
-      if (out.length >= 8) break
+      if (out.length >= 25) break
       try {
         const msg = await getMessage(m.id)
         const from = parseFromHeader(msg.headers['from'])
@@ -123,5 +123,7 @@ export async function GET(request: Request) {
   if (!raw.length) return NextResponse.json({ found: false, chain: [], source })
 
   const chain = await translateChain(raw)
+  // Every thread begins at the invitation — anything before it is irrelevant.
+  chain.unshift({ who: 'us', date: '', text: 'Terminal invitation sent', ts: 0, he: '', es: 'Invitación Terminal enviada', en: 'Terminal invitation sent' } as unknown as typeof chain[number])
   return NextResponse.json({ found: true, source, chain })
 }
