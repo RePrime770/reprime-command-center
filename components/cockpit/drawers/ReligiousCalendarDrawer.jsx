@@ -4,17 +4,24 @@ import DrawerShell from './DrawerShell.jsx';
 import { useDemo } from '../demo/DemoContext.jsx';
 
 /**
- * Religious calendar drawer — Hebcal API mock. Shows upcoming Shabbat/Yom Tov +
- * third-party observances. "Tag contact observance" section.
+ * Religious calendar drawer. Shows the upcoming Shabbat window. The precise
+ * candle-lighting/zmanim time needs a zmanim API we don't have yet, so we show
+ * the dynamically-computed upcoming Friday date and a "~sunset" approximation
+ * rather than stale fixed dates. The "Tag contact observance" section below is
+ * a static helper, not date-bound.
  */
-const upcoming = [
-  { date: '2026-05-15', label: 'Shabbat begins · 7:48 PM (Postville)', kind: 'shabbat' },
-  { date: '2026-05-15', label: 'Pre-shutdown lock · 4:48 PM', kind: 'pre-shutdown' },
-  { date: '2026-05-13', label: 'Eid al-Fitr · a contact observes', kind: 'third-party' },
-  { date: '2026-05-22', label: 'Lag BaOmer', kind: 'minor' },
-  { date: '2026-06-01', label: 'Shavuot · Day 1', kind: 'yomtov' },
-  { date: '2026-06-02', label: 'Shavuot · Day 2', kind: 'yomtov' }
-];
+function buildUpcoming() {
+  const now = new Date();
+  const d = new Date(now);
+  const day = d.getDay();              // 0 Sun .. 6 Sat
+  const delta = (5 - day + 7) % 7;     // days until Friday
+  d.setDate(d.getDate() + (delta === 0 && now.getHours() >= 20 ? 7 : delta));
+  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return [
+    { date: iso, label: 'Shabbat begins · ~sunset (Postville)', kind: 'shabbat' },
+    { date: iso, label: 'Pre-shutdown lock · before candle-lighting', kind: 'pre-shutdown' }
+  ];
+}
 
 const stripeColor = (k) => {
   if (k === 'shabbat' || k === 'yomtov') return success[500];
@@ -25,6 +32,7 @@ const stripeColor = (k) => {
 
 export default function ReligiousCalendarDrawer() {
   const { state, set } = useDemo();
+  const upcoming = buildUpcoming();
   return (
     <DrawerShell
       open={state.religiousCalendarOpen}

@@ -161,21 +161,21 @@ function Section({ sec }) {
 }
 
 function EveningContent() {
+  // No live source for an evening wrap-up yet (the briefing API returns the
+  // morning brief only). Show an honest empty state rather than stale mock
+  // business strings.
   return (
-    <>
-      <Card title="CLOSED TODAY" color="#43A047">
-        Magna wire approved · Ray Turchi rent roll forwarded · Mushka payroll prelim
-      </Card>
-      <Card title="STILL OPEN" color="#FF6F00">
-        Bay Valley counter-LOI response · Watermills estoppel · Houri Bais Din response
-      </Card>
-      <Card title="TOP 3 FOR TOMORROW" color="#1E88E5">
-        1) Send Doron 10-day counter · 2) Pull IGA guarantee · 3) Brief Adir on Q2
-      </Card>
-      <Card title="SLEEP-ON-IT" color="#7B1FA2">
-        500 W Monroe NPL bid number — sit on it overnight
-      </Card>
-    </>
+    <div
+      style={{
+        padding: '24px 16px',
+        textAlign: 'center',
+        color: ink[500],
+        fontSize: 15,
+        lineHeight: 1.5
+      }}
+    >
+      Evening wrap-up isn't wired to live data yet.
+    </div>
   );
 }
 

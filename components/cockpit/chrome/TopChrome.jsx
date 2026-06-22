@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { brand, slate, tier as TIER, ink } from '../lib/colors.js';
 import { useDemo } from '../demo/DemoContext.jsx';
+import { useLiveData } from '../live/CockpitLiveData.jsx';
 
 // ============================================================
 // TopChrome v5 — LEAN COMMS-ONLY top bar
@@ -330,11 +331,14 @@ function SpeedSelector() {
 // ============================================================
 function ApexNowIndicator() {
   const { set } = useDemo();
-  const apex = {
-    label: 'Bay Valley counter-LOI',
-    tier: 'L7',
-    sub: '4d · Doron'
-  };
+  const { morningBrief } = useLiveData();
+  const apex = morningBrief?.apex;
+  // No live apex → render nothing rather than a stale mock.
+  if (!apex) return null;
+
+  const tierLabel = apex.tier && TIER[apex.tier] ? TIER[apex.tier].label : 'NOW';
+  const label = apex.title || '';
+  const sub = (apex.body || '').slice(0, 48);
   return (
     <button
       type="button"
@@ -357,10 +361,10 @@ function ApexNowIndicator() {
       className="meeting-pulse"
     >
       <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.14em', opacity: 0.92 }}>
-        APEX NOW · {TIER[apex.tier].label}
+        APEX NOW · {tierLabel}
       </span>
-      <span style={{ fontSize: 19, fontWeight: 800 }}>{apex.label}</span>
-      <span style={{ fontSize: 13, opacity: 0.82 }}>{apex.sub}</span>
+      <span style={{ fontSize: 19, fontWeight: 800 }}>{label}</span>
+      {sub && <span style={{ fontSize: 13, opacity: 0.82 }}>{sub}</span>}
     </button>
   );
 }

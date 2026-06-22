@@ -14,11 +14,26 @@ const ICON_BY_TYPE = {
   standard: Coffee
 };
 
+// Label for the upcoming Friday (Shabbat begins). Rolls to next week once
+// Friday evening is underway. Local time.
+function nextFridayLabel() {
+  const now = new Date();
+  const d = new Date(now);
+  const day = d.getDay();              // 0 Sun .. 6 Sat
+  const delta = (5 - day + 7) % 7;     // days until Friday
+  d.setDate(d.getDate() + (delta === 0 && now.getHours() >= 20 ? 7 : delta));
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
 export default function CalendarPanel({ width }) {
   const { events, today: todayDate } = useLiveData();
   const today = events.filter((e) => e.date === todayDate);
+  const _d = new Date(`${todayDate}T00:00:00`);
+  const calSubtitle = Number.isNaN(_d.getTime())
+    ? ''
+    : `${_d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()} · ${_d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} ${_d.getDate()}`;
   return (
-    <PanelShell width={width} accent="#00897B" title="CALENDAR" subtitle="MON · MAY 11">
+    <PanelShell width={width} accent="#00897B" title="CALENDAR" subtitle={calSubtitle}>
       {/* Religious calendar pill */}
       <div
         style={{
@@ -32,10 +47,7 @@ export default function CalendarPanel({ width }) {
           RELIGIOUS CALENDAR
         </div>
         <div style={{ fontSize: 16, color: '#5D4037', marginTop: 2, lineHeight: 1.3 }}>
-          שבת begins Friday 19:48 (Postville) · pre-shutdown lock 16:48
-        </div>
-        <div style={{ fontSize: 14, color: '#795548', marginTop: 2 }}>
-          Eid al-Fitr Wed 13 · countdown pauses
+          שבת begins {nextFridayLabel()} · candle-lighting ~sunset (Postville)
         </div>
       </div>
 
@@ -121,10 +133,10 @@ function EventRow({ event }) {
           }}
         >
           <span style={{ fontSize: 14, opacity: 0.85, letterSpacing: '0.1em', fontWeight: 700 }}>
-            STARTS IN
+            STARTS
           </span>
           <span className="mono" style={{ fontSize: 21, fontWeight: 800 }}>
-            00:46:14
+            {event.time === 'all-day' ? 'ALL DAY' : event.time}
           </span>
           <button
             type="button"
