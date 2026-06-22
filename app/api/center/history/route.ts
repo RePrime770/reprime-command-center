@@ -61,7 +61,8 @@ async function waThreadLive(phone: string): Promise<Msg[]> {
       if (!chat) continue
       const msgs = await getMessages(chat.id)
       if (!msgs.length) continue
-      return msgs.slice(-12).map((m) => { const tsv = (m as { timestamp?: string }).timestamp; return { who: m.from_me ? 'us' : 'them', date: fmtDate(tsv), text: (m.text && m.text.trim()) ? m.text.slice(0, 500) : '📎 media', ts: new Date(tsv || 0).getTime() || 0 } })
+      // Timelines returns messages NEWEST-FIRST — take the newest 12, not the oldest.
+      return msgs.slice(0, 12).map((m) => { const tsv = (m as { timestamp?: string }).timestamp; return { who: m.from_me ? 'us' : 'them', date: fmtDate(tsv), text: (m.text && m.text.trim()) ? m.text.slice(0, 500) : '📎 media', ts: new Date(tsv || 0).getTime() || 0 } })
     } catch { /* next */ }
   }
   return []
