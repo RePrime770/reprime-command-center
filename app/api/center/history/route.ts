@@ -16,7 +16,7 @@ const dig = (s: string) => (s || '').replace(/\D/g, '')
 const isHe = (s: string) => /[֐-׿]/.test(s || '')
 const fmtDate = (ts: string | number | undefined) => { if (!ts) return ''; const d = new Date(ts); return isNaN(d.getTime()) ? '' : new Intl.DateTimeFormat('en-US', { month: 'numeric', day: 'numeric' }).format(d) }
 
-type Msg = { who: string; date: string; text: string }
+type Msg = { who: string; date: string; text: string; ts: number }
 
 async function storeThread(phone: string): Promise<Msg[]> {
   const supabase = createServiceClient()
@@ -27,13 +27,25 @@ async function storeThread(phone: string): Promise<Msg[]> {
   if (!ids.length) return []
   const { data: msgs } = await supabase.from('whatsapp_messages')
     .select('direction, body, media_type, sent_at').in('thread_id', ids)
-    .order('sent_at', { ascending: false }).limit(8)
+    .order('sent_at', { ascending: false }).limit(12)
   const rows = (msgs || []) as Array<{ direction: string; body: string | null; media_type: string | null; sent_at: string }>
-  return rows.reverse().map((m) => ({
+  return rows.map((m) => ({
     who: m.direction === 'out' ? 'us' : 'them',
     date: fmtDate(m.sent_at),
     text: (m.body && m.body.trim()) ? m.body.slice(0, 500) : (m.media_type ? '📎 ' + m.media_type : '📎 media'),
+    ts: new Date(m.sent_at).getTime() || 0,
   }))
+}
+
+// Merge two message lists (store + live), dedupe by who+text, sort oldest→newest.
+function merge(a: Msg[], b: Msg[]): Msg[] {
+  const seen = new Set<string>(); const out: Msg[] = []
+  for (const m of [...a, ...b]) {
+    const k = m.who + '|' + m.text.replace(/\s+/g, ' ').trim().slice(0, 40)
+    if (seen.has(k)) continue
+    seen.add(k); out.push(m)
+  }
+  return out.sort((x, y) => x.ts - y.ts)
 }
 
 async function waThreadLive(phone: string): Promise<Msg[]> {
@@ -49,7 +61,7 @@ async function waThreadLive(phone: string): Promise<Msg[]> {
       if (!chat) continue
       const msgs = await getMessages(chat.id)
       if (!msgs.length) continue
-      return msgs.slice(-8).map((m) => ({ who: m.from_me ? 'us' : 'them', date: fmtDate((m as { timestamp?: string }).timestamp), text: (m.text && m.text.trim()) ? m.text.slice(0, 500) : '📎 media' }))
+      return msgs.slice(-12).map((m) => { const tsv = (m as { timestamp?: string }).timestamp; return { who: m.from_me ? 'us' : 'them', date: fmtDate(tsv), text: (m.text && m.text.trim()) ? m.text.slice(0, 500) : '📎 media', ts: new Date(tsv || 0).getTime() || 0 } })
     } catch { /* next */ }
   }
   return []
@@ -68,7 +80,7 @@ async function emailThread(email: string): Promise<Msg[]> {
         const them = from.address === email.toLowerCase()
         const us = /reprime\.com/.test(from.address) && to.includes(email.toLowerCase())
         if (!them && !us) continue
-        out.push({ who: them ? 'them' : 'us', date: fmtDate(msg.receivedAt), text: ((msg.headers['subject'] ? msg.headers['subject'] + ' — ' : '') + (msg.snippet || '')).slice(0, 400) })
+        out.push({ who: them ? 'them' : 'us', date: fmtDate(msg.receivedAt), text: ((msg.headers['subject'] ? msg.headers['subject'] + ' — ' : '') + (msg.snippet || '')).slice(0, 400), ts: new Date(msg.receivedAt).getTime() || 0 })
       } catch { /* skip */ }
     }
     return out.reverse()
@@ -100,8 +112,12 @@ export async function GET(request: Request) {
 
   let raw: Msg[] = []
   let source = 'none'
-  if (phone) { raw = await storeThread(phone); if (raw.length) source = 'store' }
-  if (!raw.length && phone) { raw = await waThreadLive(phone); if (raw.length) source = 'timelines' }
+  if (phone) {
+    // Store (current inbound) + live Timelines (carries our outgoing) → both sides.
+    const [store, live] = await Promise.all([storeThread(phone), waThreadLive(phone)])
+    raw = merge(store, live).slice(-8)
+    if (raw.length) source = store.length && live.length ? 'store+live' : store.length ? 'store' : 'timelines'
+  }
   if (!raw.length && email) { raw = await emailThread(email); if (raw.length) source = 'gmail' }
   if (!raw.length) return NextResponse.json({ found: false, chain: [], source })
 
