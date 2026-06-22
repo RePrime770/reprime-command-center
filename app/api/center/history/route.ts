@@ -14,7 +14,7 @@ export const maxDuration = 60
 // person has nothing stored yet. Hebrew gets es/en for the secretary.
 const dig = (s: string) => (s || '').replace(/\D/g, '')
 const isHe = (s: string) => /[֐-׿]/.test(s || '')
-const fmtDate = (ts: string | number | undefined) => { if (!ts) return ''; const d = new Date(ts); return isNaN(d.getTime()) ? '' : new Intl.DateTimeFormat('en-US', { month: 'numeric', day: 'numeric' }).format(d) }
+const fmtDate = (ts: string | number | undefined) => { if (!ts) return ''; const d = new Date(ts); return isNaN(d.getTime()) ? '' : new Intl.DateTimeFormat('en-US', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }).format(d) }
 
 type Msg = { who: string; date: string; text: string; ts: number }
 

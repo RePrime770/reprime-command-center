@@ -194,16 +194,23 @@
   }
   function cmHTML(c){
     var cls=c.who==='us'?'us':(c.b||'within');
-    var head=(c.who==='us'?l().us:l().them)+' · '+c.date+(c.who==='them'&&c.b?' · '+l().f[c.b].toLowerCase():'');
+    var head=(c.who==='us'?l().us:l().them)+' · '+c.date;
     var main = c.he ? '<div class="x he">'+esc(c.he)+'</div>' : '<div class="x">'+esc(c[state.lang==='es'?'es':'en'])+'</div>';
     var tr = c.he ? '<div class="tr">'+l().tr+' · “'+esc(c[state.lang==='es'?'es':'en'])+'”</div>' : '';
     return '<div class="cm '+cls+'"><div class="h">'+esc(head)+'</div>'+main+tr+'</div>';
   }
   function cardHTML(p,i){
+    // Column cards = a quick READABLE summary, not the whole thread dumped.
+    // Show the last 3 messages (whoever spoke last) + the follow-up note.
+    // Never a bare name: if nothing yet, say so plainly.
+    var tail=(p.chain||[]).slice(-3);
+    var body = tail.length
+      ? tail.map(cmHTML).join('')
+      : '<div class="cm within"><div class="x">'+esc(state.lang==='es'?'Invitación enviada — esperando respuesta':'Invitation sent — awaiting reply')+'</div></div>';
     return '<div class="card" data-i="'+i+'">'+
       '<div class="nm">'+esc(p.name)+'</div>'+
       '<div class="fu"><span>'+esc(l().fu[p.fu])+'</span><span class="d">'+esc(p.fuDate)+'</span></div>'+
-      '<div class="chain">'+p.chain.map(cmHTML).join('')+'</div>'+
+      '<div class="chain">'+body+'</div>'+
     '</div>';
   }
   function renderColumn(ch){
