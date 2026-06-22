@@ -80,6 +80,16 @@
   .cm.us{background:#d9fdd3;color:#0b3d0b;border:1px solid #c5e8ba} .cm.last{background:var(--last-bg);color:var(--last-tx)}
   .cm.within{background:var(--within-bg);color:var(--within-tx)} .cm.silent{background:var(--silent-bg);color:var(--silent-tx)}
   .cm.next{background:var(--next-bg);color:var(--next-tx)} .cm.owe{background:var(--owe-bg);color:var(--owe-tx)}
+  .approvals .qcap{background:#7a1f6b}
+  .apbody{flex:1;overflow-y:auto;min-height:0;padding:10px;display:flex;flex-direction:column;gap:10px}
+  .apcard{flex:0 0 auto;border:1px solid #e7d2e4;border-radius:11px;background:#fff;padding:10px}
+  .apnm{font-weight:800;font-size:14px}
+  .apsub{font-size:11px;color:#9a4f8e;margin:2px 0 7px}
+  .apes{font-size:12px;color:#555;background:#faf3f8;border-radius:7px;padding:6px 8px;margin-bottom:6px}
+  .aphe{font-size:14px;color:#111;background:#d9fdd3;border:1px solid #c5e8ba;border-radius:7px;padding:7px 9px;direction:rtl;text-align:right}
+  .aprow{display:flex;gap:8px;margin-top:9px}
+  .apok{flex:1;background:#16a34a;color:#fff;border:0;border-radius:8px;padding:9px;font-weight:700;cursor:pointer}
+  .apno{background:#fff;color:#b42318;border:1px solid #f0c8c2;border-radius:8px;padding:9px 12px;font-weight:700;cursor:pointer}
   .cfoot{display:flex;justify-content:flex-end;padding:0 9px 9px}
   .qadd{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;display:inline-flex;gap:5px;align-items:center}
   .more{text-align:center;color:var(--dim);font-size:11.5px;padding:3px}
@@ -141,6 +151,7 @@
     <div class="colbox email" data-ch="email" id="col-email"></div>
     <div class="colbox both" data-ch="both" id="col-both"></div>
     <div class="queue" id="queue"></div>
+    <div class="queue approvals" id="col-approvals" style="display:none"></div>
   </div>
   <div class="toast" id="toast"></div>
 
@@ -295,6 +306,7 @@
     document.getElementById('col-email').innerHTML=renderColumn('email');
     document.getElementById('col-both').innerHTML=renderColumn('both');
     renderQueue();
+    if(window.renderApprovals)window.renderApprovals();
     bind();
   }
   function bind(){
@@ -399,10 +411,18 @@
     var sb=document.querySelector('[data-q="send"]');
     if(sb) sb.onclick=function(){
       var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];if(!o)return;
-      var text=(state._draft&&state._draft.he)||''; if(!text){toast(state.lang==='es'?'Un momento — preparando':'One moment — drafting');return;}
+      var text=(state._draft&&state._draft.he)||''; var es=(state._draft&&state._draft.es)||'';
+      if(!text){toast(state.lang==='es'?'Un momento — preparando':'One moment — drafting');return;}
       this.textContent='…';
-      fetch('/api/center/reply',{method:'POST',headers:H(),body:JSON.stringify({channel:(o._phone?'whatsapp':'email'),phone:o._phone,email:o._email,account:o._acct,text:text})})
-        .then(function(r){return r.json();}).then(function(res){ if(res&&res.ok){o.queued=false;o.bucket='within';o.fu='silent';state._draftFor=null;toast(state.lang==='es'?'Enviado':'Sent');renderAll();}else toast('Send failed'); }).catch(function(){toast('Send failed');});
+      if(state.lang==='es'){
+        // Spanish secretary: the Hebrew draft must be approved by the English side first.
+        fetch('/api/center/approval',{method:'POST',headers:H(),body:JSON.stringify({action:'create',source_row:o._row,contact_name:o.name,channel:(o._phone?'whatsapp':'email'),draft_es:es,draft_he:text})})
+          .then(function(r){return r.json();}).then(function(res){ if(res&&res.ok){o.queued=false;state._draftFor=null;toast('Enviado a aprobación');renderAll();}else toast('Error'); }).catch(function(){toast('Error');});
+      } else {
+        // English side sends directly — English or Hebrew, no approval.
+        fetch('/api/center/reply',{method:'POST',headers:H(),body:JSON.stringify({channel:(o._phone?'whatsapp':'email'),phone:o._phone,email:o._email,account:o._acct,text:text})})
+          .then(function(r){return r.json();}).then(function(res){ if(res&&res.ok){o.queued=false;o.bucket='within';o.fu='silent';state._draftFor=null;toast('Sent');renderAll();}else toast('Send failed'); }).catch(function(){toast('Send failed');});
+      }
     };
     var sn=document.querySelector('[data-q="snooze"]');
     if(sn) sn.onclick=function(){var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];if(!o)return;fetch('/api/center/remind',{method:'POST',headers:H(),body:JSON.stringify({row:o._row,days:7})});o.queued=false;o.bucket='silent';state._draftFor=null;toast(state.lang==='es'?'Pospuesto':'Snoozed');renderAll();};
@@ -419,7 +439,31 @@
       toast(l().inserted+': '+l().ins[kind]);
     };});
   };
+  // 5th panel — ENGLISH-ONLY Approvals. Shows the Spanish secretary's
+  // Hebrew<->Spanish drafts waiting for approval; hidden entirely when empty or
+  // when viewing in Spanish. Approve = send + vanish.
+  window.renderApprovals=function(){
+    var box=document.getElementById('col-approvals'); if(!box)return;
+    if(state.lang!=='en'){ box.style.display='none'; box.innerHTML=''; return; }
+    fetch('/api/center/approval',{headers:{'x-center-pass':PASS}}).then(function(r){return r.json();}).then(function(j){
+      var items=(j&&j.approvals)||[];
+      if(!items.length){ box.style.display='none'; box.innerHTML=''; return; }
+      box.style.display='';
+      box.innerHTML='<div class="qcap"><b>Approvals</b><span class="pos">'+items.length+'</span></div>'+
+        '<div class="apbody">'+items.map(function(a){
+          return '<div class="apcard"><div class="apnm">'+esc(a.contact_name||'')+' · '+esc(a.channel||'')+'</div>'+
+            '<div class="apsub">Worked by the Spanish version — your approval to send</div>'+
+            (a.draft_es?'<div class="apes">'+esc(a.draft_es)+'</div>':'')+
+            '<div class="aphe">'+esc(a.draft_he||'')+'</div>'+
+            '<div class="aprow"><button class="apok" data-ap="'+esc(a.id)+'">✓ Approve &amp; send</button>'+
+            '<button class="apno" data-apx="'+esc(a.id)+'">✕ Reject</button></div></div>';
+        }).join('')+'</div>';
+      box.querySelectorAll('[data-ap]').forEach(function(b){b.onclick=function(){var id=this.dataset.ap;this.textContent='…';fetch('/api/center/approval',{method:'POST',headers:H(),body:JSON.stringify({action:'approve',id:id})}).then(function(r){return r.json();}).then(function(res){toast(res&&res.ok?'Sent':('Failed'+(res&&res.error?': '+res.error:'')));window.renderApprovals();}).catch(function(){toast('Failed');});};});
+      box.querySelectorAll('[data-apx]').forEach(function(b){b.onclick=function(){var id=this.dataset.apx;fetch('/api/center/approval',{method:'POST',headers:H(),body:JSON.stringify({action:'reject',id:id})}).then(function(){window.renderApprovals();});};});
+    }).catch(function(){});
+  };
   window.PEOPLE=[]; loadLive(); setInterval(loadLive,300000);
+  setInterval(function(){ if(window.renderApprovals)window.renderApprovals(); },60000);
 })();
 </script>
 </body></html>
