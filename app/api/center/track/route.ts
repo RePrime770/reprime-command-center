@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   if (!centerAuthed(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   const supabase = createServiceClient()
 
-  type R = { source_row: number; name: string; phone: string | null; email: string | null; board_stage: string; responded: boolean; latest: string | null; outcome: string | null; raw_stage: string | null; awaiting_us: boolean | null; last_reply_text: string | null; last_from: string | null; remind_at: string | null; followup_note: string | null }
+  type R = { source_row: number; name: string; phone: string | null; email: string | null; board_stage: string; responded: boolean; latest: string | null; outcome: string | null; raw_stage: string | null; awaiting_us: boolean | null; last_reply_text: string | null; last_from: string | null; remind_at: string | null; followup_note: string | null; thread_json: string | null }
   const { data: roster, error } = await supabase.from('roster').select('*').order('source_row', { ascending: true })
   if (error) return NextResponse.json({ error: error.message, contacts: [] }, { status: 500 })
 
@@ -61,6 +61,7 @@ export async function GET(request: Request) {
       awaitingUs: r.awaiting_us === true,
       lastReply: (r.last_reply_text || r.latest || '').slice(0, 300),
       lastFrom: r.last_from || null,
+      threadJson: r.thread_json || null,
       outcome: r.outcome || '',
       remindAt: r.remind_at || null,
       followupNote: r.followup_note || '',

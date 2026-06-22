@@ -336,8 +336,18 @@
     var msg=/[A-Za-z֐-׿]/.test(raw)?raw:'';
     var snip=msg.length>120?msg.slice(0,120).trim()+'…':msg;            // card = quick summary, not the whole message
     var he=/[֐-׿]/.test(snip)?snip:'';
-    var chain=snip?[{who:who,b:(who==='them'?b:undefined),date:'',he:he,es:snip,en:snip}]
-                  :[{who:'us',b:undefined,date:'',he:'',es:'Invitación enviada — esperando respuesta',en:'Invitation sent — awaiting reply'}];
+    // Prefer the stored multi-message thread (last several, both directions) so
+    // every card shows the back-and-forth, not just one line. Fall back to the
+    // single last message, then to the invitation-sent line.
+    var tj=null; if(c.threadJson){ try{ tj=JSON.parse(c.threadJson); }catch(e){} }
+    var chain;
+    if(tj&&tj.length){
+      chain=tj.slice(-8).map(function(m){var t=(m.text||'').trim();return {who:(m.who==='us'?'us':'them'),b:(m.who==='us'?undefined:b),date:m.date||'',he:/[֐-׿]/.test(t)?t:'',es:t,en:t};});
+    } else if(snip){
+      chain=[{who:who,b:(who==='them'?b:undefined),date:'',he:he,es:snip,en:snip}];
+    } else {
+      chain=[{who:'us',b:undefined,date:'',he:'',es:'Invitación enviada — esperando respuesta',en:'Invitation sent — awaiting reply'}];
+    }
     return {name:c.name,channel:channel,bucket:b,fu:(c.awaitingUs?'reply':(b==='mtg'?'mtg':'silent')),fuDate:(c.remindAt?new Date(c.remindAt).toLocaleDateString():''),chain:chain,booked:c.stage==='booked',queued:!!c.awaitingUs,_phone:c.phone,_email:c.email,_row:c.row,_acct:'305'};
   }
   window.loadLive=function(){
