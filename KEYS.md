@@ -62,6 +62,7 @@ Last updated: 2026-05-04 (overnight build session)
 - SENTRY_ORG → Vercel env var — Sentry org slug (visible in Sentry URL, e.g. `reprime`). Required only if `SENTRY_AUTH_TOKEN` is set.
 - SENTRY_PROJECT → Vercel env var — Sentry project slug (e.g. `reprime-command-center`). Required only if `SENTRY_AUTH_TOKEN` is set.
 - APOLLO_API_KEY → Vercel env var — Apollo.io API key for contact enrichment (free tier: 50 lookups/mo). Read by `lib/enrich/provider.ts`. Used by `POST /api/pipedrive/enrich` to fill missing email/company/role/linkedin on Pipedrive Persons. Optional: if absent, the endpoint returns `{ added: {}, reason: 'no_provider' }` and the system falls back to a stub. Generate at https://app.apollo.io/#/settings/integrations/api.
+- AUTH_ACCESS_CODE → Vercel env var — shared team access code for the cockpit login. Read by `app/api/auth/code/route.ts`; a correct code mints a real `g@reprime.com` Supabase session (via service-role `generateLink` → `verifyOtp`). Defaults to `REPRIME` if unset, so login works in prod even before this is configured. Set in Vercel → Settings → Environment Variables to change the code. The original magic-link flow remains as a fallback on `/login`.
 
 ### Pipedrive field keys
 Person custom fields (Pipedrive API hashed keys, NOT secrets, safe to commit):

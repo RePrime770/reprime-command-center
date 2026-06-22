@@ -10,15 +10,49 @@ const ALLOWED_EMAIL = 'g@reprime.com'
 const FONT_STACK = 'var(--rp-font-body)'
 
 export default function Login() {
-  const [sent, setSent] = useState(false)
+  const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  // Fallback (magic-link) state — only surfaced when the code path fails or the
+  // user opts in via the small "Trouble?" link.
+  const [showFallback, setShowFallback] = useState(false)
+  const [fallbackSent, setFallbackSent] = useState(false)
+  const [fallbackLoading, setFallbackLoading] = useState(false)
 
-  const submit = async () => {
+  const submitCode = async () => {
+    if (loading || !code) return
     setLoading(true)
     setError(null)
+    try {
+      const res = await fetch('/api/auth/code', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code }),
+      })
+      if (res.ok) {
+        window.location.href = '/cockpit'
+        return
+      }
+      if (res.status === 401) {
+        setError('Incorrect code.')
+      } else {
+        setError('Sign-in failed. Try the email link below.')
+        setShowFallback(true)
+      }
+    } catch {
+      setError('Sign-in failed. Try the email link below.')
+      setShowFallback(true)
+    }
+    setLoading(false)
+  }
+
+  // Lockout insurance — original magic-link flow to g@reprime.com.
+  const sendMagicLink = async () => {
+    if (fallbackLoading) return
+    setFallbackLoading(true)
+    setError(null)
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error: otpError } = await supabase.auth.signInWithOtp({
       email: ALLOWED_EMAIL,
       options: {
         emailRedirectTo:
@@ -27,13 +61,13 @@ export default function Login() {
             : '',
       },
     })
-    setLoading(false)
-    if (error) setError(error.message)
-    else setSent(true)
+    setFallbackLoading(false)
+    if (otpError) setError(otpError.message)
+    else setFallbackSent(true)
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter' && !sent && !loading) submit()
+    if (e.key === 'Enter' && !loading) submitCode()
   }
 
   return (
@@ -118,7 +152,7 @@ export default function Login() {
         />
 
         <label
-          htmlFor="email"
+          htmlFor="access-code"
           style={{
             display: 'block',
             color: gold[70],
@@ -129,15 +163,17 @@ export default function Login() {
             marginBottom: '0.5rem',
           }}
         >
-          Email
+          Access code
         </label>
         <input
-          id="email"
-          type="email"
-          value={ALLOWED_EMAIL}
-          readOnly
-          aria-readonly="true"
-          title="Authorized email — fixed"
+          id="access-code"
+          type="password"
+          autoFocus
+          autoComplete="off"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="Enter team access code"
+          aria-label="Access code"
           style={{
             width: '100%',
             padding: '0.85rem 1rem',
@@ -147,58 +183,34 @@ export default function Login() {
             borderRadius: 6,
             fontSize: '1rem',
             fontFamily: FONT_STACK,
+            letterSpacing: '0.12em',
             outline: 'none',
             boxSizing: 'border-box',
           }}
         />
 
-        {!sent ? (
-          <button
-            type="button"
-            onClick={submit}
-            disabled={loading}
-            style={{
-              marginTop: '1.5rem',
-              width: '100%',
-              padding: '1rem',
-              background: loading ? gold[55] : '#FFCC33',
-              color: NAVY,
-              border: 'none',
-              borderRadius: 6,
-              fontSize: '1rem',
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontFamily: FONT_STACK,
-              transition: 'background 120ms ease',
-            }}
-          >
-            {loading ? 'Sending…' : 'Continue with magic link'}
-          </button>
-        ) : (
-          <div
-            role="status"
-            aria-live="polite"
-            style={{
-              marginTop: '1.5rem',
-              padding: '1rem',
-              background: gold[8],
-              border: `1px solid ${gold[35]}`,
-              borderRadius: 6,
-              color: '#FFCC33',
-              fontSize: '0.95rem',
-              textAlign: 'center',
-              lineHeight: 1.5,
-            }}
-          >
-            <strong style={{ display: 'block', marginBottom: 4 }}>
-              Check your inbox at {ALLOWED_EMAIL}.
-            </strong>
-            <span style={{ color: gold[70], fontSize: '0.85rem' }}>
-              Click the link to sign in. The link expires in one hour.
-            </span>
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={submitCode}
+          disabled={loading || !code}
+          style={{
+            marginTop: '1.5rem',
+            width: '100%',
+            padding: '1rem',
+            background: loading || !code ? gold[55] : '#FFCC33',
+            color: NAVY,
+            border: 'none',
+            borderRadius: 6,
+            fontSize: '1rem',
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            cursor: loading || !code ? 'not-allowed' : 'pointer',
+            fontFamily: FONT_STACK,
+            transition: 'background 120ms ease',
+          }}
+        >
+          {loading ? 'Entering…' : 'Enter Command Center'}
+        </button>
 
         {error && (
           <p
@@ -215,6 +227,71 @@ export default function Login() {
           </p>
         )}
 
+        {/* Fallback — small, secondary magic-link path. Lockout insurance. */}
+        <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+          {fallbackSent ? (
+            <div
+              role="status"
+              aria-live="polite"
+              style={{
+                padding: '0.85rem',
+                background: gold[8],
+                border: `1px solid ${gold[35]}`,
+                borderRadius: 6,
+                color: '#FFCC33',
+                fontSize: '0.85rem',
+                lineHeight: 1.5,
+              }}
+            >
+              <strong style={{ display: 'block', marginBottom: 4 }}>
+                Email link sent to {ALLOWED_EMAIL}.
+              </strong>
+              <span style={{ color: gold[70], fontSize: '0.8rem' }}>
+                Click the link to sign in. It expires in one hour.
+              </span>
+            </div>
+          ) : !showFallback ? (
+            <button
+              type="button"
+              onClick={() => setShowFallback(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: gold[55],
+                fontSize: '0.75rem',
+                letterSpacing: '0.04em',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                fontFamily: FONT_STACK,
+                padding: 0,
+              }}
+            >
+              Trouble? Sign in with email link
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={sendMagicLink}
+              disabled={fallbackLoading}
+              style={{
+                background: 'none',
+                border: `1px solid ${gold[25]}`,
+                borderRadius: 6,
+                color: gold[70],
+                fontSize: '0.8rem',
+                letterSpacing: '0.04em',
+                padding: '0.6rem 1rem',
+                cursor: fallbackLoading ? 'not-allowed' : 'pointer',
+                fontFamily: FONT_STACK,
+              }}
+            >
+              {fallbackLoading
+                ? 'Sending…'
+                : `Email a sign-in link to ${ALLOWED_EMAIL}`}
+            </button>
+          )}
+        </div>
+
         <p
           style={{
             color: gold[55],
@@ -227,7 +304,7 @@ export default function Login() {
             fontWeight: 500,
           }}
         >
-          Authorized for {ALLOWED_EMAIL} only
+          RePrime team access
         </p>
       </div>
     </main>

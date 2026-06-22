@@ -5,6 +5,9 @@ import { createServerClient as _createServerClient } from '@supabase/ssr'
 const PUBLIC_PATHS = [
   '/login',
   '/auth/callback',
+  // Shared access-code login. Reachable without a session; the route itself
+  // checks the code and mints the g@reprime.com session on success.
+  '/api/auth/code',
   '/api/whatsapp/webhook',
   '/api/phone/bb-webhook',
   '/api/phone/quo-webhook',
