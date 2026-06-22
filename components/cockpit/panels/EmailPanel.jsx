@@ -121,15 +121,21 @@ export default function EmailPanel({ width }) {
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: 6 }}>
-            {filtered.map((e) => (
-              <EmailRow
-                key={e.id}
-                email={e}
-                onOpen={() => setOpenedId(e.id)}
-                reminded={remindIds.has(e.id)}
-                onToggleRemind={() => toggleRemind(e.id)}
-              />
-            ))}
+            {filtered.length === 0 ? (
+              <div style={{ padding: '24px 16px', textAlign: 'center', color: ink[500], fontSize: 15, fontWeight: 600 }}>
+                Inbox clear.
+              </div>
+            ) : (
+              filtered.map((e) => (
+                <EmailRow
+                  key={e.id}
+                  email={e}
+                  onOpen={() => setOpenedId(e.id)}
+                  reminded={remindIds.has(e.id)}
+                  onToggleRemind={() => toggleRemind(e.id)}
+                />
+              ))
+            )}
           </div>
         </>
       )}

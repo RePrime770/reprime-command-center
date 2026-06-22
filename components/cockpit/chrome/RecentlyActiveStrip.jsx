@@ -18,9 +18,9 @@ import { useDemo } from '../demo/DemoContext.jsx';
 const byRecent = (a, b) => new Date(b.lastTs || 0) - new Date(a.lastTs || 0);
 
 export default function RecentlyActiveStrip({ top }) {
-  // Live threads from the cockpit provider (falls back to static mock while the
-  // first fetch is in flight). familyTag/staffTag have no live source yet, so
-  // Family degrades to empty and Others = everyone not flagged investor.
+  // Live threads from the cockpit provider — empty until live arrives, never
+  // mock. familyTag/staffTag have no live source yet, so Family degrades to
+  // empty and Others = everyone not flagged investor.
   const { threads } = useLiveData();
   const list = Array.isArray(threads) ? threads : [];
 

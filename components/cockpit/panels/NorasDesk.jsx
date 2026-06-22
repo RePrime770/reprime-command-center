@@ -66,9 +66,15 @@ export default function NorasDesk({ width }) {
           right="every call & message becomes a card"
         />
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '8px 8px 4px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {noraToYou.map((item) => (
-            <NoraCard key={item.id} item={item} />
-          ))}
+          {noraToYou.length === 0 ? (
+            <div style={{ padding: '18px 12px', fontSize: 15, fontWeight: 600, color: ink[300], textAlign: 'center' }}>
+              No items need you right now.
+            </div>
+          ) : (
+            noraToYou.map((item) => (
+              <NoraCard key={item.id} item={item} />
+            ))
+          )}
         </div>
       </div>
     </PanelShell>

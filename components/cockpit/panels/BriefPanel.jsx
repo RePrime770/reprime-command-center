@@ -61,6 +61,13 @@ export default function BriefPanel({ width }) {
 
 function MorningContent({ morningBrief }) {
   const { apex, sections = [] } = morningBrief || {};
+  if (!apex && sections.length === 0) {
+    return (
+      <div style={{ padding: '24px 16px', textAlign: 'center', color: ink[500], fontSize: 15, lineHeight: 1.5 }}>
+        No brief items yet.
+      </div>
+    );
+  }
   return (
     <>
       {/* Hero card for the apex item. Live data may omit apex — render only when present. */}
@@ -129,7 +136,7 @@ function Section({ sec }) {
       >
         {sec.title}
       </div>
-      {sec.items.map((it) => {
+      {(sec.items || []).map((it) => {
         const tierHex = it.tier ? TIER[it.tier]?.hex : null;
         const isHe = isHebrew(it.headline);
         return (

@@ -278,15 +278,21 @@ function SubPillar({ sp, openId, setOpen, divider, remindIds, toggleRemind, thre
         />
       ) : (
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {list.map((t) => (
-            <ThreadRow
-              key={t.id}
-              thread={t}
-              onOpen={() => setOpen(t.id)}
-              reminded={remindIds?.has(t.id)}
-              onToggleRemind={() => toggleRemind?.(t.id)}
-            />
-          ))}
+          {list.length === 0 ? (
+            <div style={{ padding: '20px 12px', textAlign: 'center', color: ink[300], fontSize: 14, fontWeight: 600 }}>
+              No threads.
+            </div>
+          ) : (
+            list.map((t) => (
+              <ThreadRow
+                key={t.id}
+                thread={t}
+                onOpen={() => setOpen(t.id)}
+                reminded={remindIds?.has(t.id)}
+                onToggleRemind={() => toggleRemind?.(t.id)}
+              />
+            ))
+          )}
         </div>
       )}
     </div>

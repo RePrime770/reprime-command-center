@@ -2,10 +2,9 @@
 
 // Client-side LIVE data provider for the cockpit.
 //
-// "Everything should be live, nothing should be stale." — live is the default
-// path. The static mock data is exposed ONLY as a graceful fallback while the
-// first fetch is in flight or after an error, so the cockpit never renders
-// blank/broken. Once live data arrives, the context exposes live.
+// "Everything should be live, nothing should be stale." — live is the ONLY
+// data path. There is NO mock-data fallback: when a live source is empty or
+// unavailable, the cockpit renders an empty/quiet state, never stale mock.
 //
 // Auth: /cockpit is Supabase-gated (g@reprime.com). Same-origin fetch('/api/...')
 // carries the session cookie automatically — no tokens in the client.
@@ -18,16 +17,6 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
-
-import {
-  threads as mockThreads,
-  threadsByChannel as mockThreadsByChannel,
-  findThread as mockFindThread,
-} from '../data/threads.js';
-import { events as mockEvents, today as mockToday } from '../data/calendar.js';
-import { morningBrief as mockMorningBrief } from '../data/morningBrief.js';
-import { noraToYou as mockNoraToYou, youToNora as mockYouToNora } from '../data/noraDesk.js';
-import { emails as mockEmails } from '../data/emails.js';
 
 import {
   adaptThreads,
@@ -80,23 +69,17 @@ function asEventRows(payload) {
   return [];
 }
 
-// Static fallback Nora's Desk (data/noraDesk.js shape) for use until the first
-// successful live fetch. youToNora has no live source — always static.
-const FALLBACK_NORA_DESK = {
-  noraToYou: mockNoraToYou,
-  youToNora: mockYouToNora,
-};
-
-// Static fallback value — used until the first successful live fetch.
-const FALLBACK_VALUE = {
-  threads: mockThreads,
-  threadsByChannel: mockThreadsByChannel,
-  findThread: mockFindThread,
-  events: mockEvents,
-  today: mockToday,
-  morningBrief: mockMorningBrief,
-  noraDesk: FALLBACK_NORA_DESK,
-  emails: mockEmails,
+// Empty initial value — NO mock. Used before the first live fetch resolves and
+// as the out-of-provider default. Empty live data renders as empty/quiet state.
+const EMPTY_VALUE = {
+  threads: [],
+  threadsByChannel: () => [],
+  findThread: () => undefined,
+  events: [],
+  today: (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`; })(),
+  morningBrief: { date: '', greeting: 'Boker tov, Gideon.', apex: null, sections: [], degraded: false, unreadTotal: 0 },
+  noraDesk: { noraToYou: [], youToNora: [] },
+  emails: [],
   loading: true,
   error: null,
   lastUpdated: null,
@@ -104,7 +87,7 @@ const FALLBACK_VALUE = {
 };
 
 export function CockpitLiveDataProvider({ children }) {
-  const [value, setValue] = useState(FALLBACK_VALUE);
+  const [value, setValue] = useState(EMPTY_VALUE);
   const hasLiveRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -128,7 +111,7 @@ export function CockpitLiveDataProvider({ children }) {
     const emailPayload = emailTriage.status === 'fulfilled' ? emailTriage.value : null;
 
     // If every source came back null/empty AND we have never had live data,
-    // keep the static fallback rather than wiping the screen.
+    // leave the EMPTY data in place and flag live as unavailable — never mock.
     const everySourceFailed =
       t305.status !== 'fulfilled' && t718.status !== 'fulfilled' &&
       !calPayload && !briefPayload && !bucketPayload && !asksPayload &&
@@ -143,29 +126,19 @@ export function CockpitLiveDataProvider({ children }) {
       return;
     }
 
+    // Pure live → adapt. Empty live stays empty; we never substitute mock.
     const liveThreads = adaptThreads(rows305, rows718);
     const { threadsByChannel, findThread } = makeThreadHelpers(liveThreads);
     const { today, events } = adaptCalendar(asEventRows(calPayload));
-    const morningBrief = briefPayload ? adaptBrief(briefPayload) : mockMorningBrief;
+    const morningBrief = briefPayload ? adaptBrief(briefPayload) : EMPTY_VALUE.morningBrief;
 
-    // Nora's Desk: live cards from bucket + asks. youToNora has no live source,
-    // so keep the static command log. If neither live source returned, fall
-    // back to the full static desk rather than showing an empty box.
-    let noraDesk = FALLBACK_NORA_DESK;
-    if (bucketPayload || asksPayload) {
-      const { noraToYou } = adaptNoraDesk(bucketPayload, asksPayload);
-      noraDesk = {
-        noraToYou: noraToYou.length > 0 ? noraToYou : mockNoraToYou,
-        youToNora: mockYouToNora,
-      };
-    }
+    // Nora's Desk: live cards from bucket + asks (even when empty). youToNora
+    // has no live source yet, so it stays empty — never mock.
+    const { noraToYou } = adaptNoraDesk(bucketPayload, asksPayload);
+    const noraDesk = { noraToYou, youToNora: [] };
 
-    // Email triage: live scored inbox. Fall back to static while unavailable.
-    let emails = mockEmails;
-    if (emailPayload) {
-      const live = adaptEmails(emailPayload);
-      emails = live.length > 0 ? live : mockEmails;
-    }
+    // Email triage: live scored inbox, empty when empty — never mock.
+    const emails = emailPayload ? adaptEmails(emailPayload) : [];
 
     hasLiveRef.current = true;
     setValue({
@@ -205,10 +178,10 @@ export function CockpitLiveDataProvider({ children }) {
 }
 
 /**
- * Read live cockpit data. Falls back to static mock values when used outside a
- * provider (defensive) or before the first live fetch resolves.
+ * Read live cockpit data. Returns an EMPTY value (never mock) when used outside
+ * a provider (defensive) or before the first live fetch resolves.
  */
 export function useLiveData() {
   const ctx = useContext(CockpitLiveDataContext);
-  return ctx ?? FALLBACK_VALUE;
+  return ctx ?? EMPTY_VALUE;
 }

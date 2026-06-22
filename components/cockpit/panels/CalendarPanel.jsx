@@ -70,9 +70,15 @@ export default function CalendarPanel({ width }) {
 
       {/* Agenda list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 6 }}>
-        {today.map((e) => (
-          <EventRow key={e.id} event={e} />
-        ))}
+        {today.length === 0 ? (
+          <div style={{ padding: '20px 12px', textAlign: 'center', color: ink[300], fontSize: 14, fontWeight: 600 }}>
+            Nothing on the calendar today.
+          </div>
+        ) : (
+          today.map((e) => (
+            <EventRow key={e.id} event={e} />
+          ))
+        )}
       </div>
 
     </PanelShell>
