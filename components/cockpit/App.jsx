@@ -1,6 +1,5 @@
 import React from 'react';
 import { DemoProvider, useDemo } from './demo/DemoContext.jsx';
-import DemoStatesPanel from './demo/DemoStatesPanel.jsx';
 
 // v3 chrome — 2 rows + conditional Tier-1 alert lane in Row 3. PTT centered, sub-strip + browser button + memory + momentum integrated.
 import TopChrome from './chrome/TopChrome.jsx';
@@ -14,13 +13,6 @@ import EmailPanel from './panels/EmailPanel.jsx';
 import CalendarPanel from './panels/CalendarPanel.jsx';
 import BriefPanel from './panels/BriefPanel.jsx';
 import NorasDesk from './panels/NorasDesk.jsx';
-
-// Drawers
-import CallerIdDrawer from './drawers/CallerIdDrawer.jsx';
-import InvestorProfileDrawer from './drawers/InvestorProfileDrawer.jsx';
-import ReligiousCalendarDrawer from './drawers/ReligiousCalendarDrawer.jsx';
-import EmailComposeDrawer from './drawers/EmailComposeDrawer.jsx';
-import InviteComposerDrawer from './drawers/InviteComposerDrawer.jsx';
 
 // Slot windows — Zoom only (lean center keeps only the meeting window)
 import ZoomWindow from './windows/ZoomWindow.jsx';
@@ -116,18 +108,8 @@ function Cockpit() {
       {/* WINDOWS — Zoom only — z 50 */}
       {state.meetingState === 'zoom-with-susan' && <Windows />}
 
-      {/* DRAWERS */}
-      <CallerIdDrawer />
-      <InvestorProfileDrawer />
-      <ReligiousCalendarDrawer />
-      <EmailComposeDrawer />
-      <InviteComposerDrawer />
-
       {/* TOASTS */}
       <ToastStack />
-
-      {/* DEMO PANEL */}
-      <DemoStatesPanel />
     </div>
   );
 }
