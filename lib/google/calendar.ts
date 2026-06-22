@@ -108,19 +108,30 @@ export interface BusyInterval {
 export async function getBusyTimes(timeMin: string, timeMax: string): Promise<BusyInterval[]> {
   try {
     const calendar = google.calendar({ version: 'v3', auth: getAuthClient() })
+    // Gideon 2026-06-22: "once something is booked, nobody can book on top."
+    // Check EVERY calendar Gideon owns/subscribes to — not just primary — so a
+    // block on a personal/family/secondary calendar also makes the slot busy.
+    // Fall back to primary alone if the calendar list can't be read.
+    let items: { id: string }[] = [{ id: 'primary' }]
+    try {
+      const list = await calendar.calendarList.list({ maxResults: 250, showHidden: true })
+      const ids = (list.data.items ?? [])
+        .filter((c) => c.id && c.accessRole !== 'freeBusyReader')
+        .map((c) => ({ id: c.id! }))
+      if (ids.length) items = ids
+    } catch { /* keep primary-only */ }
+
     const res = await calendar.freebusy.query({
-      requestBody: {
-        timeMin,
-        timeMax,
-        timeZone: 'UTC',
-        items: [{ id: 'primary' }],
-      },
+      requestBody: { timeMin, timeMax, timeZone: 'UTC', items },
     })
-    const busyRanges = res.data?.calendars?.primary?.busy ?? []
-    return busyRanges.map((b) => ({
-      start: new Date(b.start!).getTime(),
-      end: new Date(b.end!).getTime(),
-    }))
+    const cals = res.data?.calendars ?? {}
+    const out: BusyInterval[] = []
+    for (const cal of Object.values(cals)) {
+      for (const b of cal.busy ?? []) {
+        out.push({ start: new Date(b.start!).getTime(), end: new Date(b.end!).getTime() })
+      }
+    }
+    return out
   } catch (err) {
     // Graceful degradation — if freebusy fails, return [] (no conflicts known).
     // Better to show a slot that might conflict than to show nothing.
