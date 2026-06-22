@@ -330,7 +330,10 @@
   function bucketOf(c){ if(c.awaitingUs)return 'owe'; if(c.stage==='booked')return 'mtg'; if(c.stage==='declined')return 'cold'; if(c.snoozed)return 'rem'; if(c.stage==='replied')return 'within'; return 'silent'; }
   function mapContact(c){
     var channel=(c.phone&&c.email)?'both':(c.phone?'wa':'email');
-    var b=bucketOf(c), who=c.lastFrom==='us'?'us':'them', msg=c.lastReply||'';
+    var b=bucketOf(c), who=c.lastFrom==='us'?'us':'them', raw=(c.lastReply||'').trim();
+    // Only a REAL message counts — must contain letters (Hebrew or Latin). A bare
+    // phone number / digits is not a message, so it must never show as the preview.
+    var msg=/[A-Za-z֐-׿]/.test(raw)?raw:'';
     var snip=msg.length>120?msg.slice(0,120).trim()+'…':msg;            // card = quick summary, not the whole message
     var he=/[֐-׿]/.test(snip)?snip:'';
     var chain=snip?[{who:who,b:(who==='them'?b:undefined),date:'',he:he,es:snip,en:snip}]
