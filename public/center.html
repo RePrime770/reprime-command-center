@@ -74,6 +74,8 @@
   .chain{padding:8px 9px;display:flex;flex-direction:column;gap:7px}
   .cm{border-radius:8px;padding:6px 9px;background:#fff;color:#111;border:1px solid #e7e7e7}
   .cm.them{background:#fff;color:#111;border:1px solid #e7e7e7}
+  .cm.us.email{background:#dbeafe;color:#0b2e6b;border:1px solid #bcd4f5}
+  .cm.them.email{background:#eef2fb;color:#111;border:1px solid #dbe4f3}
   .cm .h{font-size:9.5px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;margin-bottom:2px;opacity:.85}
   .vtag{font-size:9px;font-weight:800;letter-spacing:.03em;padding:1px 6px;border-radius:6px;margin-left:6px;vertical-align:middle}
   .vtag.wa{background:#d9fdd3;color:#0b6b2e} .vtag.email{background:#dbeafe;color:#1e40af}
@@ -207,11 +209,11 @@
     }).join('');
   }
   function cmHTML(c){
-    var cls=c.who==='us'?'us':'them';
+    var cls=(c.who==='us'?'us':'them')+(c.via==='email'?' email':'');
     var head=(c.who==='us'?l().us:l().them)+' · '+c.date;
     var main = c.he ? '<div class="x he">'+esc(c.he)+'</div>' : '<div class="x">'+esc(c[state.lang==='es'?'es':'en'])+'</div>';
     var tr = c.he ? '<div class="tr">'+l().tr+' · “'+esc(c[state.lang==='es'?'es':'en'])+'”</div>' : '';
-    var vtag=c.via?'<span class="vtag '+c.via+'">'+(c.via==='email'?'Email':'WhatsApp')+'</span>':'';
+    var vtag=c.via?'<span class="vtag '+c.via+'">'+(c.via==='email'?'📧 Email':'WhatsApp')+'</span>':'';
     return '<div class="cm '+cls+'"><div class="h">'+esc(head)+vtag+'</div>'+main+tr+'</div>';
   }
   function cardHTML(p,i){
