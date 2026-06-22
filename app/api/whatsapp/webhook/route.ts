@@ -447,7 +447,7 @@ export async function POST(request: Request) {
         const txt = (message.text || '').trim() || (mediaType ? '📎 ' + mediaType : '')
         if (!txt) return
         let date = ''
-        try { date = new Intl.DateTimeFormat('en-US', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }).format(new Date(sentAt)) } catch { /* keep '' */ }
+        try { date = new Intl.DateTimeFormat('en-US', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }).format(new Date(sentAt || Date.now())) } catch { /* keep '' */ }
         let arr: Array<{ who: string; date: string; text: string }> = []
         try { arr = match.thread_json ? JSON.parse(match.thread_json) : [] } catch { arr = [] }
         arr.push({ who, date, text: txt.slice(0, 400) })
