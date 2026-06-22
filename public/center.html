@@ -75,6 +75,8 @@
   .cm{border-radius:8px;padding:6px 9px;background:#fff;color:#111;border:1px solid #e7e7e7}
   .cm.them{background:#fff;color:#111;border:1px solid #e7e7e7}
   .cm .h{font-size:9.5px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;margin-bottom:2px;opacity:.85}
+  .vtag{font-size:9px;font-weight:800;letter-spacing:.03em;padding:1px 6px;border-radius:6px;margin-left:6px;vertical-align:middle}
+  .vtag.wa{background:#d9fdd3;color:#0b6b2e} .vtag.email{background:#dbeafe;color:#1e40af}
   .cm .x{font-size:13px;line-height:1.45}
   .cm .tr{font-size:11px;margin-top:3px;opacity:.85;direction:ltr;text-align:left}
   .cm.us{background:#d9fdd3;color:#0b3d0b;border:1px solid #c5e8ba} .cm.last{background:var(--last-bg);color:var(--last-tx)}
@@ -209,7 +211,8 @@
     var head=(c.who==='us'?l().us:l().them)+' · '+c.date;
     var main = c.he ? '<div class="x he">'+esc(c.he)+'</div>' : '<div class="x">'+esc(c[state.lang==='es'?'es':'en'])+'</div>';
     var tr = c.he ? '<div class="tr">'+l().tr+' · “'+esc(c[state.lang==='es'?'es':'en'])+'”</div>' : '';
-    return '<div class="cm '+cls+'"><div class="h">'+esc(head)+'</div>'+main+tr+'</div>';
+    var vtag=c.via?'<span class="vtag '+c.via+'">'+(c.via==='email'?'Email':'WhatsApp')+'</span>':'';
+    return '<div class="cm '+cls+'"><div class="h">'+esc(head)+vtag+'</div>'+main+tr+'</div>';
   }
   function cardHTML(p,i){
     // Column cards = a quick READABLE summary, not the whole thread dumped.
@@ -364,7 +367,7 @@
     var anchor={who:'us',b:undefined,date:'',he:'',es:'Invitación Terminal enviada',en:'Terminal invitation sent'};
     var chain;
     if(tj&&tj.length){
-      chain=tj.slice(-40).map(function(m){var t=(m.text||'').trim();return {who:(m.who==='us'?'us':'them'),b:(m.who==='us'?undefined:b),date:m.date||'',he:/[֐-׿]/.test(t)?t:'',es:t,en:t};});
+      chain=tj.slice(-40).map(function(m){var t=(m.text||'').trim();return {who:(m.who==='us'?'us':'them'),b:(m.who==='us'?undefined:b),date:m.date||'',he:/[֐-׿]/.test(t)?t:'',es:t,en:t,via:m.via};});
       chain.unshift(anchor);
     } else if(snip){
       chain=[anchor,{who:who,b:(who==='them'?b:undefined),date:'',he:he,es:snip,en:snip}];
@@ -443,7 +446,7 @@
         var liveHasUs=h.chain.some(function(c){return c.who==='us';});
         var haveUs=(o.chain||[]).some(function(c){return c.who==='us';});
         if(liveHasUs || !haveUs || (o.chain||[]).length<=2){
-          o.chain=h.chain.map(function(c){return {who:c.who,b:(c.who==='them'?o.bucket:undefined),date:c.date,he:c.he,es:c.es,en:c.en};});
+          o.chain=h.chain.map(function(c){return {who:c.who,b:(c.who==='them'?o.bucket:undefined),date:c.date,he:c.he,es:c.es,en:c.en,via:c.via};});
           var cur=PEOPLE.filter(function(p){return p.queued;})[state.qi];
           if(cur&&cur.name===o.name){renderQueue();bindQueue();}
         }

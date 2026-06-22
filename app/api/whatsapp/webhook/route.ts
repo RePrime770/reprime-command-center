@@ -448,9 +448,9 @@ export async function POST(request: Request) {
         if (!txt) return
         let date = ''
         try { date = new Intl.DateTimeFormat('en-US', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }).format(new Date(sentAt || Date.now())) } catch { /* keep '' */ }
-        let arr: Array<{ who: string; date: string; text: string }> = []
+        let arr: Array<{ who: string; date: string; text: string; via?: string }> = []
         try { arr = match.thread_json ? JSON.parse(match.thread_json) : [] } catch { arr = [] }
-        arr.push({ who, date, text: txt.slice(0, 400) })
+        arr.push({ who, date, text: txt.slice(0, 400), via: 'wa' })
         if (arr.length > 40) arr = arr.slice(-40)
         await service.from('roster').update({
           thread_json: JSON.stringify(arr),
