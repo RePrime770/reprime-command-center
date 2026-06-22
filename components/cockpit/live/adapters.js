@@ -121,6 +121,14 @@ export function adaptCalendar(liveEvents) {
       title,
       type: hasZoom ? 'zoom' : 'standard',
       location: e.location || (hasZoom ? 'zoom' : ''),
+      // Preserve the real join URL so the "Join Zoom" button works. Prefer an
+      // explicit Zoom link, then a Google Meet/hangout link, else a URL in the
+      // location field.
+      joinUrl:
+        (typeof e.zoomLink === 'string' && e.zoomLink) ||
+        (typeof e.hangoutLink === 'string' && e.hangoutLink) ||
+        (typeof e.location === 'string' && /^https?:\/\//.test(e.location) ? e.location : '') ||
+        null,
     };
   });
   return { today, events };

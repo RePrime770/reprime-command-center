@@ -3,6 +3,7 @@ import { Send, Mic, Square, Volume2, VolumeX } from 'lucide-react';
 import { ink, semantic } from '../lib/colors.js';
 import { useLiveData } from '../live/CockpitLiveData.jsx';
 import { buildNoraContext } from '../lib/noraContext.js';
+import { speak as speakTTS } from '../lib/voiceClient.js';
 
 /**
  * NORA CHAT — the live, two-way conversation that lives in Nora's Desk
@@ -86,26 +87,14 @@ export default function NoraChat({ focusSignal }) {
     };
   }, []);
 
-  const speak = useCallback(async (text, language) => {
+  // Speak Nora's reply through the shared, gesture-unlocked audio element
+  // (voiceClient). This is what makes her voice actually play: the reply arrives
+  // after an async round-trip, and a fresh Audio().play() there is blocked by the
+  // browser autoplay policy — the shared element was unlocked on the user's send
+  // click/keypress, so playback is allowed.
+  const speak = useCallback((text, language) => {
     if (muted || !text) return;
-    try {
-      const res = await fetch('/api/voice/speak', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, language: language === 'he' ? 'he' : 'en' }),
-      });
-      if (!res.ok) return; // TTS is best-effort; never block the chat
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      audioRef.current?.pause();
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.addEventListener('ended', () => URL.revokeObjectURL(url));
-      await audio.play().catch(() => {});
-    } catch {
-      /* best-effort */
-    }
+    speakTTS(text, language === 'he' ? 'he' : 'en');
   }, [muted]);
 
   const send = useCallback(async (raw) => {

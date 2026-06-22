@@ -225,6 +225,7 @@ export async function GET(request: NextRequest) {
 type SendBody = {
   panel?: string
   thread_id?: string
+  phone?: string
   body?: string
   attachment_url?: string
   attachment_filename?: string
@@ -253,9 +254,14 @@ export async function POST(request: NextRequest) {
   }
   const panel: Panel = panelParam
 
-  const threadId = payload.thread_id
-  if (!threadId || typeof threadId !== 'string') {
-    return NextResponse.json({ error: 'thread_id_required' }, { status: 400 })
+  // The cockpit identifies a thread by PHONE (its live data comes straight from
+  // Timelines and has no Supabase row id), while the legacy dashboard passes the
+  // Supabase row uuid. Accept EITHER: thread_id may be a uuid or a phone, and an
+  // explicit `phone` field is also honored. We resolve to the real row below.
+  let threadId = typeof payload.thread_id === 'string' ? payload.thread_id : ''
+  const phoneHint = typeof payload.phone === 'string' ? payload.phone : ''
+  if (!threadId && !phoneHint) {
+    return NextResponse.json({ error: 'identifier_required' }, { status: 400 })
   }
 
   const text = (payload.body ?? '').trim()
@@ -268,16 +274,26 @@ export async function POST(request: NextRequest) {
   }
 
   const service = createServiceClient()
+  // Resolve the thread row by uuid (legacy) or by phone+panel (cockpit).
   // BUG 5: Do NOT select timelines_chat_id — sendMessage() needs phone, not chat ID
-  const { data: thread, error: threadErr } = await service
-    .from('whatsapp_threads')
-    .select('id, panel, phone, is_group')
-    .eq('id', threadId)
-    .single()
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  let threadQuery = service.from('whatsapp_threads').select('id, panel, phone, is_group')
+  if (threadId && UUID_RE.test(threadId)) {
+    threadQuery = threadQuery.eq('id', threadId)
+  } else {
+    const rawPhone = phoneHint || threadId
+    const normalized = normalizePhone(rawPhone) || rawPhone
+    threadQuery = threadQuery
+      .eq('panel', panel)
+      .or(`phone.eq.${normalized},phone.eq.${rawPhone}`)
+  }
+  const { data: thread, error: threadErr } = await threadQuery.maybeSingle()
 
   if (threadErr || !thread) {
     return NextResponse.json({ error: 'thread_not_found' }, { status: 404 })
   }
+  // From here on, threadId is the resolved Supabase row uuid.
+  threadId = thread.id
 
   if (thread.panel !== panel) {
     return NextResponse.json(

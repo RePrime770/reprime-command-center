@@ -485,6 +485,9 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
         replyText={replyText}
         setReplyText={setReplyText}
         isHe={isHe}
+        phone={thread.id}
+        panel={panelFromChannel(thread.channel)}
+        contactName={thread.contactName}
       />
 
       {/* Newest message (the one being replied to) — handoff §3.10 #4 */}
@@ -616,7 +619,7 @@ function NoraElevatedRead({ block, channel: ch }) {
   );
 }
 
-function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setReplyText, isHe }) {
+function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setReplyText, isHe, phone, panel, contactName }) {
   const channelColor = ch?.hex || '#1E88E5';
   const labelText = {
     draft:   'NORA DRAFT · tap to edit',
@@ -624,7 +627,38 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
     cleared: 'WRITE YOUR OWN'
   }[replyMode];
 
-  const sendLabel = replyMode === 'editing' ? 'Send my edit' : 'Send';
+  const [sendState, setSendState] = React.useState('idle'); // idle | sending | sent | error
+  const canSend = Boolean(phone && panel) && replyText.trim().length > 0 && sendState !== 'sending';
+
+  // Real WhatsApp send via the live API (POST /api/whatsapp/messages with
+  // phone+panel). Guarded by an explicit confirm naming the recipient + channel
+  // so a wrong-thread misfire can't happen silently (spec: "send confirm by name").
+  const doSend = async () => {
+    if (!canSend) return;
+    const who = contactName || phone;
+    const okToSend = typeof window === 'undefined'
+      ? true
+      : window.confirm(`Send this WhatsApp to ${who} on ${panel}?\n\n“${replyText.trim().slice(0, 140)}”`);
+    if (!okToSend) return;
+    setSendState('sending');
+    try {
+      const res = await fetch('/api/whatsapp/messages', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, panel, body: replyText.trim() }),
+      });
+      setSendState(res.ok ? 'sent' : 'error');
+    } catch {
+      setSendState('error');
+    }
+  };
+
+  const sendLabel =
+    sendState === 'sending' ? 'Sending…'
+    : sendState === 'sent' ? 'Sent ✓'
+    : sendState === 'error' ? 'Retry'
+    : replyMode === 'editing' ? 'Send my edit' : 'Send';
 
   return (
     <div
@@ -740,16 +774,19 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
       >
         <button
           type="button"
-          onClick={() => { /* fire send */ }}
+          onClick={doSend}
+          disabled={!canSend}
+          title={!phone ? 'Open a thread to reply' : `Send to ${contactName || phone} on ${panel}`}
           style={{
-            background: channelColor,
+            background: sendState === 'sent' ? '#16A34A' : sendState === 'error' ? '#B91C1C' : channelColor,
             color: '#FFFFFF',
             border: 'none',
             borderRadius: 6,
             padding: '6px 14px',
             fontSize: 18,
             fontWeight: 800,
-            cursor: 'pointer',
+            cursor: canSend ? 'pointer' : 'default',
+            opacity: canSend || sendState === 'sent' || sendState === 'error' ? 1 : 0.55,
             fontFamily: 'inherit',
             display: 'inline-flex',
             alignItems: 'center',

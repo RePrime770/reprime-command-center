@@ -189,6 +189,11 @@ function EventRow({ event }) {
           </span>
           <button
             type="button"
+            onClick={() => {
+              if (event.joinUrl) window.open(event.joinUrl, '_blank', 'noopener,noreferrer');
+            }}
+            disabled={!event.joinUrl}
+            title={event.joinUrl ? 'Open the meeting link' : 'No join link on this event'}
             style={{
               background: brand.gold,
               color: brand.navy,
@@ -197,7 +202,8 @@ function EventRow({ event }) {
               padding: '3px 10px',
               fontSize: 16,
               fontWeight: 800,
-              cursor: 'pointer',
+              cursor: event.joinUrl ? 'pointer' : 'default',
+              opacity: event.joinUrl ? 1 : 0.5,
               fontFamily: 'inherit'
             }}
           >
