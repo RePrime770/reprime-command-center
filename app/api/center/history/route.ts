@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { centerAuthed } from '@/lib/center/auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getMessages } from '@/lib/timelines/client'
-import { listRecent, getMessage, parseFromHeader } from '@/lib/google/gmail'
+import { google } from 'googleapis'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -71,21 +71,25 @@ async function waThreadLive(phone: string): Promise<Msg[]> {
 
 async function emailThread(email: string): Promise<Msg[]> {
   try {
-    const recent = await listRecent('me', 60)
+    const auth = new google.auth.OAuth2(process.env.GOOGLE_OAUTH_CLIENT_ID, process.env.GOOGLE_OAUTH_CLIENT_SECRET)
+    auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN })
+    const gmail = google.gmail({ version: 'v1', auth })
+    // Targeted search for just this person (fast) — not a full-inbox scan.
+    const list = await gmail.users.messages.list({ userId: 'me', q: `from:${email} OR to:${email}`, maxResults: 8 })
+    const ids = (list.data.messages || []).map((m) => m.id || '').filter(Boolean)
     const out: Msg[] = []
-    for (const m of recent) {
-      if (out.length >= 25) break
+    for (const id of ids) {
       try {
-        const msg = await getMessage(m.id)
-        const from = parseFromHeader(msg.headers['from'])
-        const to = (msg.headers['to'] || '').toLowerCase()
-        const them = from.address === email.toLowerCase()
-        const us = /reprime\.com/.test(from.address) && to.includes(email.toLowerCase())
-        if (!them && !us) continue
-        out.push({ who: them ? 'them' : 'us', date: fmtDate(msg.receivedAt), text: ((msg.headers['subject'] ? msg.headers['subject'] + ' — ' : '') + (msg.snippet || '')).slice(0, 400), ts: new Date(msg.receivedAt).getTime() || 0, via: 'email' as const })
+        const m = await gmail.users.messages.get({ userId: 'me', id, format: 'metadata', metadataHeaders: ['From', 'Subject'] })
+        const h: Record<string, string> = {}
+        for (const x of (m.data.payload?.headers || [])) h[(x.name || '').toLowerCase()] = x.value || ''
+        const ts = Number(m.data.internalDate) || 0
+        const them = (h.from || '').toLowerCase().includes(email.toLowerCase())
+        out.push({ who: them ? 'them' : 'us', date: fmtDate(ts), text: ((h.subject ? h.subject + ' — ' : '') + (m.data.snippet || '')).slice(0, 400), ts, via: 'email' as const })
       } catch { /* skip */ }
     }
-    return out.reverse()
+    out.sort((a, b) => a.ts - b.ts)
+    return out
   } catch { return [] }
 }
 
