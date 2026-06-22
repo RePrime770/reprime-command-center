@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { ink, tier as TIER, semantic, brand } from '../lib/colors.js';
-import { morningBrief } from '../data/morningBrief.js';
 import { ListenButton } from '../lib/voice.jsx';
 import { isHebrew } from '../lib/format.js';
+import { useLiveData } from '../live/CockpitLiveData.jsx';
 import PanelShell from './PanelShell.jsx';
 
 export default function BriefPanel({ width }) {
+  const { morningBrief } = useLiveData();
   const [tab, setTab] = useState('morning');
   return (
     <PanelShell width={width} accent="#1E88E5" title="BRIEF" subtitle="MORNING + EVENING">
@@ -52,57 +53,59 @@ export default function BriefPanel({ width }) {
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: 6, background: '#F1F5F9' }}>
-        {tab === 'morning' ? <MorningContent /> : <EveningContent />}
+        {tab === 'morning' ? <MorningContent morningBrief={morningBrief} /> : <EveningContent />}
       </div>
     </PanelShell>
   );
 }
 
-function MorningContent() {
-  const { apex, sections } = morningBrief;
+function MorningContent({ morningBrief }) {
+  const { apex, sections = [] } = morningBrief || {};
   return (
     <>
-      {/* Hero card for L7 apex (per dispatch — L6+ items get hero treatment) */}
-      <div
-        style={{
-          position: 'relative',
-          padding: '10px 12px 10px 18px',
-          background: brand.navy,
-          color: '#FFFFFF',
-          borderRadius: 8,
-          marginBottom: 6,
-          boxShadow: '0 4px 12px rgba(14, 52, 112, 0.30)'
-        }}
-      >
-        <span className="tier-stripe" style={{ background: TIER[apex.tier]?.hex, width: 7 }} />
-        <div style={{ fontSize: 13, fontWeight: 800, color: brand.gold, letterSpacing: '0.14em', marginBottom: 2 }}>
-          APEX · {TIER[apex.tier]?.label}
+      {/* Hero card for the apex item. Live data may omit apex — render only when present. */}
+      {apex && (
+        <div
+          style={{
+            position: 'relative',
+            padding: '10px 12px 10px 18px',
+            background: brand.navy,
+            color: '#FFFFFF',
+            borderRadius: 8,
+            marginBottom: 6,
+            boxShadow: '0 4px 12px rgba(14, 52, 112, 0.30)'
+          }}
+        >
+          {apex.tier && <span className="tier-stripe" style={{ background: TIER[apex.tier]?.hex, width: 7 }} />}
+          <div style={{ fontSize: 13, fontWeight: 800, color: brand.gold, letterSpacing: '0.14em', marginBottom: 2 }}>
+            APEX{apex.tier ? ` · ${TIER[apex.tier]?.label}` : ''}
+          </div>
+          <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 4 }}>{apex.title}</div>
+          <div style={{ fontSize: 16, lineHeight: 1.45, opacity: 0.95 }}>{apex.body}</div>
+          <div style={{ marginTop: 8, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {(apex.actions || []).map((a) => (
+              <button
+                key={a}
+                type="button"
+                style={{
+                  background: brand.gold,
+                  color: brand.navy,
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '3px 10px',
+                  fontSize: 16,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit'
+                }}
+              >
+                {a}
+              </button>
+            ))}
+            <ListenButton compact />
+          </div>
         </div>
-        <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 4 }}>{apex.title}</div>
-        <div style={{ fontSize: 16, lineHeight: 1.45, opacity: 0.95 }}>{apex.body}</div>
-        <div style={{ marginTop: 8, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {apex.actions.map((a) => (
-            <button
-              key={a}
-              type="button"
-              style={{
-                background: brand.gold,
-                color: brand.navy,
-                border: 'none',
-                borderRadius: 6,
-                padding: '3px 10px',
-                fontSize: 16,
-                fontWeight: 800,
-                cursor: 'pointer',
-                fontFamily: 'inherit'
-              }}
-            >
-              {a}
-            </button>
-          ))}
-          <ListenButton compact />
-        </div>
-      </div>
+      )}
 
       {sections.map((sec) => (
         <Section key={sec.id} sec={sec} />
