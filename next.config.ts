@@ -29,7 +29,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: '/outreach', headers: [{ key: 'Cache-Control', value: 'no-store, must-revalidate' }] },
+      { source: '/center.html', headers: [{ key: 'Cache-Control', value: 'no-store, must-revalidate' }] },
     ]
+  },
+  // /outreach serves the approved standalone Command Center (public/center.html),
+  // which wires itself to /api/center/* at runtime.
+  async rewrites() {
+    return [{ source: '/outreach', destination: '/center.html' }]
   },
 }
 

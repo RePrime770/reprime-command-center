@@ -39,6 +39,7 @@ const PUBLIC_PATHS = [
   // Command Center outreach tool — password-gated by sbh770 inside each route
   // (x-center-pass header), so it must bypass the dashboard Supabase login.
   '/outreach',
+  '/center.html',
   '/api/center',
   '/api/cron/center-drain',
   '/api/cron/center-watch',
