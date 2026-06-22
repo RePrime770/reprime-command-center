@@ -288,12 +288,20 @@
     var repN=repliedPeople().length;
     var bookN=PEOPLE.filter(function(p){return !p.queued&&p.booked;}).length;
     var auto=state.lang==='es'?'→ cola':'→ queue';
+    // Live numbers from /api/center/track (stored on window by loadLive). Fall
+    // back to the people loaded in memory so the bar is never blank on first paint.
+    var t=window._track||null, c=(t&&t.counts)||{};
+    var invN = t ? (t.contacts?t.contacts.length:0) : PEOPLE.length;
+    var replied = t ? (c.replied||0) : repN;
+    var weOwe = t ? (t.awaitingUs||0) : oweN;
+    var booked = t ? (c.booked||0) : bookN;
+    var out = t ? (c.declined||c.cold||0) : 0;
     document.getElementById('stats').innerHTML=
-      '<span class="stat">'+l().stats.inv+' <b>206</b></span>'+
-      '<button class="stat act" data-cat="rep">'+l().stats.rep+' <b>'+(41)+'</b><span class="addmini" title="agregar a la cola">+ '+repN+'</span></button>'+
-      '<span class="stat owe">'+l().stats.owe+' <b>'+oweN+'</b><span class="auto">'+auto+'</span></span>'+
-      '<button class="stat book act" data-cat="book">'+l().stats.book+' <b>15</b>'+(bookN?'<span class="addmini" title="agregar a la cola">+ '+bookN+'</span>':'')+'</button>'+
-      '<span class="stat">'+l().stats.out+' <b>28</b></span>';
+      '<span class="stat">'+l().stats.inv+' <b>'+invN+'</b></span>'+
+      '<button class="stat act" data-cat="rep">'+l().stats.rep+' <b>'+replied+'</b>'+(repN?'<span class="addmini" title="agregar a la cola">+ '+repN+'</span>':'')+'</button>'+
+      '<span class="stat owe">'+l().stats.owe+' <b>'+weOwe+'</b><span class="auto">'+auto+'</span></span>'+
+      '<button class="stat book act" data-cat="book">'+l().stats.book+' <b>'+booked+'</b>'+(bookN?'<span class="addmini" title="agregar a la cola">+ '+bookN+'</span>':'')+'</button>'+
+      '<span class="stat">'+l().stats.out+' <b>'+out+'</b></span>';
   }
 
   function renderAll(){
@@ -365,9 +373,49 @@
     }
     return {name:c.name,channel:channel,bucket:b,fu:(c.awaitingUs?'reply':(b==='mtg'?'mtg':'silent')),fuDate:(c.remindAt?new Date(c.remindAt).toLocaleDateString():''),chain:chain,booked:c.stage==='booked',queued:!!c.awaitingUs,_phone:c.phone,_email:c.email,_row:c.row,_acct:'305'};
   }
+  // --- real-time inbound detection + chime -------------------------------
+  // Track who is awaiting our reply + the text of their last inbound message,
+  // so a fresh poll can tell when someone NEW just landed (WhatsApp OR email,
+  // both flow through /track). _seen is null until the first load completes,
+  // which guards the chime from firing on the very first paint.
+  var _seen=null;
+  function keyOf(c){ return (c.phone||'')+'|'+(c.email||''); }
+  function snapshot(contacts){
+    var m={};
+    (contacts||[]).forEach(function(c){ if(c.awaitingUs){ m[keyOf(c)]={name:c.name,last:(c.lastReply||'')}; } });
+    return m;
+  }
+  function chime(){
+    try{
+      var AC=window.AudioContext||window.webkitAudioContext; if(!AC)return;
+      window._ac=window._ac||new AC(); var ac=window._ac;
+      if(ac.state==='suspended'){ try{ac.resume();}catch(e){} }
+      [0,0.16].forEach(function(off){
+        var o=ac.createOscillator(), g=ac.createGain(), t=ac.currentTime+off;
+        o.type='sine'; o.frequency.value=880;
+        g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.18,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.13);
+        o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+0.14);
+      });
+    }catch(e){}
+  }
+  function detectNew(contacts){
+    var now=snapshot(contacts);
+    if(_seen===null){ _seen=now; return; }          // first load — never chime
+    var fresh=null;
+    for(var k in now){
+      if(!_seen[k] || _seen[k].last!==now[k].last){ fresh=now[k]; break; }
+    }
+    _seen=now;
+    if(fresh){
+      chime();
+      toast&&toast((state.lang==='es'?'Nueva respuesta de ':'New reply from ')+fresh.name);
+    }
+  }
   window.loadLive=function(){
     return fetch('/api/center/track',{headers:{'x-center-pass':PASS}}).then(function(r){return r.json();}).then(function(j){
       if(!j||!j.contacts){toast&&toast('Load failed');return;}
+      window._track=j;                               // live numbers for renderStats
+      detectNew(j.contacts);                          // chime + toast on new inbound
       window.PEOPLE=j.contacts.map(mapContact); renderAll();
     }).catch(function(){toast&&toast('Load failed');});
   };
@@ -413,6 +461,9 @@
       var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];if(!o)return;
       var text=(state._draft&&state._draft.he)||''; var es=(state._draft&&state._draft.es)||'';
       if(!text){toast(state.lang==='es'?'Un momento — preparando':'One moment — drafting');return;}
+      var chName=o._phone?'WhatsApp':'Email';
+      var ask=(state.lang==='es'?'¿Enviar '+chName+' a '+o.name+'?':'Send '+chName+' to '+o.name+'?');
+      if(!window.confirm(ask))return;
       this.textContent='…';
       if(state.lang==='es'){
         // Spanish secretary: the Hebrew draft must be approved by the English side first.
@@ -435,6 +486,13 @@
     };});
     document.querySelectorAll('[data-ins]').forEach(function(b){b.onclick=function(){
       var kind=this.dataset.ins,url={video:'https://youtu.be/1tFycgsst1c',book:'https://reprime-terminal.com',link:'https://reprime-terminal.com',invite:'https://reprime-terminal.com'}[kind]||'';
+      // For invite/link, use the open person's minted /invite/<uuid> link when we
+      // have one on the contact; otherwise keep the generic URL. Best-effort.
+      if(kind==='invite'||kind==='link'){
+        var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];
+        var minted=o&&(o._inviteUrl||o._invite||o.mintedUrl);
+        if(minted)url=minted;
+      }
       if(state._draft){state._draft.he=(state._draft.he+' '+url).trim();state._draft.shown=(state._draft.shown+' '+url).trim();paintDraft();}
       toast(l().inserted+': '+l().ins[kind]);
     };});
@@ -455,14 +513,115 @@
             '<div class="apsub">Worked by the Spanish version — your approval to send</div>'+
             (a.draft_es?'<div class="apes">'+esc(a.draft_es)+'</div>':'')+
             '<div class="aphe">'+esc(a.draft_he||'')+'</div>'+
-            '<div class="aprow"><button class="apok" data-ap="'+esc(a.id)+'">✓ Approve &amp; send</button>'+
+            '<div class="aprow"><button class="apok" data-ap="'+esc(a.id)+'" data-name="'+esc(a.contact_name||'')+'" data-ch="'+esc(a.channel||'')+'">✓ Approve &amp; send</button>'+
             '<button class="apno" data-apx="'+esc(a.id)+'">✕ Reject</button></div></div>';
         }).join('')+'</div>';
-      box.querySelectorAll('[data-ap]').forEach(function(b){b.onclick=function(){var id=this.dataset.ap;this.textContent='…';fetch('/api/center/approval',{method:'POST',headers:H(),body:JSON.stringify({action:'approve',id:id})}).then(function(r){return r.json();}).then(function(res){toast(res&&res.ok?'Sent':('Failed'+(res&&res.error?': '+res.error:'')));window.renderApprovals();}).catch(function(){toast('Failed');});};});
+      box.querySelectorAll('[data-ap]').forEach(function(b){b.onclick=function(){var id=this.dataset.ap;var nm=this.dataset.name||'';var chn=(this.dataset.ch||'').toLowerCase().indexOf('email')>=0?'Email':'WhatsApp';if(!window.confirm('Send '+chn+' to '+nm+'?'))return;this.textContent='…';fetch('/api/center/approval',{method:'POST',headers:H(),body:JSON.stringify({action:'approve',id:id})}).then(function(r){return r.json();}).then(function(res){toast(res&&res.ok?'Sent':('Failed'+(res&&res.error?': '+res.error:'')));window.renderApprovals();}).catch(function(){toast('Failed');});};});
       box.querySelectorAll('[data-apx]').forEach(function(b){b.onclick=function(){var id=this.dataset.apx;fetch('/api/center/approval',{method:'POST',headers:H(),body:JSON.stringify({action:'reject',id:id})}).then(function(){window.renderApprovals();});};});
     }).catch(function(){});
   };
-  window.PEOPLE=[]; loadLive(); setInterval(loadLive,300000);
+  // --- Excel / CSV upload -------------------------------------------------
+  // The top-bar Upload button opens a hidden file picker, parses CSV inline or
+  // .xlsx via SheetJS (loaded once on demand), maps columns by header in any
+  // order, POSTs {rows} to /api/center/upload, then refreshes the board.
+  function loadSheetJS(){
+    return new Promise(function(res,rej){
+      if(window.XLSX)return res(window.XLSX);
+      if(window._xlsxLoading)return window._xlsxLoading.then(res,rej);
+      window._xlsxLoading=new Promise(function(r,j){
+        var s=document.createElement('script');
+        s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+        s.onload=function(){r(window.XLSX);}; s.onerror=function(){j(new Error('sheetjs'));};
+        document.head.appendChild(s);
+      });
+      window._xlsxLoading.then(res,rej);
+    });
+  }
+  function normKey(s){ return String(s==null?'':s).toLowerCase().replace(/[^a-z]/g,''); }
+  function rowsFromAOA(aoa){
+    if(!aoa||!aoa.length)return [];
+    var header=aoa[0].map(normKey), idx={name:-1,phone:-1,email:-1};
+    header.forEach(function(h,i){
+      if(idx.name<0 && (h==='name'||h==='nombre'||h==='fullname'||h==='contacto'))idx.name=i;
+      if(idx.phone<0 && (h==='phone'||h==='whatsapp'||h==='telefono'||h==='tel'||h==='mobile'||h==='celular'||h==='movil'))idx.phone=i;
+      if(idx.email<0 && (h==='email'||h==='correo'||h==='mail'||h==='ecorreo'))idx.email=i;
+    });
+    var out=[];
+    for(var r=1;r<aoa.length;r++){
+      var row=aoa[r]||[];
+      var name=idx.name>=0?String(row[idx.name]==null?'':row[idx.name]).trim():'';
+      var phone=idx.phone>=0?String(row[idx.phone]==null?'':row[idx.phone]).trim():'';
+      var email=idx.email>=0?String(row[idx.email]==null?'':row[idx.email]).trim():'';
+      if(name||phone||email)out.push({name:name,phone:phone,email:email});
+    }
+    return out;
+  }
+  function parseCSV(text){
+    var lines=text.replace(/\r\n?/g,'\n').split('\n').filter(function(x){return x.length;});
+    return lines.map(function(line){
+      var cells=[],cur='',q=false;
+      for(var i=0;i<line.length;i++){var ch=line[i];
+        if(q){ if(ch==='"'){ if(line[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; }
+        else { if(ch==='"')q=true; else if(ch===','){cells.push(cur);cur='';} else cur+=ch; }
+      }
+      cells.push(cur); return cells;
+    });
+  }
+  function dupPanel(names){
+    var old=document.getElementById('dupPanel'); if(old)old.remove();
+    if(!names||!names.length)return;
+    var d=document.createElement('div'); d.id='dupPanel';
+    d.style.cssText='position:fixed;top:58px;right:14px;max-width:320px;max-height:50vh;overflow:auto;background:#fff;border:1px solid #f0c8c2;border-left:4px solid #DC2626;border-radius:10px;box-shadow:0 8px 26px rgba(0,0,0,.25);padding:11px 13px;z-index:60;font-family:Inter,sans-serif';
+    d.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><b style="color:#991B1B;font-size:13px;flex:1">'+(state.lang==='es'?'Duplicados (omitidos)':'Duplicates (skipped)')+'</b><button id="dupX" style="border:none;background:transparent;color:#991B1B;font-weight:900;font-size:15px;cursor:pointer">✕</button></div>'+
+      names.map(function(n){return '<div style="color:#DC2626;font-size:12.5px;padding:2px 0">'+esc(n)+'</div>';}).join('');
+    document.body.appendChild(d);
+    document.getElementById('dupX').onclick=function(){d.remove();};
+  }
+  function submitRows(rows){
+    if(!rows.length){toast&&toast(state.lang==='es'?'Sin filas':'No rows');return;}
+    fetch('/api/center/upload',{method:'POST',headers:H(),body:JSON.stringify({rows:rows})})
+      .then(function(r){return r.json();}).then(function(res){
+        var added=(res&&(res.added!=null?res.added:res.inserted))||0;
+        var dups=(res&&(res.duplicates||res.dupes))||[];
+        var dupN=Array.isArray(dups)?dups.length:(res&&res.duplicateCount)||0;
+        toast&&toast((state.lang==='es'?'Agregados ':'Added ')+added+' · '+dupN+(state.lang==='es'?' duplicados':' duplicates'));
+        if(Array.isArray(dups)&&dups.length){ dupPanel(dups.map(function(d){return typeof d==='string'?d:(d&&d.name)||'';}).filter(Boolean)); }
+        loadLive(); renderAll();
+      }).catch(function(){toast&&toast(state.lang==='es'?'Error al subir':'Upload failed');});
+  }
+  function handleFile(file){
+    if(!file)return;
+    var isCsv=/\.csv$/i.test(file.name);
+    if(isCsv){
+      var fr=new FileReader();
+      fr.onload=function(){ submitRows(rowsFromAOA(parseCSV(String(fr.result)))); };
+      fr.readAsText(file);
+    } else {
+      loadSheetJS().then(function(XLSX){
+        var fr=new FileReader();
+        fr.onload=function(){
+          var wb=XLSX.read(new Uint8Array(fr.result),{type:'array'});
+          var ws=wb.Sheets[wb.SheetNames[0]];
+          var aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:false});
+          submitRows(rowsFromAOA(aoa));
+        };
+        fr.readAsArrayBuffer(file);
+      }).catch(function(){toast&&toast(state.lang==='es'?'No se pudo cargar el lector':'Could not load reader');});
+    }
+  }
+  (function wireUpload(){
+    if(document.getElementById('uploadFile'))return;            // idempotent
+    var inp=document.createElement('input');
+    inp.type='file'; inp.id='uploadFile'; inp.accept='.csv,.xlsx,.xls'; inp.style.display='none';
+    document.body.appendChild(inp);
+    inp.onchange=function(){ var f=inp.files&&inp.files[0]; inp.value=''; handleFile(f); };
+    var btn=document.getElementById('uploadLbl');
+    var clicker=(btn&&btn.closest)?btn.closest('.tbtn'):btn;
+    if(clicker)clicker.style.cursor='pointer';
+    if(clicker)clicker.onclick=function(){ inp.click(); };
+  })();
+
+  window.PEOPLE=[]; loadLive(); setInterval(loadLive,20000);
   setInterval(function(){ if(window.renderApprovals)window.renderApprovals(); },60000);
 })();
 </script>
