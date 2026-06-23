@@ -130,6 +130,15 @@ async function waSendCard(phone: string, fileUid: string, caption: string): Prom
 export async function processInvite(inv: { id: string; contact_name: string | null; contact_first_name: string | null; contact_email: string | null; contact_phone: string | null }): Promise<string> {
   const supabase = createServiceClient()
   const name = inv.contact_name || inv.contact_first_name || 'there'
+  // GHOST-MEETING GUARD — never send the email to a HIGH-risk audit row.
+  // WhatsApp can still go (different person, different channel + visible to
+  // Gideon), but the email-with-calendar-invite would otherwise land in the
+  // wrong inbox (Ilit/Doron class of bug).
+  let blockEmail = false
+  try {
+    const { data: f } = await supabase.from('invitations').select('email_audit_flag').eq('id', inv.id).maybeSingle()
+    if ((f as { email_audit_flag?: string } | null)?.email_audit_flag === 'high') blockEmail = true
+  } catch { /* no flag known — proceed */ }
   const slots = await daySpreadSlots()
   await supabase.from('invitations').update({ proposed_slots: slots.map((s) => ({ iso: s.iso, display: s.display })) }).eq('id', inv.id)
   const link = INVITE_BASE + inv.id
@@ -159,10 +168,13 @@ export async function processInvite(inv: { id: string; contact_name: string | nu
   }
   // Email
   if (inv.contact_email) {
-    try {
-      if (await emailAlreadySent(inv.contact_email)) parts.push('EM:skip-already')
-      else { await emailSend(name, inv.contact_email, link, slots, video); parts.push('EM:sent') }
-    } catch (e) { parts.push('EM:FAIL ' + (e as Error).message.slice(0, 60)) }
+    if (blockEmail) { parts.push('EM:BLOCKED-audit'); }
+    else {
+      try {
+        if (await emailAlreadySent(inv.contact_email)) parts.push('EM:skip-already')
+        else { await emailSend(name, inv.contact_email, link, slots, video); parts.push('EM:sent') }
+      } catch (e) { parts.push('EM:FAIL ' + (e as Error).message.slice(0, 60)) }
+    }
   }
   return parts.join(' | ') || 'no-channel'
 }

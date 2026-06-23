@@ -202,6 +202,23 @@ export async function POST(request: Request) {
   const inv = invitation as InvitationRow
   const firstName = inv.contact_first_name || 'there'
 
+  // GHOST-MEETING GUARD — if the audit flagged this contact_email as belonging
+  // to a different person, refuse the booking and page Gideon. Prevents the
+  // Ilit/Doron class of bug where the calendar invite lands in the wrong inbox.
+  const { data: invFlag } = await supabase
+    .from('invitations')
+    .select('email_audit_flag')
+    .eq('id', token)
+    .maybeSingle()
+  if ((invFlag as { email_audit_flag?: string } | null)?.email_audit_flag === 'high') {
+    await pageGideonCritical(`Bookings BLOCKED: email audit flag HIGH for ${firstName}`, {
+      token,
+      contact_email: inv.contact_email,
+      reason: 'email_audit_high — wrong-person address; secretary must verify',
+    })
+    return htmlResponse(pageHtml({ firstName, state: 'invalid', message: 'A team member will follow up directly within minutes to confirm.' }), 409)
+  }
+
   if (inv.status !== 'sent') {
     return htmlResponse(pageHtml({ firstName, state: 'used' }), 410)
   }

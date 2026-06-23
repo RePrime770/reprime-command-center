@@ -152,7 +152,12 @@
     <span class="sp"></span>
     <span class="tbtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="search" placeholder=""></span>
     <span class="tbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" stroke-width="2.2"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg><span id="uploadLbl"></span></span>
+    <button class="tbtn" id="auditBtn" style="display:none;background:#7c2d12;border-color:#9a3412;color:#fed7aa"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fed7aa" stroke-width="2.4"><path d="M12 9v4M12 17h.01M10.29 3.86l-8.18 14.14A2 2 0 003.85 21h16.3a2 2 0 001.74-3l-8.18-14.14a2 2 0 00-3.42 0z"/></svg> <span id="auditLbl">Auditoría</span> <span id="auditCnt" style="font-weight:900"></span></button>
   </div>
+  <div id="auditModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.75);z-index:50;align-items:flex-start;justify-content:center;padding:50px 20px;overflow:auto"><div style="background:#fff;border-radius:14px;max-width:780px;width:100%;padding:22px 24px;box-shadow:0 30px 60px rgba(0,0,0,.4)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px"><div><div style="font-weight:900;font-size:18px" id="auditTtl">Auditoría de emails</div><div style="color:#475569;font-size:13px;margin-top:4px" id="auditSub">El email no coincide con el nombre del contacto. Corrija o confirme.</div></div><button id="auditCls" style="border:none;background:#f1f5f9;border-radius:8px;padding:7px 11px;font-weight:800;cursor:pointer">✕</button></div>
+    <div id="auditList" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div></div>
 
   <div class="body">
     <div class="colbox wa" data-ch="wa" id="col-wa"></div>
@@ -526,6 +531,48 @@
       toast(l().inserted+': '+l().ins[kind]);
     };});
   };
+  // ── EMAIL AUDIT (secretary inline-fix) ───────────────────────────────────
+  // The Ilit/Doron class of bug: a roster row whose email is somebody else's
+  // address. Shows a top-bar warning button with a count; clicking opens a
+  // modal listing every flagged row. Secretary either types the correct email
+  // (Fix) or confirms the existing one is right (Verified). HIGH rows block
+  // outbound sends + bookings until cleared (server-side guards).
+  function renderAudit(){
+    fetch('/api/center/email-audit',{headers:{'x-center-pass':PASS}}).then(function(r){return r.json();}).then(function(j){
+      var rows=(j&&j.rows)||[]; var hi=rows.filter(function(x){return x.email_audit_flag==='high';}).length; var rv=rows.length-hi;
+      var btn=document.getElementById('auditBtn'); var cnt=document.getElementById('auditCnt'); var lbl=document.getElementById('auditLbl');
+      if(!rows.length){btn.style.display='none';return;}
+      btn.style.display=''; lbl.textContent=(state.lang==='es'?'Auditoría':'Audit');
+      cnt.textContent=' '+(hi?(hi+'⚠'):(rv+''))+(rv&&hi?(' · '+rv):'');
+      window._auditRows=rows;
+    }).catch(function(){});
+  }
+  function openAudit(){
+    var rows=window._auditRows||[]; var list=document.getElementById('auditList'); if(!list)return;
+    var es=state.lang==='es';
+    document.getElementById('auditTtl').textContent=es?'Auditoría de emails':'Email Audit';
+    document.getElementById('auditSub').textContent=es?'El email no coincide con el nombre del contacto. Corrija o confirme.':'The email doesn’t match the contact name. Fix or verify.';
+    if(!rows.length){list.innerHTML='<div style="padding:18px;color:#475569">'+(es?'Nada pendiente.':'Nothing pending.')+'</div>';document.getElementById('auditModal').style.display='flex';return;}
+    list.innerHTML=rows.map(function(r){
+      var sev=r.email_audit_flag==='high'?'#b91c1c':'#b45309';
+      var sevBg=r.email_audit_flag==='high'?'#fee2e2':'#fef3c7';
+      var sevLbl=r.email_audit_flag==='high'?(es?'BLOQUEADO':'BLOCKED'):(es?'Revisar':'Review');
+      return '<div style="border:1px solid #e2e8f0;border-radius:11px;padding:13px 15px;background:#fff">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="font-weight:800;font-size:14.5px">'+esc(r.name||'')+'</div><span style="background:'+sevBg+';color:'+sev+';font-weight:900;font-size:11px;padding:3px 8px;border-radius:999px">'+sevLbl+'</span></div>'+
+        '<div style="color:#64748b;font-size:12.5px;margin-top:4px">'+esc(r.email_audit_note||'')+'</div>'+
+        '<div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap">'+
+          '<div style="font-size:12px;color:#475569;font-weight:700;width:55px">'+(es?'Ahora':'Current')+':</div><div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;color:#0f172a;background:#f1f5f9;padding:5px 9px;border-radius:6px;flex:1;min-width:0;overflow-x:auto">'+esc(r.email||'')+'</div></div>'+
+        '<div style="display:flex;gap:8px;margin-top:7px;align-items:center;flex-wrap:wrap">'+
+          '<div style="font-size:12px;color:#475569;font-weight:700;width:55px">'+(es?'Correcto':'Correct')+':</div>'+
+          '<input data-em="'+r.source_row+'" placeholder="'+(es?'nuevo@correo.com':'new@email.com')+'" style="flex:1;min-width:200px;border:1px solid #cbd5e1;border-radius:7px;padding:7px 9px;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace">'+
+          '<button data-fix="'+r.source_row+'" style="border:none;background:#0F172A;color:#fff;border-radius:8px;padding:7px 13px;font-weight:800;cursor:pointer;font-size:12.5px">'+(es?'Guardar':'Fix')+'</button>'+
+          '<button data-ok="'+r.source_row+'" style="border:1px solid #cbd5e1;background:#fff;color:#0F172A;border-radius:8px;padding:7px 13px;font-weight:700;cursor:pointer;font-size:12.5px">'+(es?'Verificado':'Verified')+'</button>'+
+        '</div></div>';
+    }).join('');
+    document.getElementById('auditModal').style.display='flex';
+    list.querySelectorAll('[data-fix]').forEach(function(b){b.onclick=function(){var sr=this.dataset.fix;var inp=list.querySelector('input[data-em="'+sr+'"]');var v=(inp&&inp.value||'').trim();if(!v||v.indexOf('@')<0){inp&&inp.focus();return;}this.textContent='…';fetch('/api/center/email-audit',{method:'POST',headers:H(),body:JSON.stringify({source_row:Number(sr),action:'fix',new_email:v})}).then(function(r){return r.json();}).then(function(res){if(res&&res.ok){toast(es?'Corregido':'Fixed');renderAudit();openAudit();}else{toast((res&&res.error)||'Error');}});};});
+    list.querySelectorAll('[data-ok]').forEach(function(b){b.onclick=function(){var sr=this.dataset.ok;if(!window.confirm(es?'¿Confirmas que el email actual es correcto?':'Confirm the current email is correct?'))return;this.textContent='…';fetch('/api/center/email-audit',{method:'POST',headers:H(),body:JSON.stringify({source_row:Number(sr),action:'clear'})}).then(function(r){return r.json();}).then(function(res){if(res&&res.ok){toast(es?'Verificado':'Verified');renderAudit();openAudit();}});};});
+  }
   // 5th panel — ENGLISH-ONLY Approvals. Shows the Spanish secretary's
   // Hebrew<->Spanish drafts waiting for approval; hidden entirely when empty or
   // when viewing in Spanish. Approve = send + vanish.
@@ -652,6 +699,13 @@
 
   window.PEOPLE=[]; loadLive(); setInterval(loadLive,20000);
   setInterval(function(){ if(window.renderApprovals)window.renderApprovals(); },60000);
+  // Email-audit top-bar warning button — opens the inline-fix modal.
+  (function wireAudit(){
+    var btn=document.getElementById('auditBtn'); if(btn)btn.onclick=function(){openAudit();};
+    var cls=document.getElementById('auditCls'); if(cls)cls.onclick=function(){document.getElementById('auditModal').style.display='none';};
+    var modal=document.getElementById('auditModal'); if(modal)modal.onclick=function(e){if(e.target===modal)modal.style.display='none';};
+    renderAudit(); setInterval(renderAudit, 60000);
+  })();
 })();
 </script>
 </body></html>
