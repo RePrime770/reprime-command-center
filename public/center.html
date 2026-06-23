@@ -576,10 +576,12 @@
       var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];if(!o)return;
       var text=(state._draft&&state._draft.he)||''; var es=(state._draft&&state._draft.es)||'';
       if(!text){toast(state.lang==='es'?'Un momento — preparando':'One moment — drafting');return;}
-      if(state.lang==='es'){
-        // Spanish secretary: goes to the approval queue (reversible — Gideon/Shirel
-        // approve before it actually sends), so NO confirm popup. The name in any
-        // prompt was also drifting; dropping it removes that too.
+      // Route by the OUTGOING language, not the view: a HEBREW reply (her Spanish →
+      // translated) goes to the approval queue so Gideon/Shirel check the Hebrew.
+      // Anything English (typed or recorded) sends DIRECTLY — no queue.
+      if(/[֐-׿]/.test(text)){
+        // Hebrew reply → approval queue (reversible; the Hebrew quality is reviewed).
+        // No confirm popup.
         this.textContent='…';
         fetch('/api/center/approval',{method:'POST',headers:H(),body:JSON.stringify({action:'create',source_row:o._row,contact_name:o.name,channel:(o._phone?'whatsapp':'email'),draft_es:es,draft_he:text})})
           .then(function(r){return r.json();}).then(function(res){ if(res&&res.ok){o.queued=false;state._draftFor=null;toast('Enviado a aprobación');renderAll();}else toast('Error'); }).catch(function(){toast('Error');});
