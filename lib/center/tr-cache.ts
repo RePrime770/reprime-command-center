@@ -18,7 +18,7 @@ const hash = (s: string) => crypto.createHash('sha1').update(s).digest('hex')
 // in /api/center/translate.) Small chunks so the JSON output never overflows
 // max_tokens and silently truncates (that bug returned raw Hebrew).
 const MODEL = 'claude-haiku-4-5-20251001'
-const CHUNK = 25
+const CHUNK = 10
 
 async function translateChunk(texts: string[]): Promise<string[]> {
   const key = process.env.ANTHROPIC_API_KEY
@@ -28,7 +28,7 @@ async function translateChunk(texts: string[]): Promise<string[]> {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 3000, system: sys, messages: [{ role: 'user', content: texts.map((s, i) => `${i + 1}. ${s}`).join('\n') }] }),
+      body: JSON.stringify({ model: MODEL, max_tokens: 4096, system: sys, messages: [{ role: 'user', content: texts.map((s, i) => `${i + 1}. ${s}`).join('\n') }] }),
     })
     const j = await r.json()
     let t = (j.content || []).map((c: { text?: string }) => c.text || '').join('')
