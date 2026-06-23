@@ -27,15 +27,19 @@ function contactAddress(handle: string, isFromMe: boolean): string {
   return handle
 }
 
-// BlueBubbles dateCreated is nanoseconds (10-digit ms in some versions,
-// 18-digit ns in others). Normalize to ISO.
+// BlueBubbles dateCreated comes in different units across versions:
+// seconds (~1e9), milliseconds (~1e12), microseconds (~1e15), or
+// nanoseconds (~1e18). Normalize ANY of them to milliseconds by magnitude.
+// A plausible ms epoch sits between 1e11 (year 1973) and 1e14 (year 5138).
 function parseDate(raw: number | string | null | undefined): string | null {
   if (raw == null) return null
-  const n = typeof raw === 'string' ? Number(raw) : raw
-  if (!Number.isFinite(n)) return null
-  // BlueBubbles sends nanoseconds for dates in newer versions
-  const ms = n > 9_999_999_999_999 ? Math.floor(n / 1_000_000) : n > 9_999_999_999 ? Math.floor(n / 1_000) : n
-  return new Date(ms).toISOString()
+  let n = typeof raw === 'string' ? Number(raw) : raw
+  if (!Number.isFinite(n) || n <= 0) return null
+  // Scale µs/ns down toward ms.
+  while (n > 1e14) n = Math.floor(n / 1000)
+  // Scale seconds up to ms.
+  if (n < 1e11) n = n * 1000
+  return new Date(n).toISOString()
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
