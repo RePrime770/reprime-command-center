@@ -241,10 +241,14 @@ export async function resolveChatId(phone: string, whatsappAccountPhone: string)
     const res = await fetch(url, { headers: authHeaders(), cache: 'no-store' })
     if (!res.ok) return null
     const j = (await res.json()) as TimelinesEnvelope<{ chats?: TimelinesChat[] }>
-    const chats = j.data?.chats || []
+    const chats = (j.data?.chats || []).filter((c) => !c.is_group)
     const want = phone.replace(/\D/g, '').slice(-9)
-    const chat = chats.find((c) => !c.is_group && (c.phone || '').replace(/\D/g, '').slice(-9) === want) || chats.find((c) => !c.is_group) || null
-    return chat?.id || null
+    const matches = chats.filter((c) => (c.phone || '').replace(/\D/g, '').slice(-9) === want)
+    const pool = matches.length ? matches : chats
+    // A contact can have duplicate chats (one empty) — pick the one that actually
+    // holds the conversation (most recent message).
+    pool.sort((a, b) => new Date(b.last_message_timestamp || 0).getTime() - new Date(a.last_message_timestamp || 0).getTime())
+    return pool[0]?.id || null
   } catch { return null }
 }
 

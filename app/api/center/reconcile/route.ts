@@ -50,6 +50,15 @@ async function reconcileOne(service: ReturnType<typeof createServiceClient>, r: 
 
   let msgs
   try { msgs = await getMessages(chatId) } catch (e) { return { row: r.source_row, ok: false, reason: 'getMessages: ' + (e as Error).message.slice(0, 60) } }
+  // A stale/duplicate chat id can come back empty — re-resolve (now picks the
+  // chat that actually has messages) and retry once, then cache the good id.
+  if (!msgs || !msgs.length) {
+    const fresh = await resolveChatId(phone, PANEL_ACCOUNT_MAP[panel])
+    if (fresh && fresh !== chatId) {
+      try { msgs = await getMessages(fresh) } catch { /* keep empty */ }
+      if (msgs && msgs.length) { chatId = fresh; if (th) { try { await service.from('whatsapp_threads').update({ timelines_chat_id: fresh }).eq('id', th.id) } catch { /* non-fatal */ } } }
+    }
+  }
   if (!msgs || !msgs.length) return { row: r.source_row, ok: false, reason: 'empty' }
 
   // Timelines returns newest-first. Take the most recent 25, oldest→newest.
@@ -144,7 +153,9 @@ async function runBatch(service: ReturnType<typeof createServiceClient>, limitIn
   const limit = Math.min(60, Math.max(1, limitIn || 30))
   const scope = scopeIn === 'all' ? 'all' : 'active'
   let q = service.from('roster').select('source_row, phone, board_stage, thread_json, awaiting_us, last_reply_at').not('phone', 'is', null).order('updated_at', { ascending: true, nullsFirst: true }).limit(limit)
-  if (scope === 'active') q = q.neq('board_stage', 'booked').neq('board_stage', 'declined')
+  // Only contacts who have had real WhatsApp activity (last_reply_at set) — skip
+  // invitees who never messaged on WhatsApp (nothing to mirror, wastes API calls).
+  if (scope === 'active') q = q.neq('board_stage', 'booked').neq('board_stage', 'declined').not('last_reply_at', 'is', null)
   const { data } = await q
   const rows = (data || []) as Roster[]
 
