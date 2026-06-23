@@ -3,6 +3,7 @@
 // email (Gmail g@reprime.com, dedup) -> result. Used by the cron drain.
 import { google } from 'googleapis'
 import { createServiceClient } from '@/lib/supabase/server'
+import { emailLikelyWrongPerson } from '@/lib/center/email-name-check'
 
 const ACCT_305 = '+13057784861'
 const VIDEO = 'https://youtu.be/1tFycgsst1c'
@@ -139,6 +140,13 @@ export async function processInvite(inv: { id: string; contact_name: string | nu
     const { data: f } = await supabase.from('invitations').select('email_audit_flag').eq('id', inv.id).maybeSingle()
     if ((f as { email_audit_flag?: string } | null)?.email_audit_flag === 'high') blockEmail = true
   } catch { /* no flag known — proceed */ }
+  // Auto-detect the wrong-person email (e.g. "Nadav Goldman" → pazit.goldman@…).
+  // Don't email a stranger's inbox; hold the email, raise a 'review' flag for the
+  // secretary, and let WhatsApp (the investor's own phone) carry the invite.
+  if (!blockEmail && emailLikelyWrongPerson(inv.contact_first_name || inv.contact_name, inv.contact_email)) {
+    blockEmail = true
+    try { await supabase.from('invitations').update({ email_audit_flag: 'review' }).eq('id', inv.id).is('email_audit_flag', null) } catch { /* flag best-effort */ }
+  }
   const slots = await daySpreadSlots()
   await supabase.from('invitations').update({ proposed_slots: slots.map((s) => ({ iso: s.iso, display: s.display })) }).eq('id', inv.id)
   const link = INVITE_BASE + inv.id

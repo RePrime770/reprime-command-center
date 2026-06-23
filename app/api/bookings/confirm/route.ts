@@ -11,6 +11,7 @@ import {
 } from '@/lib/timelines/client'
 import { createActivity } from '@/lib/pipedrive/client'
 import { notifyGroup } from '@/lib/center/notify'
+import { emailLikelyWrongPerson } from '@/lib/center/email-name-check'
 
 export const dynamic = 'force-dynamic'
 
@@ -497,6 +498,23 @@ export async function POST(request: Request) {
   // Task G — group nudge: someone just booked. The win, straight to the
   // "Terminal invitations" group.
   backgroundTasks.push(notifyGroup(`📅 ${inv.contact_name || firstName} just booked — ${slot.display}.`))
+
+  // Task H — wrong-person email heads-up (ghost-meeting prevention). If the
+  // address that booked doesn't look like THIS contact's own (e.g. "Nadav
+  // Goldman" booked via pazit.goldman@…), the calendar invite + Zoom just landed
+  // in someone else's inbox — the exact cause of "booked but nobody shows."
+  // Flag it 'review' and ping the team so the real investor is reached on
+  // WhatsApp before the call. Not a hard block — the booking still stands.
+  if (inv.contact_email && emailLikelyWrongPerson(inv.contact_first_name, inv.contact_email)) {
+    backgroundTasks.push((async () => {
+      try {
+        await supabase.from('invitations').update({ email_audit_flag: 'review' }).eq('id', token).is('email_audit_flag', null)
+      } catch { /* flag best-effort */ }
+      try {
+        await notifyGroup(`⚠ ${inv.contact_name || firstName} booked ${slot.display} using ${inv.contact_email} — that doesn't look like ${firstName}'s own address. Confirm the invite reached ${firstName} (WhatsApp) so it isn't a no-show.`)
+      } catch { /* nudge best-effort */ }
+    })())
+  }
 
   // Push all background work to next/server after(). These run AFTER the
   // 303 redirect ships to the recipient, so the page lands in ~1-2s instead
