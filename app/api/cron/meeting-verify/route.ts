@@ -98,8 +98,9 @@ export async function GET(request: Request) {
         continue
       }
 
-      // A real meeting: ≥2 distinct joins (Gideon + guest) OR ≥3 watched minutes.
-      const didAttend = att.participantCount >= 2 || att.totalMinutes >= 3
+      // A real meeting needs the INVITED GUEST to join — our own team (Gideon,
+      // Steve, Tahisa…) waiting in an empty room is still a no-show.
+      const didAttend = att.guestCount >= 1
       const meetingStatus = didAttend ? 'attended' : 'no_show'
 
       const { error: updErr } = await supabase

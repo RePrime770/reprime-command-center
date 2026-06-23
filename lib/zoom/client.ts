@@ -140,9 +140,14 @@ export function deleteMeeting(meetingId: number | string): Promise<void> {
 export interface ZoomAttendance {
   participantCount: number
   totalMinutes: number
+  guestCount: number // participants who are NOT RePrime team — a real meeting needs ≥1
   raw: unknown
   ok: boolean // true = Zoom answered (0 participants is a REAL no-show); false = could not read Zoom
 }
+
+// Our own side joining a no-show meeting must NOT count as attendance. Anyone
+// whose name/email matches the RePrime team is excluded from guestCount.
+const REPRIME_TEAM = /reprime\.com|gideon|gratsiani|tahisa|shirel|chaim|\bnora\b|\bsteve\b|philipp/i
 
 interface ZoomParticipant {
   // duration is in SECONDS on /report and /metrics feeds; /past_meetings omits it
@@ -171,7 +176,13 @@ function summarizeParticipants(data: ZoomParticipantsResponse): ZoomAttendance {
     return sum + (Number.isFinite(d) && d > 0 ? d : 0)
   }, 0)
   const totalMinutes = Math.round(totalSeconds / 60)
-  return { participantCount, totalMinutes, raw: data, ok: true }
+  // Count GUEST joins only — exclude our own team so "Gideon + Steve waited but
+  // the investor never showed" is correctly a no-show, not a false attendance.
+  const guestCount = participants.filter((p) => {
+    const idstr = `${p.name || ''} ${p.user_email || ''}`.trim()
+    return idstr.length > 0 && !REPRIME_TEAM.test(idstr)
+  }).length
+  return { participantCount, totalMinutes, guestCount, raw: data, ok: true }
 }
 
 export async function getPastMeetingAttendance(
@@ -203,5 +214,5 @@ export async function getPastMeetingAttendance(
   // If at least one feed answered (anyResolved) but all were empty → a REAL
   // no-show (ok:true, 0 participants). If NO feed answered → we couldn't read
   // Zoom at all (ok:false) and must NOT be treated as a no-show.
-  return { participantCount: 0, totalMinutes: 0, raw: null, ok: anyResolved }
+  return { participantCount: 0, totalMinutes: 0, guestCount: 0, raw: null, ok: anyResolved }
 }
