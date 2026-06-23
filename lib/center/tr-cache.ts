@@ -12,7 +12,15 @@ import { createServiceClient } from '@/lib/supabase/server'
 const isHe = (s: string) => /[֐-׿]/.test(s || '')
 const hash = (s: string) => crypto.createHash('sha1').update(s).digest('hex')
 
-async function translateBatch(texts: string[]): Promise<string[]> {
+// Comprehension-grade translation for what the secretary READS — Haiku is fast
+// and cheap and plenty for "what did the investor say". (The quality-critical
+// path — her Spanish turned into native Israeli Hebrew to SEND — stays on Opus
+// in /api/center/translate.) Small chunks so the JSON output never overflows
+// max_tokens and silently truncates (that bug returned raw Hebrew).
+const MODEL = 'claude-haiku-4-5-20251001'
+const CHUNK = 25
+
+async function translateChunk(texts: string[]): Promise<string[]> {
   const key = process.env.ANTHROPIC_API_KEY
   if (!key || !texts.length) return texts
   const sys = 'Translate each numbered line from Hebrew into natural, warm Latin-American Spanish for a Spanish-speaking real-estate secretary. Keep meaning, names, numbers, URLs and any media markers (📎) as-is. NEVER return Hebrew. Return STRICT JSON only: {"es":["...", ...]} with exactly one string per input line, in order.'
@@ -20,7 +28,7 @@ async function translateBatch(texts: string[]): Promise<string[]> {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 4000, system: sys, messages: [{ role: 'user', content: texts.map((s, i) => `${i + 1}. ${s}`).join('\n') }] }),
+      body: JSON.stringify({ model: MODEL, max_tokens: 3000, system: sys, messages: [{ role: 'user', content: texts.map((s, i) => `${i + 1}. ${s}`).join('\n') }] }),
     })
     const j = await r.json()
     let t = (j.content || []).map((c: { text?: string }) => c.text || '').join('')
@@ -30,6 +38,14 @@ async function translateBatch(texts: string[]): Promise<string[]> {
   } catch {
     return texts
   }
+}
+
+async function translateBatch(texts: string[]): Promise<string[]> {
+  const out: string[] = []
+  for (let i = 0; i < texts.length; i += CHUNK) {
+    out.push(...(await translateChunk(texts.slice(i, i + CHUNK))))
+  }
+  return out
 }
 
 /**
@@ -57,7 +73,9 @@ export async function esCached(texts: Array<string | null | undefined>): Promise
   const missByHash = new Map<string, string>()
   for (const x of items) if (!cached.has(x.h)) missByHash.set(x.h, x.t)
   if (missByHash.size) {
-    const misses = Array.from(missByHash.entries()) // [hash, src]
+    // Cap new translations per request so a cold cache can't time out the
+    // endpoint; the rest warm on the next poll (then it's all cache hits).
+    const misses = Array.from(missByHash.entries()).slice(0, 160) // [hash, src]
     const translated = await translateBatch(misses.map((m) => m[1]))
     const rows: Array<{ src_hash: string; src: string; es: string }> = []
     misses.forEach((m, k) => {
