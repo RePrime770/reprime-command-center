@@ -6,14 +6,56 @@ import { fmtRelative } from '../lib/format.js';
 import { ListenButton, RecordButton, DictateButtons } from '../lib/voice.jsx';
 import PanelShell from './PanelShell.jsx';
 
-// v4 §M / §B1 — inbox colors per locked palette
-const INBOXES = [
-  { k: 'all',                     label: 'All',         color: EI.all.hex,                       faded: EI.all.faded,                       textOnFaded: EI.all.textOnFaded },
-  { k: 'g@reprime.com',           label: 'g@reprime',   color: EI['g@reprime.com'].hex,          faded: EI['g@reprime.com'].faded,          textOnFaded: EI['g@reprime.com'].textOnFaded }
-];
+// v4 §M / §B1 — inbox colors per locked palette.
+// The "All" tab is always present; per-mailbox tabs are derived dynamically
+// from whichever accounts actually have triaged email this render (see
+// buildInboxes). Short labels keep the tab row compact.
+const ALL_INBOX = {
+  k: 'all',
+  label: 'All',
+  color: EI.all.hex,
+  faded: EI.all.faded,
+  textOnFaded: EI.all.textOnFaded,
+};
 
+// Map a full mailbox email to a short tab label ('g@reprime.com' → 'g@reprime').
+function shortInboxLabel(email) {
+  const at = email.indexOf('@');
+  if (at <= 0) return email;
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1).split('.')[0];
+  return `${local}@${domain}`;
+}
+
+// Build the inbox meta for one mailbox email, using the locked palette when
+// known, else a neutral fallback so an unexpected account never crashes.
+function inboxMetaFor(email) {
+  const c = EI[email] || EI.all;
+  return {
+    k: email,
+    label: shortInboxLabel(email),
+    color: c.hex,
+    faded: c.faded,
+    textOnFaded: c.textOnFaded,
+  };
+}
+
+// Derive the tab list from the emails present: 'All' + one tab per distinct
+// account_email, in first-seen order. Single-account → ['All', that account].
+function buildInboxes(emails) {
+  const seen = [];
+  for (const e of emails) {
+    const inbox = e.inbox || '';
+    if (inbox && !seen.includes(inbox)) seen.push(inbox);
+  }
+  return [ALL_INBOX, ...seen.map(inboxMetaFor)];
+}
+
+// Per-email meta resolver (used by row + opened views). 'all' or an unknown
+// key resolves to a safe default so a single missing account never crashes.
 function inboxMeta(key) {
-  return INBOXES.find((i) => i.k === key) || INBOXES[0];
+  if (!key || key === 'all') return ALL_INBOX;
+  return inboxMetaFor(key);
 }
 
 export default function EmailPanel({ width }) {
@@ -21,6 +63,8 @@ export default function EmailPanel({ width }) {
   // Falls back to static while the first fetch is in flight or on error.
   const { emails: liveEmails } = useLiveData();
   const emails = Array.isArray(liveEmails) ? liveEmails : [];
+  // Tabs reflect the mailboxes that actually have triaged email this render.
+  const INBOXES = buildInboxes(emails);
   const [inbox, setInbox] = useState('all');
   const [openedId, setOpenedId] = useState(null);
   const [remindIds, setRemindIds] = useState(() => new Set());
@@ -433,6 +477,7 @@ function OpenedEmail({ email, onClose }) {
         isHe={isHe}
         toAddr={email.fromAddr}
         subject={email.subject}
+        account={email.inbox}
       />
 
       {/* Email body (the message being replied to) */}
@@ -561,7 +606,7 @@ function NoraEmailRead({ email, ib }) {
   );
 }
 
-function EmailReplyZone({ ib, defaultDraft, replyMode, setReplyMode, replyText, setReplyText, isHe, toAddr, subject }) {
+function EmailReplyZone({ ib, defaultDraft, replyMode, setReplyMode, replyText, setReplyText, isHe, toAddr, subject, account }) {
   const [sendState, setSendState] = useState('idle'); // idle | sending | sent | error
   const canSend = Boolean(toAddr) && replyText.trim().length > 0 && sendState !== 'sending';
 
@@ -576,7 +621,7 @@ function EmailReplyZone({ ib, defaultDraft, replyMode, setReplyMode, replyText, 
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: toAddr, subject: replySubject, body: replyText.trim() }),
+        body: JSON.stringify({ to: toAddr, subject: replySubject, body: replyText.trim(), account }),
       });
       setSendState(res.ok ? 'sent' : 'error');
     } catch {

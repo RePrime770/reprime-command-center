@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { createServiceClient } from '@/lib/supabase/server'
 import {
+  configuredAccounts,
   getMessage,
   isInsufficientScopeError,
   listRecent,
   parseFromHeader,
+  type GmailAccount,
 } from '@/lib/google/gmail'
 import {
   scoreEmail,
@@ -23,7 +25,6 @@ import {
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const ACCOUNT_EMAIL = 'g@reprime.com'
 const SYNC_DAYS = 7
 // Scoring assumes the sender is a single from-address. Re-scoring is cheap;
 // we still cap per-cron work so a 7-day backlog catches up across runs.
@@ -131,37 +132,47 @@ async function resolveSender(
   return out
 }
 
-async function runSync(request: Request) {
-  if (!authorized(request)) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
+type AccountSyncResult = {
+  account: string
+  scanned: number
+  skipped: number
+  scored: number
+  surfaced: number
+  failures: Array<{ id: string; error: string }>
+  // Set when the mailbox's token lacks the gmail.readonly scope.
+  consentRequired?: boolean
+}
 
-  const redis = getRedis()
-  const supabase = createServiceClient()
+// Sync a single mailbox. Every persisted row is tagged with this account's
+// REAL email (account.email) in reasons.account_email — never a hardcoded
+// address. Throws nothing for per-message errors (collected in failures);
+// consentRequired short-circuits scoring for that account only.
+async function syncAccount(
+  account: GmailAccount,
+  supabase: ReturnType<typeof createServiceClient>,
+  investorEmails: Set<string>,
+): Promise<AccountSyncResult> {
+  const base: AccountSyncResult = {
+    account: account.email,
+    scanned: 0,
+    skipped: 0,
+    scored: 0,
+    surfaced: 0,
+    failures: [],
+  }
 
   let listed: Array<{ id: string; threadId: string }> = []
   try {
-    listed = await listRecent(ACCOUNT_EMAIL, SYNC_DAYS)
+    listed = await listRecent(account.key, SYNC_DAYS)
   } catch (err) {
     if (isInsufficientScopeError(err)) {
-      return NextResponse.json(
-        {
-          error: 'gmail_consent_required',
-          message:
-            'Gmail readonly scope is missing. Re-consent the existing OAuth client with https://www.googleapis.com/auth/gmail.readonly, then re-run sync.',
-        },
-        { status: 403 },
-      )
+      return { ...base, consentRequired: true }
     }
-    return NextResponse.json(
-      { error: 'gmail_list_failed', message: (err as Error).message },
-      { status: 502 },
-    )
+    return { ...base, failures: [{ id: 'list', error: (err as Error).message }] }
   }
 
-  if (listed.length === 0) {
-    return NextResponse.json({ scanned: 0, scored: 0, surfaced: 0 })
-  }
+  base.scanned = listed.length
+  if (listed.length === 0) return base
 
   // Pull existing scored ids so we only fetch + re-score what's new.
   const ids = listed.map((m) => m.id)
@@ -170,29 +181,24 @@ async function runSync(request: Request) {
     .select('message_id')
     .in('message_id', ids)
   const alreadyScored = new Set((existingRows || []).map((r) => r.message_id as string))
+  base.skipped = alreadyScored.size
 
   const toScore = listed.filter((m) => !alreadyScored.has(m.id)).slice(0, MAX_SCORE_PER_RUN)
-  if (toScore.length === 0) {
-    return NextResponse.json({ scanned: listed.length, scored: 0, surfaced: 0, skipped: alreadyScored.size })
-  }
+  if (toScore.length === 0) return base
 
-  const investorIndex = await loadInvestorEmailIndex(redis)
   const senderCache = new Map<string, { inPipedrive: boolean; isInvestor: boolean }>()
 
-  let surfaced = 0
-  let scored = 0
-  const failures: Array<{ id: string; error: string }> = []
   // Score sequentially to keep Pipedrive QPS sane and stay inside maxDuration.
   for (const stub of toScore) {
     try {
-      const msg = await getMessage(stub.id)
+      const msg = await getMessage(stub.id, account.key)
       const fromHeader = msg.headers['from'] || ''
       const subjectHeader = msg.headers['subject'] || ''
       const { name: fromName, address: fromAddress } = parseFromHeader(fromHeader)
 
       let resolution = { inPipedrive: false, isInvestor: false }
       if (fromAddress) {
-        resolution = await resolveSender(fromAddress, senderCache, investorIndex.emails)
+        resolution = await resolveSender(fromAddress, senderCache, investorEmails)
       }
 
       const input: ScoringInput = {
@@ -216,7 +222,7 @@ async function runSync(request: Request) {
         // Gmail's one-line preview — surfaced to the cockpit email rows.
         snippet: msg.snippet || '',
         received_at: msg.receivedAt,
-        account_email: ACCOUNT_EMAIL,
+        account_email: account.email,
         gmail_thread_id: msg.threadId,
         gmail_important: msg.important,
         unread: msg.unread,
@@ -241,33 +247,74 @@ async function runSync(request: Request) {
         { onConflict: 'message_id' },
       )
       if (upsertError) {
-        failures.push({ id: stub.id, error: upsertError.message })
+        base.failures.push({ id: stub.id, error: upsertError.message })
         continue
       }
-      scored++
-      if (result.score >= 5) surfaced++
+      base.scored++
+      if (result.score >= 5) base.surfaced++
     } catch (err) {
       if (isInsufficientScopeError(err)) {
-        return NextResponse.json(
-          {
-            error: 'gmail_consent_required',
-            message:
-              'Gmail readonly scope is missing. Re-consent the existing OAuth client with https://www.googleapis.com/auth/gmail.readonly, then re-run sync.',
-            scored,
-          },
-          { status: 403 },
-        )
+        base.consentRequired = true
+        return base
       }
-      failures.push({ id: stub.id, error: (err as Error).message })
+      base.failures.push({ id: stub.id, error: (err as Error).message })
     }
   }
 
+  return base
+}
+
+async function runSync(request: Request) {
+  if (!authorized(request)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  const redis = getRedis()
+  const supabase = createServiceClient()
+
+  // Loop over every configured mailbox. With a single token present this is
+  // exactly one account (g@floridastatetrust.com), matching today's behavior.
+  const accounts = configuredAccounts()
+  if (accounts.length === 0) {
+    return NextResponse.json(
+      {
+        error: 'no_accounts_configured',
+        message:
+          'No Gmail refresh token env vars are set. Configure GOOGLE_REFRESH_TOKEN (and optionally GOOGLE_REFRESH_TOKEN_2).',
+      },
+      { status: 503 },
+    )
+  }
+
+  const investorIndex = await loadInvestorEmailIndex(redis)
+
+  const perAccount: AccountSyncResult[] = []
+  for (const account of accounts) {
+    perAccount.push(await syncAccount(account, supabase, investorIndex.emails))
+  }
+
+  const totals = perAccount.reduce(
+    (acc, r) => {
+      acc.scanned += r.scanned
+      acc.skipped += r.skipped
+      acc.scored += r.scored
+      acc.surfaced += r.surfaced
+      return acc
+    },
+    { scanned: 0, skipped: 0, scored: 0, surfaced: 0 },
+  )
+
   return NextResponse.json({
-    scanned: listed.length,
-    skipped: alreadyScored.size,
-    scored,
-    surfaced,
-    failures: failures.slice(0, 10),
+    ...totals,
+    accounts: perAccount.map((r) => ({
+      account: r.account,
+      scanned: r.scanned,
+      skipped: r.skipped,
+      scored: r.scored,
+      surfaced: r.surfaced,
+      consent_required: r.consentRequired ?? false,
+      failures: r.failures.slice(0, 10),
+    })),
   })
 }
 

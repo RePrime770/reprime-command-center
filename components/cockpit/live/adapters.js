@@ -369,13 +369,18 @@ export function adaptEmails(payload) {
     const score = typeof e.score === 'number' ? e.score : 0;
     const height = score >= 12 ? 'tall' : score >= 6 ? 'standard' : 'compact';
     const snippet = typeof e.snippet === 'string' ? e.snippet : '';
+    // Real mailbox this message belongs to. Falls back to the default account
+    // (g@floridastatetrust.com) for legacy rows scored before multi-account.
+    const inbox =
+      (typeof e.account_email === 'string' && e.account_email) ||
+      'g@floridastatetrust.com';
     return {
       id: e.message_id || `em-live-${i}`,
       height,
       tier: tierFromScore(score), // L-level stripe derived from triage score
       from: fromName,
       fromAddr: e.from_address || '',
-      inbox: 'g@reprime.com', // single-mailbox in v1 (triage is g@reprime.com)
+      inbox,
       subject,
       preview: snippet, // Gmail snippet when stored; '' degrades gracefully
       ts: e.received_at || e.scored_at || null,

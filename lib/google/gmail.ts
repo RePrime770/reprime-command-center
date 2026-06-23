@@ -9,17 +9,73 @@ import { google, type gmail_v1 } from 'googleapis'
  * caller surfaces "needs consent" to the UI.
  */
 
-function getAuthClient() {
+/**
+ * Multi-account registry. Each mailbox maps to its real email and the env var
+ * holding its refresh token. NEVER hardcode a token value — only the env var
+ * NAME lives here. 'fst' is the original single-account mailbox (its token is
+ * the existing GOOGLE_REFRESH_TOKEN, which actually belongs to
+ * g@floridastatetrust.com); 'reprime' is the new second mailbox.
+ */
+export type GmailAccountKey = 'fst' | 'reprime'
+
+export type GmailAccount = {
+  key: GmailAccountKey
+  email: string
+  refreshTokenEnvVar: string
+}
+
+export const GMAIL_ACCOUNTS: Record<GmailAccountKey, GmailAccount> = {
+  fst: {
+    key: 'fst',
+    email: 'g@floridastatetrust.com',
+    refreshTokenEnvVar: 'GOOGLE_REFRESH_TOKEN',
+  },
+  reprime: {
+    key: 'reprime',
+    email: 'g@reprime.com',
+    refreshTokenEnvVar: 'GOOGLE_REFRESH_TOKEN_2',
+  },
+}
+
+// Backward-compatible default: the original single mailbox.
+const DEFAULT_ACCOUNT_KEY: GmailAccountKey = 'fst'
+
+/** Resolve an account from a key, an email, or undefined (→ default). */
+function resolveAccount(account?: GmailAccountKey | string): GmailAccount {
+  if (!account) return GMAIL_ACCOUNTS[DEFAULT_ACCOUNT_KEY]
+  const byKey = GMAIL_ACCOUNTS[account as GmailAccountKey]
+  if (byKey) return byKey
+  const lower = account.toLowerCase()
+  for (const acc of Object.values(GMAIL_ACCOUNTS)) {
+    if (acc.email.toLowerCase() === lower) return acc
+  }
+  return GMAIL_ACCOUNTS[DEFAULT_ACCOUNT_KEY]
+}
+
+/**
+ * Accounts whose refresh-token env var is set and non-empty. Used by the sync
+ * route to loop only over mailboxes that are actually configured. When only
+ * one token is present, behavior matches the original single-account flow.
+ */
+export function configuredAccounts(): GmailAccount[] {
+  return Object.values(GMAIL_ACCOUNTS).filter((acc) => {
+    const token = process.env[acc.refreshTokenEnvVar]
+    return typeof token === 'string' && token.trim().length > 0
+  })
+}
+
+function getAuthClient(account?: GmailAccountKey | string) {
+  const acc = resolveAccount(account)
   const auth = new google.auth.OAuth2(
     process.env.GOOGLE_OAUTH_CLIENT_ID,
     process.env.GOOGLE_OAUTH_CLIENT_SECRET,
   )
-  auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN })
+  auth.setCredentials({ refresh_token: process.env[acc.refreshTokenEnvVar] })
   return auth
 }
 
-function client(): gmail_v1.Gmail {
-  return google.gmail({ version: 'v1', auth: getAuthClient() })
+function client(account?: GmailAccountKey | string): gmail_v1.Gmail {
+  return google.gmail({ version: 'v1', auth: getAuthClient(account) })
 }
 
 export type GmailListItem = {
@@ -32,10 +88,10 @@ export type GmailListItem = {
  * Returns the message + thread ids only — call getMessage for headers.
  */
 export async function listRecent(
-  _accountEmail: string,
+  accountEmail?: GmailAccountKey | string,
   days = 7,
 ): Promise<GmailListItem[]> {
-  const gmail = client()
+  const gmail = client(accountEmail)
   const after = Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000)
   // Skip Trash/Spam; everything else (Inbox + categories) is fair game.
   const q = `after:${after} -in:trash -in:spam`
@@ -101,8 +157,11 @@ function detectICS(payload: gmail_v1.Schema$MessagePart | undefined): boolean {
 }
 
 /** Fetch one message's headers + flags. Uses metadata format for speed. */
-export async function getMessage(messageId: string): Promise<GmailMessage> {
-  const gmail = client()
+export async function getMessage(
+  messageId: string,
+  accountEmail?: GmailAccountKey | string,
+): Promise<GmailMessage> {
+  const gmail = client(accountEmail)
   // Need full to detect ICS in parts. metadata-format omits parts.
   const res = await gmail.users.messages.get({
     userId: 'me',

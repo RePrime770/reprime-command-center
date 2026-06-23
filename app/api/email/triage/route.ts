@@ -94,9 +94,9 @@ export async function GET(request: Request) {
     100,
   )
   const minScore = Number(searchParams.get('min_score') ?? DEFAULT_MIN_SCORE)
-  // account param is informational for v1 (single-mailbox); reserved for v2
-  // multi-account when each row carries account_email in reasons jsonb.
-  const account = searchParams.get('account') ?? ALLOWED_EMAIL
+  // Optional account filter (mailbox email). When absent, return every mailbox
+  // — each item carries its real account_email so the cockpit can tab/merge.
+  const accountFilter = (searchParams.get('account') || '').trim().toLowerCase()
 
   const service = createServiceClient()
   const { data: rows, error } = await service
@@ -130,6 +130,10 @@ export async function GET(request: Request) {
         thread_id: r.thread_id,
         gmail_thread_id: gmailThreadId,
         gmail_url: gmailUrl,
+        // Real mailbox this message belongs to (stored at sync time). May be
+        // null for legacy rows scored before multi-account; the cockpit
+        // tolerates that and groups them under the default inbox.
+        account_email: reasons.account_email || null,
         from_address: r.from_address,
         from_name: fromName || resolved.pipedrive_name || '',
         pipedrive_id: resolved.pipedrive_id,
@@ -147,10 +151,15 @@ export async function GET(request: Request) {
     }),
   )
 
+  // Optional server-side filter to a single mailbox.
+  const filtered = accountFilter
+    ? items.filter((it) => (it.account_email || '').toLowerCase() === accountFilter)
+    : items
+
   return NextResponse.json({
-    account,
+    account: accountFilter || 'all',
     min_score: minScore,
-    count: items.length,
-    items,
+    count: filtered.length,
+    items: filtered,
   })
 }

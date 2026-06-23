@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/sendgrid/client'
 import { recordOutboundAsk } from '@/lib/secretary/outbound-asks'
+import { configuredAccounts } from '@/lib/google/gmail'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,6 +16,23 @@ type SendBody = {
   subject?: string
   body?: string
   html?: string
+  // Mailbox this reply belongs to (the account of the email being replied to).
+  // The reply is sent "from" this mailbox when it is a configured account;
+  // otherwise we fall back to the default configured mailbox.
+  account?: string
+}
+
+// Pick the reply-from mailbox: the requested account when it's configured,
+// else the first configured account, else the legacy default. Never throws.
+function resolveReplyFrom(requested: string | undefined): string {
+  const accounts = configuredAccounts()
+  const want = (requested || '').trim().toLowerCase()
+  if (want) {
+    const match = accounts.find((a) => a.email.toLowerCase() === want)
+    if (match) return match.email
+  }
+  if (accounts.length > 0) return accounts[0].email
+  return ALLOWED_EMAIL
 }
 
 function dedupeEmails(value: string | string[] | undefined): string[] {
@@ -80,6 +98,10 @@ export async function POST(request: NextRequest) {
   const cc = dedupeEmails(body.cc)
   const bcc = dedupeEmails(body.bcc)
   const from = process.env.SENDGRID_FROM_EMAIL || 'g@reprime-terminal.com'
+  // Replies surface as coming from the mailbox the email belongs to (so a reply
+  // to a g@floridastatetrust.com thread answers from that address). Falls back
+  // to the configured default when the requested mailbox isn't configured.
+  const replyTo = resolveReplyFrom(body.account)
 
   try {
     await sendEmail({
@@ -87,7 +109,7 @@ export async function POST(request: NextRequest) {
       cc: cc.length > 0 ? cc : undefined,
       bcc: bcc.length > 0 ? bcc : undefined,
       from,
-      replyTo: 'g@reprime.com',
+      replyTo,
       subject,
       text: text || undefined,
       html,
