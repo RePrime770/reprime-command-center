@@ -1,21 +1,37 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
 
 export const dynamic = 'force-dynamic'
 
 // ── HMAC verification ─────────────────────────────────────────────────────────
-// Quo (formerly OpenPhone) sends: openphone-signature: sha256=<hex>
+// Quo (formerly OpenPhone) sends:
+//   openphone-signature: hmac;<version>;<timestamp>;<base64-digest>
+// The digest is HMAC-SHA256 over `<timestamp>.<rawBody>` using the webhook's
+// signing key AFTER base64-decoding it, compared as base64.
+// A legacy `sha256=<hex>` form is still accepted as a fallback.
 
-async function verifySignature(rawBody: string, header: string, secret: string): Promise<boolean> {
+function safeEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a)
+  const bb = Buffer.from(b)
+  return ba.length === bb.length && timingSafeEqual(ba, bb)
+}
+
+function verifySignature(rawBody: string, header: string, signingKey: string): boolean {
   try {
+    const parts = header.split(';')
+    if (parts.length === 4 && parts[0] === 'hmac') {
+      const timestamp = parts[2]
+      const provided = parts[3]
+      const key = Buffer.from(signingKey, 'base64')
+      const digest = createHmac('sha256', key).update(`${timestamp}.${rawBody}`).digest('base64')
+      return safeEqual(digest, provided)
+    }
+    // Legacy fallback: sha256=<hex>, key used as UTF-8 over the raw body.
     const sig = header.startsWith('sha256=') ? header.slice(7) : header
-    const enc = new TextEncoder()
-    const key = await crypto.subtle.importKey(
-      'raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']
-    )
-    const sigBytes = Uint8Array.from(Buffer.from(sig, 'hex'))
-    return crypto.subtle.verify('HMAC', key, sigBytes, enc.encode(rawBody))
+    const digest = createHmac('sha256', Buffer.from(signingKey, 'utf8')).update(rawBody).digest('hex')
+    return safeEqual(digest, sig)
   } catch {
     return false
   }
@@ -58,9 +74,9 @@ function getSigningSecrets(): string[] {
   return single ? [single] : []
 }
 
-async function verifyAgainstAny(rawBody: string, header: string, secrets: string[]): Promise<boolean> {
+function verifyAgainstAny(rawBody: string, header: string, secrets: string[]): boolean {
   for (const s of secrets) {
-    if (await verifySignature(rawBody, header, s)) return true
+    if (verifySignature(rawBody, header, s)) return true
   }
   return false
 }
@@ -78,7 +94,7 @@ export async function POST(request: NextRequest) {
   const sig = request.headers.get('openphone-signature') ?? ''
 
   if (sig) {
-    const valid = await verifyAgainstAny(rawBody, sig, secrets)
+    const valid = verifyAgainstAny(rawBody, sig, secrets)
     if (!valid) {
       console.warn('[quo-webhook] signature mismatch (tried', secrets.length, 'secret(s))')
       return NextResponse.json({ error: 'forbidden' }, { status: 403 })
