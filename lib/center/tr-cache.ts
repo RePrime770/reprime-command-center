@@ -64,9 +64,13 @@ export async function esCached(texts: Array<string | null | undefined>): Promise
   const supabase = createServiceClient()
   const uniqHashes = Array.from(new Set(items.map((x) => x.h)))
   const cached = new Map<string, string>()
+  // Read the cache in chunks — one .in() with hundreds of hashes overflows the
+  // PostgREST request and silently returns nothing (which left the board raw).
   try {
-    const { data } = await supabase.from('tr_cache').select('src_hash, es').in('src_hash', uniqHashes)
-    for (const r of (data || []) as Array<{ src_hash: string; es: string }>) cached.set(r.src_hash, r.es)
+    for (let i = 0; i < uniqHashes.length; i += 100) {
+      const { data } = await supabase.from('tr_cache').select('src_hash, es').in('src_hash', uniqHashes.slice(i, i + 100))
+      for (const r of (data || []) as Array<{ src_hash: string; es: string }>) cached.set(r.src_hash, r.es)
+    }
   } catch { /* cache optional */ }
 
   // Unique misses → one Claude batch → store.
