@@ -533,6 +533,23 @@
   }
   // ── Voice record + file attach (composer) ───────────────────────────────────
   var _mrec=null,_mchunks=[];
+  // WhatsApp play-inline voice notes need ogg/mp3, but browsers record mp4/webm.
+  // Convert the recording to mp3 in the browser (lamejs) so it sends as a real,
+  // playable voice note — not a downloadable file.
+  function loadLame(){return new Promise(function(res,rej){if(window.lamejs)return res();var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js';s.onload=function(){res();};s.onerror=function(){rej();};document.head.appendChild(s);});}
+  function blobToMp3(blob){
+    return loadLame().then(function(){return blob.arrayBuffer();}).then(function(ab){
+      var AC=window.AudioContext||window.webkitAudioContext;var ac=new AC();
+      return ac.decodeAudioData(ab).then(function(b){try{ac.close();}catch(e){}return b;});
+    }).then(function(audioBuf){
+      var sr=audioBuf.sampleRate,ch0=audioBuf.getChannelData(0),n=ch0.length;
+      var pcm=new Int16Array(n);for(var i=0;i<n;i++){var s=Math.max(-1,Math.min(1,ch0[i]));pcm[i]=s<0?s*0x8000:s*0x7FFF;}
+      var enc=new lamejs.Mp3Encoder(1,sr,64),out=[],blk=1152;
+      for(var j=0;j<pcm.length;j+=blk){var c=enc.encodeBuffer(pcm.subarray(j,j+blk));if(c.length)out.push(new Int8Array(c));}
+      var end=enc.flush();if(end.length)out.push(new Int8Array(end));
+      return new Blob(out,{type:'audio/mpeg'});
+    });
+  }
   function sendMedia(file,kind){
     var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];if(!o)return;
     var fd=new FormData();
@@ -557,9 +574,16 @@
       _mrec.ondataavailable=function(e){if(e.data&&e.data.size)_mchunks.push(e.data);};
       _mrec.onstop=function(){
         stream.getTracks().forEach(function(t){t.stop();});
-        var type=(_mchunks[0]&&_mchunks[0].type)||mt||'audio/mp4';
-        var ext=type.indexOf('mp4')>=0?'m4a':(type.indexOf('webm')>=0?'webm':'m4a');
-        sendMedia(new File([new Blob(_mchunks,{type:type})],'voice.'+ext,{type:type}),'voice');
+        var type=(_mchunks[0]&&_mchunks[0].type)||mt||'audio/webm';
+        var blob=new Blob(_mchunks,{type:type});
+        toast(state.lang==='es'?'Procesando voz…':'Processing…');
+        blobToMp3(blob).then(function(mp3){
+          sendMedia(new File([mp3],'voice.mp3',{type:'audio/mpeg'}),'voice');
+        }).catch(function(){
+          // Conversion failed → send original (will arrive as an audio file).
+          var ext=type.indexOf('mp4')>=0?'m4a':(type.indexOf('webm')>=0?'webm':'m4a');
+          sendMedia(new File([blob],'voice.'+ext,{type:type}),'voice');
+        });
       };
       _mrec.start();
       btn.textContent='■ '+(state.lang==='es'?'Detener y enviar':'Stop & send');btn.style.background='#c0392b';btn.style.color='#fff';

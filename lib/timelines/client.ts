@@ -233,6 +233,21 @@ export async function sendFileByPhone(opts: { phone: string; fileUid: string; te
   if (!res.ok) { const b = await res.text().catch(() => ''); throw new Error(`Timelines sendFile ${res.status}: ${b.slice(0, 200)}`) }
 }
 
+// Resolve a contact's numeric chat id by phone (single filtered /chats call —
+// much lighter than the full paginated sweep). Returns null if not found / error.
+export async function resolveChatId(phone: string, whatsappAccountPhone: string): Promise<number | null> {
+  try {
+    const url = `${BASE_URL}/chats?phone=${encodeURIComponent(phone)}&whatsapp_account_phone=${encodeURIComponent(whatsappAccountPhone)}`
+    const res = await fetch(url, { headers: authHeaders(), cache: 'no-store' })
+    if (!res.ok) return null
+    const j = (await res.json()) as TimelinesEnvelope<{ chats?: TimelinesChat[] }>
+    const chats = j.data?.chats || []
+    const want = phone.replace(/\D/g, '').slice(-9)
+    const chat = chats.find((c) => !c.is_group && (c.phone || '').replace(/\D/g, '').slice(-9) === want) || chats.find((c) => !c.is_group) || null
+    return chat?.id || null
+  } catch { return null }
+}
+
 // Send a TRUE WhatsApp voice note into a chat (needs the numeric chat id).
 export async function sendVoiceMessage(chatId: number, buf: Buffer, filename = 'voice.ogg', mime = 'audio/ogg'): Promise<void> {
   const fd = new FormData()

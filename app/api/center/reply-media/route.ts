@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { centerAuthed } from '@/lib/center/auth'
 import { createServiceClient } from '@/lib/supabase/server'
-import { sendFileByPhone, sendVoiceMessage, uploadFile, PANEL_ACCOUNT_MAP } from '@/lib/timelines/client'
+import { sendFileByPhone, sendVoiceMessage, uploadFile, resolveChatId, PANEL_ACCOUNT_MAP } from '@/lib/timelines/client'
 import { storeAndTranscribe } from '@/lib/center/voice-note'
 
 export const dynamic = 'force-dynamic'
@@ -74,16 +74,22 @@ export async function POST(request: Request) {
       await gmail.users.messages.send({ userId: 'me', requestBody: { raw: b64url(mimeMsg) } })
     } else {
       if (!phone) return NextResponse.json({ error: 'no_phone' }, { status: 400 })
-      // Prefer a TRUE voice note (PTT) when we know the chat id AND the source is
-      // a format that endpoint accepts (ogg/oga/mp3). Browsers record mp4/webm, so
-      // in practice this falls through to the audio attachment below — which still
-      // plays in WhatsApp (m4a/aac). Kept for when the source is already ogg/mp3.
+      // A play-inline voice note requires the voice_message endpoint (chat id) +
+      // an ogg/oga/mp3 file (the frontend converts the browser's mp4 to mp3).
       let sent = false
-      if (isVoice && /ogg|mpeg|mp3/i.test(mime)) {
-        const { data: th } = await service.from('whatsapp_threads').select('timelines_chat_id, phone').not('timelines_chat_id', 'is', null)
-        const match = (th || []).find((t: { timelines_chat_id: number | null; phone: string | null }) => t.phone && dig9(t.phone) === dig9(phone))
-        if (match?.timelines_chat_id) {
-          try { await sendVoiceMessage(match.timelines_chat_id, buf, filename, mime || 'audio/ogg'); sent = true } catch { /* fall back to file send */ }
+      if (isVoice) {
+        // Resolve the chat id: stored on the thread → else a single filtered live
+        // lookup (then store it so future replies are instant).
+        const last7 = (phone || '').replace(/\D/g, '').slice(-7)
+        const { data: th } = await service.from('whatsapp_threads').select('id, timelines_chat_id, phone').ilike('phone', `%${last7}%`)
+        const trow = (th || []).find((t: { phone: string | null }) => t.phone && dig9(t.phone) === dig9(phone)) as { id: string; timelines_chat_id: number | null } | undefined
+        let chatId = trow?.timelines_chat_id || null
+        if (!chatId) {
+          chatId = await resolveChatId(phone, PANEL_ACCOUNT_MAP[account])
+          if (chatId && trow) { try { await service.from('whatsapp_threads').update({ timelines_chat_id: chatId }).eq('id', trow.id) } catch { /* non-fatal */ } }
+        }
+        if (chatId && /ogg|mpeg|mp3/i.test(mime)) {
+          try { await sendVoiceMessage(chatId, buf, filename, mime); sent = true } catch { /* fall back below */ }
         }
       }
       if (!sent) {
@@ -133,4 +139,15 @@ export async function POST(request: Request) {
   } catch { /* non-blocking */ }
 
   return NextResponse.json({ ok: true, transcript, audio: durableUrl })
+}
+
+// Read-only helper to test chat-id resolution: GET ?resolve=<phone>&account=305
+export async function GET(request: Request) {
+  if (!centerAuthed(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  const u = new URL(request.url)
+  const phone = u.searchParams.get('resolve') || ''
+  const account = (u.searchParams.get('account') === '718' ? '718' : '305') as '305' | '718'
+  if (!phone) return NextResponse.json({ ok: true, hint: 'POST media here; GET ?resolve=<phone> to test chat-id resolution' })
+  const chatId = await resolveChatId(phone, PANEL_ACCOUNT_MAP[account])
+  return NextResponse.json({ ok: true, phone, account, chatId })
 }
