@@ -21,16 +21,29 @@ export async function getTodayEvents() {
     singleEvents: true,
     orderBy: 'startTime',
   })
-  const zoomRegex = /https:\/\/[^\s]*zoom\.us\/j\/[^\s]*/
+  // Match any zoom.us meeting URL (/j/, /w/, /my/, personal links), not just /j/.
+  const zoomRegex = /https:\/\/[^\s"<]*zoom\.us\/[^\s"<]+/i
   return res.data.items?.map(event => {
     const locationMatch = event.location?.match(zoomRegex)?.[0] || null
     const descriptionMatch = event.description?.match(zoomRegex)?.[0] || null
+    // Google's native conference integration (Zoom add-on, Meet) puts the join
+    // URL in conferenceData.entryPoints, not location/description.
+    const entryPoints = event.conferenceData?.entryPoints || []
+    const videoEntry =
+      entryPoints.find(ep => ep.entryPointType === 'video' && ep.uri)?.uri ||
+      entryPoints.find(ep => ep.uri)?.uri ||
+      null
+    const zoomLink = locationMatch || descriptionMatch || (videoEntry?.includes('zoom.us') ? videoEntry : null)
     return {
       id: event.id!,
       title: event.summary || 'Untitled',
       startTime: event.start?.dateTime || event.start?.date!,
       endTime: event.end?.dateTime || event.end?.date!,
-      zoomLink: locationMatch || descriptionMatch,
+      zoomLink,
+      // hangoutLink / any conference entry point so the cockpit Join button has
+      // a real URL even for Meet or add-on-based meetings.
+      hangoutLink: event.hangoutLink || videoEntry || null,
+      location: event.location || null,
       attendees: event.attendees?.map(a => a.email!).filter(Boolean) || [],
     }
   }) || []
