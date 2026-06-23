@@ -102,25 +102,15 @@ async function forceSpanish(_key: string, lines: string[]): Promise<string[]> {
 }
 
 async function translateChain(chain: Msg[]) {
-  const key = process.env.ANTHROPIC_API_KEY
-  if (!key || !chain.length) return chain.map((c) => ({ ...c, he: isHe(c.text) ? c.text : '', es: c.text, en: c.text }))
-  let arr: Array<{ es?: string; en?: string }> = []
-  try {
-    const sys = 'Translate each WhatsApp/email line for an Israeli real-estate desk. Return STRICT JSON array (no fences), one object per input line IN ORDER, keys: es (natural Latin-American Spanish — NEVER Hebrew), en (natural English). Keep media markers (📎 …) and URLs as-is. Faithful and short.'
-    const user = chain.map((c, i) => `${i + 1}. ${c.text}`).join('\n')
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 1500, system: sys, messages: [{ role: 'user', content: user }] }) })
-    const j = await r.json()
-    let t = (j.content || []).map((c: { text?: string }) => c.text || '').join('')
-    t = t.slice(t.indexOf('['), t.lastIndexOf(']') + 1)
-    arr = JSON.parse(t) as Array<{ es?: string; en?: string }>
-  } catch { /* fall through — es repaired below */ }
-  const out = chain.map((c, i) => ({ ...c, he: isHe(c.text) ? c.text : '', es: (arr[i]?.es || ''), en: arr[i]?.en || c.text }))
-  // GUARANTEE Spanish: repair any es that is empty or still contains Hebrew.
-  const fix = out.map((c, i) => ((!c.es || isHe(c.es)) ? i : -1)).filter((i) => i >= 0)
-  if (fix.length) {
-    const repaired = await forceSpanish(key, fix.map((i) => chain[i].text))
-    fix.forEach((i, k) => { out[i].es = repaired[k] || out[i].es || chain[i].text })
-  }
+  // ONLY Hebrew gets translated to Spanish for the secretary. English (and media
+  // markers / URLs) pass through untouched so she reads + replies directly in the
+  // language that came in — the Hebrew↔Spanish loop exists only because she can't
+  // read Hebrew. Mirrors the board's Hebrew-only rule.
+  const out = chain.map((c) => ({ ...c, he: isHe(c.text) ? c.text : '', es: isHe(c.text) ? '' : c.text, en: c.text }))
+  const heIdx = out.map((c, i) => (isHe(c.text) ? i : -1)).filter((i) => i >= 0)
+  if (!heIdx.length) return out
+  const es = await forceSpanish('history', heIdx.map((i) => chain[i].text))
+  heIdx.forEach((i, k) => { out[i].es = es[k] || chain[i].text })
   return out
 }
 
