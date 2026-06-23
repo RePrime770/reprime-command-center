@@ -101,6 +101,31 @@ async function waSend(phone: string, text: string): Promise<void> {
   if (!r.ok) throw new Error('WA ' + r.status + ' ' + (await r.text()).slice(0, 120))
 }
 
+// The WhatsApp invite goes out as a real PHOTO of the navy card — WhatsApp's
+// link-preview render is non-deterministic and can't be forced large, but a
+// photo always shows big. Two-step Timelines flow: upload the card PNG to
+// /files_upload (multipart) → get file_uid → send /messages with file_uid +
+// caption (the pitch + booking link). See memory canonical_invite_buildout.
+async function uploadCard(cardUrl: string): Promise<string | null> {
+  try {
+    const img = await fetch(cardUrl, { cache: 'no-store' })
+    if (!img.ok) return null
+    const buf = Buffer.from(await img.arrayBuffer())
+    if (buf.length < 1000) return null
+    const fd = new FormData()
+    fd.append('file', new Blob([buf], { type: 'image/png' }), 'terminal.png')
+    fd.append('filename', 'terminal.png')
+    const r = await tlFetch('https://app.timelines.ai/integrations/api/files_upload', { method: 'POST', headers: { Authorization: 'Bearer ' + TL() }, body: fd })
+    if (!r.ok) return null
+    const j = (await r.json()) as { data?: { uid?: string } }
+    return j?.data?.uid || null
+  } catch { return null }
+}
+async function waSendCard(phone: string, fileUid: string, caption: string): Promise<void> {
+  const r = await tlFetch('https://app.timelines.ai/integrations/api/messages', { method: 'POST', headers: { Authorization: 'Bearer ' + TL(), 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, whatsapp_account_phone: ACCT_305, text: caption, file_uid: fileUid }) })
+  if (!r.ok) throw new Error('WA-card ' + r.status + ' ' + (await r.text()).slice(0, 120))
+}
+
 /** Process ONE queued invitation row: refresh slots, WhatsApp + email, return a result note. */
 export async function processInvite(inv: { id: string; contact_name: string | null; contact_first_name: string | null; contact_email: string | null; contact_phone: string | null }): Promise<string> {
   const supabase = createServiceClient()
@@ -121,10 +146,14 @@ export async function processInvite(inv: { id: string; contact_name: string | nu
       if (await waAlreadyIntroduced(inv.contact_phone)) parts.push('WA:skip-already')
       else {
         const fn = firstName(name); const greet = fn ? 'היי ' + fn : 'שלום'
-        const wa1 = noteText(greet, inv.contact_email ? ' שלחתי לך גם מייל.' : '') + '\n' + waLink
-        await waSend(inv.contact_phone, wa1); await sleep(2500)
+        const caption = noteText(greet, inv.contact_email ? ' שלחתי לך גם מייל.' : '') + '\n' + waLink
+        // Send the big navy CARD as a photo; fall back to text+link only if the upload fails.
+        const fileUid = await uploadCard(`${APP()}/invite/${inv.id}/opengraph-image`)
+        if (fileUid) { await waSendCard(inv.contact_phone, fileUid, caption); parts.push('WA:card') }
+        else { await waSend(inv.contact_phone, caption); parts.push('WA:text') }
+        await sleep(2500)
         await waSend(inv.contact_phone, 'והנה הצצה קצרה מבפנים:\n' + video)
-        parts.push('WA:sent')
+        parts.push('WA:video')
       }
     } catch (e) { parts.push('WA:FAIL ' + (e as Error).message.slice(0, 60)) }
   }
