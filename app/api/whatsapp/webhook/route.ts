@@ -481,7 +481,8 @@ export async function POST(request: Request) {
             let arr: Array<{ who: string; date: string; text: string; via?: string; audio?: string }> = []
             try { arr = match.thread_json ? JSON.parse(match.thread_json) : [] } catch { arr = [] }
             const entry: { who: string; date: string; text: string; via?: string; audio?: string } = { who, date, text: txt.slice(0, 400), via: 'wa' }
-            if (isAudio && effectiveMediaUrl) entry.audio = effectiveMediaUrl
+            // Player gets the DURABLE stored url only — never the 15-min temp link.
+            if (isAudio && durableAudioUrl) entry.audio = durableAudioUrl
             arr.push(entry)
             if (arr.length > 40) arr = arr.slice(-40)
             const nowIso = new Date().toISOString()
