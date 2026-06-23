@@ -164,7 +164,22 @@ export async function generateMetadata({
   const displayName = inv?.contact_name || inv?.contact_first_name || 'Guest'
   const title = `Terminal Introduction — ${displayName}`
   const description = 'Select a time. One click confirms.'
-  const imageUrl = `${appUrl}/invite/${token}/opengraph-image`
+  // Prefer the pre-rendered STATIC card in Supabase storage (served from CDN,
+  // instant) so WhatsApp's link-preview crawler never times out and the big navy
+  // card renders. Fall back to the dynamic edge route if the static card hasn't
+  // been warmed yet (older invites / un-warmed). See /api/center/warm-card.
+  const dynamicImage = `${appUrl}/invite/${token}/opengraph-image`
+  let imageUrl = dynamicImage
+  const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (sbUrl) {
+    const staticImage = `${sbUrl.replace(/\/$/, '')}/storage/v1/object/public/terminal-cards/${token}.png`
+    try {
+      const head = await fetch(staticImage, { method: 'HEAD', cache: 'no-store' })
+      if (head.ok) imageUrl = staticImage
+    } catch {
+      /* keep dynamic fallback */
+    }
+  }
 
   return {
     title,

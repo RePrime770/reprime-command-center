@@ -108,7 +108,12 @@ export async function processInvite(inv: { id: string; contact_name: string | nu
   const slots = await daySpreadSlots()
   await supabase.from('invitations').update({ proposed_slots: slots.map((s) => ({ iso: s.iso, display: s.display })) }).eq('id', inv.id)
   const link = INVITE_BASE + inv.id
+  const waLink = `${APP()}/invite/${inv.id}` // project-7e87w serves the OG card for WhatsApp
   const video = videoLink(inv.id)
+  // Pre-render the OG card to static storage BEFORE sending so WhatsApp's first
+  // crawl is an instant CDN fetch → big navy card (a cold dynamic render gets
+  // skipped → small thumbnail). Best-effort; the dynamic route still works.
+  try { await fetch(`${APP()}/api/center/warm-card`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: inv.id }) }) } catch { /* card still renders dynamically */ }
   const parts: string[] = []
   // WhatsApp
   if (inv.contact_phone) {
@@ -116,7 +121,7 @@ export async function processInvite(inv: { id: string; contact_name: string | nu
       if (await waAlreadyIntroduced(inv.contact_phone)) parts.push('WA:skip-already')
       else {
         const fn = firstName(name); const greet = fn ? 'היי ' + fn : 'שלום'
-        const wa1 = noteText(greet, inv.contact_email ? ' שלחתי לך גם מייל.' : '') + '\n' + link
+        const wa1 = noteText(greet, inv.contact_email ? ' שלחתי לך גם מייל.' : '') + '\n' + waLink
         await waSend(inv.contact_phone, wa1); await sleep(2500)
         await waSend(inv.contact_phone, 'והנה הצצה קצרה מבפנים:\n' + video)
         parts.push('WA:sent')
