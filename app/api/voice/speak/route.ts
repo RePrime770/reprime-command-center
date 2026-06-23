@@ -33,9 +33,12 @@ export async function POST(request: Request) {
     )
   }
 
+  // eleven_flash_v2_5 is the low-latency multilingual model (~75ms model
+  // latency, supports Hebrew). The previous eleven_v3 is the alpha expressive
+  // model with multi-second synthesis — that was the 1-4s delay Gideon heard.
   const payload: Record<string, unknown> = {
     text,
-    model_id: 'eleven_v3',
+    model_id: 'eleven_flash_v2_5',
     voice_settings: {
       stability: 0.5,
       similarity_boost: 0.75,
@@ -43,10 +46,13 @@ export async function POST(request: Request) {
       use_speaker_boost: true,
     },
   }
-  if (language === 'he') payload.language_code = 'he'
+  // flash/turbo v2.5 are multilingual; pass the language hint for Hebrew.
+  payload.language_code = language
 
+  // /stream + optimize_streaming_latency lets bytes flow as they're synthesized;
+  // a lighter mp3 (64kbps) shaves transfer time. Both cut perceived latency.
   const upstream = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream?optimize_streaming_latency=4&output_format=mp3_44100_64`,
     {
       method: 'POST',
       headers: {
