@@ -20,9 +20,6 @@ Return STRICT JSON only (no code fences):
   • suggestion[1] is a warm reply that does NOT push a meeting and gets NO link.
 Return ONLY JSON.`
 
-// "Schedule with Gideon" link (READ ME canonical). Appended to suggestion[0]
-// so the default reply always hands the investor a way onto a Zoom.
-const SCHEDULER = 'https://scheduler.zoom.us/t/2I08gj22/schedule-with-gideon-czf4njv8'
 
 const SYS_FINALIZE = `You turn a reply written by a Spanish-speaking secretary into the message Gideon Gratsiani (RePrime, Israeli real-estate principal) will actually send.
 Target Hebrew: natural native ISRAELI business Hebrew — dugri, warm, real WhatsApp register, never literal/Google-Translate, no Tanakh/academic/biblical tone.
@@ -87,19 +84,21 @@ export async function POST(request: Request) {
     // link is always correct, never hallucinated.
     if (out && Array.isArray(out.suggestions) && out.suggestions.length) {
       const isEn = out.lang === 'en'
-      // Prefer the contact's OWN guarded /invite link (passed from the client) so
-      // the booking runs through our double-book lock; fall back to the scheduler.
-      const link = (body.bookLink && /^https?:\/\//.test(body.bookLink)) ? body.bookLink : SCHEDULER
+      // ONLY ever hand out the contact's OWN guarded /invite link — it runs
+      // through the double-book lock. NEVER the raw scheduler.zoom.us link (it
+      // books on Zoom directly and skips the lock). If there's no /invite link
+      // for this contact, append no URL rather than fall back to the bypass.
+      const link = (body.bookLink && /^https?:\/\//.test(body.bookLink) && /\/invite\//.test(body.bookLink)) ? body.bookLink : ''
       const s0 = out.suggestions[0]
-      if (s0) {
+      if (s0 && link) {
         const heSig = isEn
           ? `\n\nHere's the link to grab a time with Gideon: ${link}`
           : `\n\nהנה הקישור לתיאום זום עם גדעון: ${link}`
         const esSig = `\n\nEnlace para agendar el Zoom: ${link}`
         if (s0.reply_he && !s0.reply_he.includes(link)) s0.reply_he = String(s0.reply_he).trimEnd() + heSig
         if (s0.reply_es && !s0.reply_es.includes(link)) s0.reply_es = String(s0.reply_es).trimEnd() + esSig
-        s0.label_es = (s0.label_es || 'Opción 1') + ' · con Zoom'
       }
+      if (s0) s0.label_es = (s0.label_es || 'Opción 1') + (link ? ' · con Zoom' : '')
       if (out.suggestions[1]) out.suggestions[1].label_es = (out.suggestions[1].label_es || 'Opción 2') + ' · sin Zoom'
     }
     return NextResponse.json(out)
