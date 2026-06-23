@@ -7,8 +7,12 @@ import { normalizePhone } from '@/lib/timelines/normalize-phone'
 import { getMediaType, parseTimelinesTimestamp } from '@/lib/timelines/parse'
 import type { Panel, TimelinesChat, TimelinesMessage } from '@/lib/timelines/types'
 import { markAskReplied } from '@/lib/secretary/outbound-asks'
+import { processVoiceNote } from '@/lib/center/voice-note'
 
 export const dynamic = 'force-dynamic'
+// Voice notes get downloaded + transcribed inline, so allow headroom over the
+// default. Whisper on a short note is a few seconds; the dedup key guards retries.
+export const maxDuration = 60
 
 type WebhookAccount = {
   id?: string | number | null
@@ -380,13 +384,34 @@ export async function POST(request: Request) {
     resolved_media_url: mediaUrl,
   })
 
+  // ── Voice notes: persist a durable copy + transcribe ────────────────────────
+  // Inbound 1:1 audio (the investor-board case): download the note, store it so
+  // the ▶ player keeps working after the Timelines link expires, and transcribe
+  // it (Whisper, auto Hebrew/English) so the board shows words, not "📎 document".
+  let voiceTranscript = ''
+  let durableAudioUrl: string | null = null
+  if (!message.from_me && !chat.is_group && mediaType === 'audio' && mediaUrl) {
+    try {
+      const vn = await processVoiceNote({
+        srcUrl: mediaUrl,
+        uid: message.uid || `${thread.id}-${sentAt}`,
+        filename: message.attachment_filename,
+      })
+      voiceTranscript = vn.transcript
+      durableAudioUrl = vn.durableUrl
+      console.log('[webhook] voice note', { hasTranscript: !!voiceTranscript, durable: !!durableAudioUrl })
+    } catch (e) { console.error('[webhook] voice note non-fatal', (e as Error).message) }
+  }
+  const effectiveMediaUrl = durableAudioUrl || mediaUrl
+  const bodyText = (message.text && message.text.trim()) || voiceTranscript || null
+
   const messageRow = {
     thread_id: thread.id,
     panel,
     channel_type: 'whatsapp' as const,
     direction: message.from_me ? ('out' as const) : ('in' as const),
-    body: message.text || null,
-    media_url: mediaUrl,
+    body: bodyText,
+    media_url: effectiveMediaUrl,
     media_type: mediaType,
     media_filename: message.attachment_filename,
     timelines_uid: message.uid,
@@ -446,13 +471,18 @@ export async function POST(request: Request) {
         const match = (rows || []).find((r: { phone: string | null }) => !!r.phone && r.phone.replace(/\D/g, '').slice(-9) === l9) as { source_row: number; board_stage: string | null; thread_json: string | null } | undefined
         if (match) {
           const who = message.from_me ? 'us' : 'them'
-          const txt = (message.text || '').trim() || (mediaType ? '📎 ' + mediaType : '')
+          const isAudio = mediaType === 'audio'
+          // A transcribed voice note shows its words; an un-transcribed one shows
+          // a mic glyph that the board turns into a localized "Voice message".
+          const txt = (bodyText || '').trim() || (isAudio ? '🎤' : (mediaType ? '📎 ' + mediaType : ''))
           if (txt) {
             let date = ''
             try { date = new Intl.DateTimeFormat('en-US', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }).format(new Date(sentAt || Date.now())) } catch { /* keep '' */ }
-            let arr: Array<{ who: string; date: string; text: string; via?: string }> = []
+            let arr: Array<{ who: string; date: string; text: string; via?: string; audio?: string }> = []
             try { arr = match.thread_json ? JSON.parse(match.thread_json) : [] } catch { arr = [] }
-            arr.push({ who, date, text: txt.slice(0, 400), via: 'wa' })
+            const entry: { who: string; date: string; text: string; via?: string; audio?: string } = { who, date, text: txt.slice(0, 400), via: 'wa' }
+            if (isAudio && effectiveMediaUrl) entry.audio = effectiveMediaUrl
+            arr.push(entry)
             if (arr.length > 40) arr = arr.slice(-40)
             const nowIso = new Date().toISOString()
             const inbound = !message.from_me

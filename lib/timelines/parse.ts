@@ -24,7 +24,9 @@ export function getMediaType(filename: string | null): 'image' | 'document' | 'a
   if (!filename) return null
   const ext = filename.split('.').pop()?.toLowerCase() || ''
   if (['jpg','jpeg','png','gif','webp','heic','heif'].includes(ext)) return 'image'
-  if (['mp3','ogg','opus','wav','m4a','aac'].includes(ext)) return 'audio'
+  // WhatsApp voice notes arrive as .oga (Ogg/Opus); .amr/.mka also seen. Without
+  // these here a voice note falls through to 'document' and shows as "📎 document".
+  if (['mp3','ogg','oga','opus','wav','m4a','aac','amr','mka'].includes(ext)) return 'audio'
   if (['mp4','mov','avi','mkv','webm','m4v','3gp'].includes(ext)) return 'video'
   if (['pdf','doc','docx','xls','xlsx','ppt','pptx','txt','csv','rtf','zip'].includes(ext)) return 'document'
   return 'document'

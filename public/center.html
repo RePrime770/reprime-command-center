@@ -228,11 +228,16 @@
     // Secretary (es): ALWAYS prefer the Spanish text — never fall back to Hebrew
     // when Spanish exists. English content stays English. Gideon/Shirel (en): original.
     var primary = es ? (c.es || c.he || c.en || '') : (c.he || c.en || c.es || '');
+    // Voice note with no usable transcript yet → a clear localized label instead
+    // of a bare mic glyph, so the ▶ player below still has a caption.
+    if(c.audio && (primary===''||primary==='🎤')) primary='🎤 '+(es?'Mensaje de voz':'Voice message');
     var heMain = !es && !!c.he;
     var main = '<div class="x'+(heMain?' he':'')+'">'+esc(primary)+'</div>';
+    // The actual voice memo — a play button to listen, separate from the transcript.
+    var audio = c.audio ? '<audio class="vn" controls preload="none" src="'+esc(c.audio)+'" style="width:100%;max-width:280px;height:34px;margin:5px 0 1px;display:block"></audio>' : '';
     var tr = (es && c.he && primary!==c.he) ? '<div class="tr he">'+esc(c.he)+'</div>' : '';
     var vtag=c.via?'<span class="vtag '+c.via+'">'+(c.via==='email'?'📧 Email':'WhatsApp')+'</span>':'';
-    return '<div class="cm '+cls+'"><div class="h">'+esc(head)+vtag+'</div>'+main+tr+'</div>';
+    return '<div class="cm '+cls+'"><div class="h">'+esc(head)+vtag+'</div>'+main+audio+tr+'</div>';
   }
   // Did the booked meeting actually happen? (set by the meeting-verify cron)
   function mtgBadge(s){
@@ -396,7 +401,7 @@
     var anchor={who:'us',b:undefined,date:'',he:'',es:'Invitación Terminal enviada',en:'Terminal invitation sent'};
     var chain;
     if(tj&&tj.length){
-      chain=tj.slice(-40).map(function(m){var t=(m.text||'').trim();return {who:(m.who==='us'?'us':'them'),b:(m.who==='us'?undefined:b),date:m.date||'',he:/[֐-׿]/.test(t)?t:'',es:(m.es||t),en:t,via:m.via};});
+      chain=tj.slice(-40).map(function(m){var t=(m.text||'').trim();return {who:(m.who==='us'?'us':'them'),b:(m.who==='us'?undefined:b),date:m.date||'',he:/[֐-׿]/.test(t)?t:'',es:(m.es||t),en:t,via:m.via,audio:m.audio};});
       chain.unshift(anchor);
     } else if(snip){
       chain=[anchor,{who:who,b:(who==='them'?b:undefined),date:'',he:he,es:(c.lastReplyEs||snip),en:snip}];
