@@ -43,6 +43,7 @@ const PUBLIC_PATHS = [
   '/api/center',
   '/api/cron/center-drain',
   '/api/cron/center-watch',
+  '/api/cron/email-watch',
 ]
 
 export async function proxy(request: NextRequest) {
