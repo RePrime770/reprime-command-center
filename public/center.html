@@ -434,12 +434,32 @@
       toast&&toast((state.lang==='es'?'Nueva respuesta de ':'New reply from ')+fresh.name);
     }
   }
+  function pkey(p){ return (p._phone||'')+'|'+(p._email||'')+'|'+(p.name||''); }
+  // Non-destructive refresh: update the peripheral (stats + columns + bell +
+  // approvals) but DON'T rebuild the open queue card — tearing it down every
+  // 20s is what made it "jump in and out" and flashed the Spanish away.
+  function refreshLive(){
+    renderStats();
+    document.getElementById('col-wa').innerHTML=renderColumn('wa');
+    document.getElementById('col-email').innerHTML=renderColumn('email');
+    document.getElementById('col-both').innerHTML=renderColumn('both');
+    if(window.renderApprovals)window.renderApprovals();
+    bind();
+    var q=PEOPLE.filter(function(p){return p.queued;});
+    if(!q.length || !state._draftFor){ renderQueue(); }   // only when nothing is being worked
+  }
   window.loadLive=function(){
     return fetch('/api/center/track',{headers:{'x-center-pass':PASS}}).then(function(r){return r.json();}).then(function(j){
       if(!j||!j.contacts){toast&&toast('Load failed');return;}
       window._track=j;                               // live numbers for renderStats
       detectNew(j.contacts);                          // chime + toast on new inbound
-      window.PEOPLE=j.contacts.map(mapContact); renderAll();
+      var fresh=j.contacts.map(mapContact);
+      // Carry over in-progress state so the refresh doesn't re-pull history or
+      // wipe the loaded Spanish draft on the card she's working.
+      var prev={}; (window.PEOPLE||[]).forEach(function(p){prev[pkey(p)]=p;});
+      fresh.forEach(function(p){ var o=prev[pkey(p)]; if(o){ p.queued=o.queued; if(o._histLoaded){ p.chain=o.chain; p._histLoaded=true; } } });
+      window.PEOPLE=fresh;
+      refreshLive();
     }).catch(function(){toast&&toast('Load failed');});
   };
   function pickSug(){ var i=(state.tone==='prof'&&state._sugs&&state._sugs[1])?1:0; return state._sugs?state._sugs[i]:null; }
@@ -454,7 +474,10 @@
         if(txs[i])txs[i].textContent=t;
       }
     }
-    if(!state._draft)return; var sb=document.querySelectorAll('.qsend .sb'); if(sb[0])sb[0].textContent=state._draft.shown; if(sb[1])sb[1].textContent=state._draft.he; }
+    if(!state._draft)return; var sb=document.querySelectorAll('.qsend .sb');
+    // Top box follows the CURRENT language (Spanish for the secretary), bottom is always the Hebrew that sends.
+    if(sb[0])sb[0].textContent=(state.lang==='es'?(state._draft.es||state._draft.shown):state._draft.he);
+    if(sb[1])sb[1].textContent=state._draft.he; }
   function loadDraft(o){
     var thread=(o.chain||[]).map(function(c){return (c.who==='us'?'US: ':'THEM: ')+(c.he||c.en||c.es);}).join('\n');
     var latest=(o.chain&&o.chain[0])?(o.chain[0].he||o.chain[0].en||o.chain[0].es):'';
