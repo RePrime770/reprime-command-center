@@ -26,6 +26,9 @@ export async function GET(request: Request) {
   const openedKeys = new Set<string>(); const watchedKeys = new Set<string>(); const messagedKeys = new Set<string>()
   // Did the booked meeting actually happen? (set by the meeting-verify cron)
   const meetingStatusByKey = new Map<string, string>()
+  // Latest invitation id per contact → the contact's OWN guarded /invite booking
+  // link, so Nora's reply can hand them a link that runs through our double-book lock.
+  const inviteByKey = new Map<string, { id: string; ts: number }>()
   const keysOf = (r: { contact_email: string | null; contact_phone: string | null }) => {
     const ks: string[] = []
     if (r.contact_phone) ks.push('p:' + dig9(r.contact_phone))
@@ -33,15 +36,16 @@ export async function GET(request: Request) {
     return ks
   }
   for (let from = 0; from < 50000; from += 1000) {
-    const { data } = await supabase.from('invitations').select('contact_email, contact_phone, status, confirmed_slot_iso, view_count, first_opened_at, first_video_at, meeting_status').range(from, from + 999)
-    const rows = (data || []) as Array<{ contact_email: string | null; contact_phone: string | null; status: string | null; confirmed_slot_iso: string | null; view_count: number | null; first_opened_at: string | null; first_video_at: string | null; meeting_status: string | null }>
+    const { data } = await supabase.from('invitations').select('id, created_at, contact_email, contact_phone, status, confirmed_slot_iso, view_count, first_opened_at, first_video_at, meeting_status').range(from, from + 999)
+    const rows = (data || []) as Array<{ id: string; created_at: string | null; contact_email: string | null; contact_phone: string | null; status: string | null; confirmed_slot_iso: string | null; view_count: number | null; first_opened_at: string | null; first_video_at: string | null; meeting_status: string | null }>
     for (const r of rows) {
       const booked = r.status === 'confirmed' || !!r.confirmed_slot_iso
       const opened = (r.view_count ?? 0) > 0 || !!r.first_opened_at
       const watched = !!r.first_video_at
       if (booked) { if (r.contact_phone) bookedPhones.add(dig9(r.contact_phone)); if (r.contact_email) bookedEmails.add(r.contact_email.toLowerCase().trim()) }
       const isQueuedOrSent = r.status === 'queued' || r.status === 'sending' || r.status === 'sent' || r.status === 'confirmed' || booked
-      for (const k of keysOf(r)) { if (opened) openedKeys.add(k); if (watched) watchedKeys.add(k); if (isQueuedOrSent) messagedKeys.add(k); if (r.meeting_status) meetingStatusByKey.set(k, r.meeting_status) }
+      const ts = r.created_at ? new Date(r.created_at).getTime() : 0
+      for (const k of keysOf(r)) { if (opened) openedKeys.add(k); if (watched) watchedKeys.add(k); if (isQueuedOrSent) messagedKeys.add(k); if (r.meeting_status) meetingStatusByKey.set(k, r.meeting_status); if (isQueuedOrSent && r.id && r.status !== 'cancelled') { const cur = inviteByKey.get(k); if (!cur || ts >= cur.ts) inviteByKey.set(k, { id: r.id, ts }) } }
     }
     if (rows.length < 1000) break
   }
@@ -56,11 +60,13 @@ export async function GET(request: Request) {
     const reachable = !!(r.phone || r.email)
     const messaged = (!!pk && messagedKeys.has(pk)) || (!!ek && messagedKeys.has(ek))
     const meetingStatus = (pk && meetingStatusByKey.get(pk)) || (ek && meetingStatusByKey.get(ek)) || ''
+    const _inv = (pk && inviteByKey.get(pk)) || (ek && inviteByKey.get(ek)) || null
+    const inviteUrl = _inv ? ('https://project-7e87w.vercel.app/invite/' + _inv.id) : ''
     const stage = isBooked ? 'booked' : r.board_stage
     const remindMs = r.remind_at ? new Date(r.remind_at).getTime() : null
     return {
       name: r.name, phone: r.phone || '', email: r.email || '', stage,
-      opened, watched, reachable, messaged, meetingStatus,
+      opened, watched, reachable, messaged, meetingStatus, inviteUrl,
       awaitingUs: r.awaiting_us === true,
       lastReply: (r.last_reply_text || r.latest || '').slice(0, 300),
       lastFrom: r.last_from || null,

@@ -394,7 +394,7 @@
     } else {
       chain=[{who:'us',b:undefined,date:'',he:'',es:'Invitación Terminal enviada — esperando respuesta',en:'Terminal invitation sent — awaiting reply'}];
     }
-    return {name:c.name,channel:channel,bucket:b,fu:(c.awaitingUs?'reply':(b==='mtg'?'mtg':'silent')),fuDate:(c.remindAt?new Date(c.remindAt).toLocaleDateString():''),chain:chain,booked:c.stage==='booked',meetingStatus:c.meetingStatus||'',queued:!!c.awaitingUs,_phone:c.phone,_email:c.email,_row:c.row,_acct:'305'};
+    return {name:c.name,channel:channel,bucket:b,fu:(c.awaitingUs?'reply':(b==='mtg'?'mtg':'silent')),fuDate:(c.remindAt?new Date(c.remindAt).toLocaleDateString():''),chain:chain,booked:c.stage==='booked',meetingStatus:c.meetingStatus||'',queued:!!c.awaitingUs,_phone:c.phone,_email:c.email,_inviteUrl:c.inviteUrl||'',_row:c.row,_acct:'305'};
   }
   // --- real-time inbound detection + chime -------------------------------
   // Track who is awaiting our reply + the text of their last inbound message,
@@ -481,7 +481,7 @@
   function loadDraft(o){
     var thread=(o.chain||[]).map(function(c){return (c.who==='us'?'US: ':'THEM: ')+(c.he||c.en||c.es);}).join('\n');
     var latest=(o.chain&&o.chain[0])?(o.chain[0].he||o.chain[0].en||o.chain[0].es):'';
-    fetch('/api/center/translate',{method:'POST',headers:H(),body:JSON.stringify({action:'analyze',thread:thread||latest,latest:latest})})
+    fetch('/api/center/translate',{method:'POST',headers:H(),body:JSON.stringify({action:'analyze',thread:thread||latest,latest:latest,bookLink:(o._inviteUrl||'')})})
       .then(function(r){return r.json();}).then(function(a){
         if(!a||!a.suggestions||!a.suggestions.length)return; state._sugs=a.suggestions;
         var s=pickSug(); if(!s)return;
@@ -518,16 +518,18 @@
       var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];if(!o)return;
       var text=(state._draft&&state._draft.he)||''; var es=(state._draft&&state._draft.es)||'';
       if(!text){toast(state.lang==='es'?'Un momento — preparando':'One moment — drafting');return;}
-      var chName=o._phone?'WhatsApp':'Email';
-      var ask=(state.lang==='es'?'¿Enviar '+chName+' a '+o.name+'?':'Send '+chName+' to '+o.name+'?');
-      if(!window.confirm(ask))return;
-      this.textContent='…';
       if(state.lang==='es'){
-        // Spanish secretary: the Hebrew draft must be approved by the English side first.
+        // Spanish secretary: goes to the approval queue (reversible — Gideon/Shirel
+        // approve before it actually sends), so NO confirm popup. The name in any
+        // prompt was also drifting; dropping it removes that too.
+        this.textContent='…';
         fetch('/api/center/approval',{method:'POST',headers:H(),body:JSON.stringify({action:'create',source_row:o._row,contact_name:o.name,channel:(o._phone?'whatsapp':'email'),draft_es:es,draft_he:text})})
           .then(function(r){return r.json();}).then(function(res){ if(res&&res.ok){o.queued=false;state._draftFor=null;toast('Enviado a aprobación');renderAll();}else toast('Error'); }).catch(function(){toast('Error');});
       } else {
-        // English side sends directly — English or Hebrew, no approval.
+        // English side sends DIRECTLY — confirm here only, since it's irreversible.
+        var chName=o._phone?'WhatsApp':'Email';
+        if(!window.confirm('Send '+chName+' to '+o.name+'?'))return;
+        this.textContent='…';
         fetch('/api/center/reply',{method:'POST',headers:H(),body:JSON.stringify({channel:(o._phone?'whatsapp':'email'),phone:o._phone,email:o._email,account:o._acct,text:text})})
           .then(function(r){return r.json();}).then(function(res){ if(res&&res.ok){o.queued=false;o.bucket='within';o.fu='silent';state._draftFor=null;toast('Sent');renderAll();}else toast('Send failed'); }).catch(function(){toast('Send failed');});
       }

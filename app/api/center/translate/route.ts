@@ -46,7 +46,7 @@ async function claude(system: string, user: string) {
 
 export async function POST(request: Request) {
   if (!centerAuthed(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  let body: { action?: string; thread?: string; latest?: string; draft?: string; target?: string }
+  let body: { action?: string; thread?: string; latest?: string; draft?: string; target?: string; bookLink?: string }
   try { body = await request.json() } catch { return NextResponse.json({ error: 'bad_json' }, { status: 400 }) }
 
   try {
@@ -60,14 +60,17 @@ export async function POST(request: Request) {
     // link is always correct, never hallucinated.
     if (out && Array.isArray(out.suggestions) && out.suggestions.length) {
       const isEn = out.lang === 'en'
+      // Prefer the contact's OWN guarded /invite link (passed from the client) so
+      // the booking runs through our double-book lock; fall back to the scheduler.
+      const link = (body.bookLink && /^https?:\/\//.test(body.bookLink)) ? body.bookLink : SCHEDULER
       const s0 = out.suggestions[0]
       if (s0) {
         const heSig = isEn
-          ? `\n\nHere's the link to grab a time with Gideon: ${SCHEDULER}`
-          : `\n\nהנה הקישור לתיאום זום עם גדעון: ${SCHEDULER}`
-        const esSig = `\n\nEnlace para agendar el Zoom: ${SCHEDULER}`
-        if (s0.reply_he && !s0.reply_he.includes(SCHEDULER)) s0.reply_he = String(s0.reply_he).trimEnd() + heSig
-        if (s0.reply_es && !s0.reply_es.includes(SCHEDULER)) s0.reply_es = String(s0.reply_es).trimEnd() + esSig
+          ? `\n\nHere's the link to grab a time with Gideon: ${link}`
+          : `\n\nהנה הקישור לתיאום זום עם גדעון: ${link}`
+        const esSig = `\n\nEnlace para agendar el Zoom: ${link}`
+        if (s0.reply_he && !s0.reply_he.includes(link)) s0.reply_he = String(s0.reply_he).trimEnd() + heSig
+        if (s0.reply_es && !s0.reply_es.includes(link)) s0.reply_es = String(s0.reply_es).trimEnd() + esSig
         s0.label_es = (s0.label_es || 'Opción 1') + ' · con Zoom'
       }
       if (out.suggestions[1]) out.suggestions[1].label_es = (out.suggestions[1].label_es || 'Opción 2') + ' · sin Zoom'
