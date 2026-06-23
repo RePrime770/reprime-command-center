@@ -220,12 +220,15 @@
   function cmHTML(c){
     var cls=(c.who==='us'?'us':'them')+(c.via==='email'?' email':'');
     var head=(c.who==='us'?l().us:l().them)+' · '+c.date;
-    // The secretary reads ONLY Spanish. A Hebrew message shows its SPANISH as the
-    // main text (Hebrew kept tiny below for reference); English stays English.
+    // SPANISH side (secretary): a Hebrew message shows its SPANISH as the main text
+    // (Hebrew kept tiny below); English stays English.
+    // ENGLISH side (Gideon/Shirel): show the ORIGINAL untouched — Hebrew or English,
+    // no translation (they read both).
     var es=state.lang==='es';
-    var primary = c.he ? (es ? (c.es||c.he) : (c.en||c.he)) : (c.en||c.es||c.he||'');
-    var main = '<div class="x">'+esc(primary)+'</div>';
-    var tr = (c.he && primary!==c.he) ? '<div class="tr he">'+esc(c.he)+'</div>' : '';
+    var primary = es ? (c.he ? (c.es||c.he) : (c.en||c.es||c.he||'')) : (c.he || c.en || c.es || '');
+    var heMain = !es && !!c.he;
+    var main = '<div class="x'+(heMain?' he':'')+'">'+esc(primary)+'</div>';
+    var tr = (es && c.he && primary!==c.he) ? '<div class="tr he">'+esc(c.he)+'</div>' : '';
     var vtag=c.via?'<span class="vtag '+c.via+'">'+(c.via==='email'?'📧 Email':'WhatsApp')+'</span>':'';
     return '<div class="cm '+cls+'"><div class="h">'+esc(head)+vtag+'</div>'+main+tr+'</div>';
   }
