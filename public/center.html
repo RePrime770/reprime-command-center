@@ -535,9 +535,7 @@
         fetch('/api/center/approval',{method:'POST',headers:H(),body:JSON.stringify({action:'create',source_row:o._row,contact_name:o.name,channel:(o._phone?'whatsapp':'email'),draft_es:es,draft_he:text})})
           .then(function(r){return r.json();}).then(function(res){ if(res&&res.ok){o.queued=false;state._draftFor=null;toast('Enviado a aprobación');renderAll();}else toast('Error'); }).catch(function(){toast('Error');});
       } else {
-        // English side sends DIRECTLY — confirm here only, since it's irreversible.
-        var chName=o._phone?'WhatsApp':'Email';
-        if(!window.confirm('Send '+chName+' to '+o.name+'?'))return;
+        // English side sends directly — clicking Send IS the decision, no extra gate (Gideon).
         this.textContent='…';
         fetch('/api/center/reply',{method:'POST',headers:H(),body:JSON.stringify({channel:(o._phone?'whatsapp':'email'),phone:o._phone,email:o._email,account:o._acct,text:text})})
           .then(function(r){return r.json();}).then(function(res){ if(res&&res.ok){o.queued=false;o.bucket='within';o.fu='silent';state._draftFor=null;toast('Sent');renderAll();}else toast('Send failed'); }).catch(function(){toast('Send failed');});
@@ -626,7 +624,7 @@
             '<div class="aprow"><button class="apok" data-ap="'+esc(a.id)+'" data-name="'+esc(a.contact_name||'')+'" data-ch="'+esc(a.channel||'')+'">✓ Approve &amp; send</button>'+
             '<button class="apno" data-apx="'+esc(a.id)+'">✕ Reject</button></div></div>';
         }).join('')+'</div>';
-      box.querySelectorAll('[data-ap]').forEach(function(b){b.onclick=function(){var id=this.dataset.ap;var nm=this.dataset.name||'';var chn=(this.dataset.ch||'').toLowerCase().indexOf('email')>=0?'Email':'WhatsApp';if(!window.confirm('Send '+chn+' to '+nm+'?'))return;this.textContent='…';fetch('/api/center/approval',{method:'POST',headers:H(),body:JSON.stringify({action:'approve',id:id})}).then(function(r){return r.json();}).then(function(res){toast(res&&res.ok?'Sent':('Failed'+(res&&res.error?': '+res.error:'')));window.renderApprovals();}).catch(function(){toast('Failed');});};});
+      box.querySelectorAll('[data-ap]').forEach(function(b){b.onclick=function(){var id=this.dataset.ap;this.textContent='…';fetch('/api/center/approval',{method:'POST',headers:H(),body:JSON.stringify({action:'approve',id:id})}).then(function(r){return r.json();}).then(function(res){toast(res&&res.ok?'Sent':('Failed'+(res&&res.error?': '+res.error:'')));window.renderApprovals();}).catch(function(){toast('Failed');});};});
       box.querySelectorAll('[data-apx]').forEach(function(b){b.onclick=function(){var id=this.dataset.apx;fetch('/api/center/approval',{method:'POST',headers:H(),body:JSON.stringify({action:'reject',id:id})}).then(function(){window.renderApprovals();});};});
     }).catch(function(){});
   };
