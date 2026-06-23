@@ -38,6 +38,7 @@ export async function POST(request: Request) {
 
   const service = createServiceClient()
   const isVoice = kind === 'voice'
+  let deliveredAs: 'voice_note' | 'file' | 'email' = 'file'  // how it actually went out
 
   // 1) Durable copy (+ transcript for voice). Files just get a durable URL.
   let durableUrl: string | null = null
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
         `--${B}--`, '',
       ].join('\r\n')
       await gmail.users.messages.send({ userId: 'me', requestBody: { raw: b64url(mimeMsg) } })
+      deliveredAs = 'email'
     } else {
       if (!phone) return NextResponse.json({ error: 'no_phone' }, { status: 400 })
       // A play-inline voice note requires the voice_message endpoint (chat id) +
@@ -89,12 +91,13 @@ export async function POST(request: Request) {
           if (chatId && trow) { try { await service.from('whatsapp_threads').update({ timelines_chat_id: chatId }).eq('id', trow.id) } catch { /* non-fatal */ } }
         }
         if (chatId && /ogg|mpeg|mp3/i.test(mime)) {
-          try { await sendVoiceMessage(chatId, buf, filename, mime); sent = true } catch { /* fall back below */ }
+          try { await sendVoiceMessage(chatId, buf, filename, mime); sent = true; deliveredAs = 'voice_note' } catch { /* fall back below */ }
         }
       }
       if (!sent) {
         const fileUid = await uploadFile(buf, filename, mime)
         await sendFileByPhone({ phone, fileUid, text: caption, whatsappAccountPhone: PANEL_ACCOUNT_MAP[account] })
+        deliveredAs = 'file'
       }
     }
   } catch (e) {
@@ -138,7 +141,7 @@ export async function POST(request: Request) {
     }
   } catch { /* non-blocking */ }
 
-  return NextResponse.json({ ok: true, transcript, audio: durableUrl })
+  return NextResponse.json({ ok: true, deliveredAs, transcript, audio: durableUrl })
 }
 
 // Read-only helper to test chat-id resolution: GET ?resolve=<phone>&account=305
