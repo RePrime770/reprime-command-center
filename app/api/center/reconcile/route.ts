@@ -129,10 +129,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, mode: 'one', result: res })
   }
 
-  // Batch — most-stale first. scope 'active' = has a phone + (awaiting OR not booked/declined).
-  const limit = Math.min(60, Math.max(1, body.limit || 30))
-  const scope = body.scope === 'all' ? 'all' : 'active'
-  let q = service.from('roster').select('source_row, phone, board_stage, thread_json, awaiting_us, last_reply_at').not('phone', 'is', null).order('last_reply_at', { ascending: true, nullsFirst: true }).limit(limit)
+  return runBatch(service, body.limit, body.scope)
+}
+
+// Cron entry (no session) — keeps active conversations mirrored in the background.
+// Small rolling batch so it never trips the Timelines rate limit.
+export async function GET() {
+  const service = createServiceClient()
+  return runBatch(service, 12, 'active')
+}
+
+async function runBatch(service: ReturnType<typeof createServiceClient>, limitIn?: number, scopeIn?: string) {
+  // Least-recently-reconciled first so repeated runs cycle through everyone.
+  const limit = Math.min(60, Math.max(1, limitIn || 30))
+  const scope = scopeIn === 'all' ? 'all' : 'active'
+  let q = service.from('roster').select('source_row, phone, board_stage, thread_json, awaiting_us, last_reply_at').not('phone', 'is', null).order('updated_at', { ascending: true, nullsFirst: true }).limit(limit)
   if (scope === 'active') q = q.neq('board_stage', 'booked').neq('board_stage', 'declined')
   const { data } = await q
   const rows = (data || []) as Roster[]
@@ -140,6 +151,9 @@ export async function POST(request: Request) {
   const results: Array<{ row: number; ok: boolean; reason?: string }> = []
   for (const r of rows) {
     const res = await reconcileOne(service, r)
+    // On a skip (no chat / no phone) bump updated_at so the row cycles to the
+    // back and the batch advances instead of re-trying the same dead ends.
+    if (!res.ok) { try { await service.from('roster').update({ updated_at: new Date().toISOString() }).eq('source_row', r.source_row) } catch { /* non-fatal */ } }
     results.push({ row: res.row, ok: res.ok, reason: res.reason })
   }
   const okN = results.filter((x) => x.ok).length

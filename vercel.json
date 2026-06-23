@@ -53,6 +53,10 @@
     {
       "path": "/api/cron/email-watch",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/center/reconcile",
+      "schedule": "*/5 * * * *"
     }
   ],
   "functions": {

@@ -589,8 +589,17 @@
       btn.textContent='■ '+(state.lang==='es'?'Detener y enviar':'Stop & send');btn.style.background='#c0392b';btn.style.color='#fff';
     }).catch(function(){toast(state.lang==='es'?'Micrófono bloqueado':'Mic blocked');});
   }
+  // Pull the contact's TRUE thread from WhatsApp (Timelines) the moment the card
+  // opens, then refresh — so whatever the secretary looks at is live reality, not
+  // our cached copy. Falls back to the cached history if reconcile fails.
+  function reconcileThenLoad(o){
+    if(!o._row){loadHistory(o);return;}
+    fetch('/api/center/reconcile',{method:'POST',headers:H(),body:JSON.stringify({source_row:o._row})})
+      .then(function(r){return r.json();}).then(function(){ if(window.loadLive)window.loadLive(); loadHistory(o); })
+      .catch(function(){loadHistory(o);});
+  }
   var _rq=window.renderQueue;
-  window.renderQueue=function(){ _rq(); var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi]; if(!o)return; if(!o._histLoaded){o._histLoaded=true;loadHistory(o);} if(state._draftFor!==o.name){state._draftFor=o.name;state._draft=null;state._sugs=null;loadDraft(o);} paintDraft(); };
+  window.renderQueue=function(){ _rq(); var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi]; if(!o)return; if(!o._histLoaded){o._histLoaded=true;reconcileThenLoad(o);} if(state._draftFor!==o.name){state._draftFor=o.name;state._draft=null;state._sugs=null;loadDraft(o);} paintDraft(); };
   var _bq=window.bindQueue;
   window.bindQueue=function(){
     _bq();
