@@ -78,6 +78,45 @@ async function fetchMessagesByPhone(
   panel: Panel
 ): Promise<DashboardMessage[]> {
   const normalized = normalizePhone(phone) ?? phone
+  const last9 = normalized.replace(/\D/g, '').slice(-9)
+
+  // PRIMARY: serve from the canonical webhook-fed store (whatsapp_messages),
+  // which holds ALL channels for this contact+line — WhatsApp (Timelines),
+  // SMS (Quo), and iMessage (BlueBubbles). The previous Timelines-only path
+  // returned empty / a wrong-number match for SMS+iMessage threads, which is
+  // why switching channels showed "random" messages. We resolve EVERY thread
+  // row for this phone+panel and merge their messages so a contact's full
+  // cross-channel history shows together ("one human, one thread").
+  const service = createServiceClient()
+  try {
+    const { data: threads } = await service
+      .from('whatsapp_threads')
+      .select('id, phone')
+      .eq('panel', panel)
+    const ids = (threads ?? [])
+      .filter((t: { id: string; phone: string | null }) => {
+        if (!t.phone) return false
+        if (t.phone === phone || normalizePhone(t.phone) === normalized) return true
+        return last9.length >= 7 && t.phone.replace(/\D/g, '').slice(-9) === last9
+      })
+      .map((t: { id: string }) => t.id)
+
+    if (ids.length > 0) {
+      const { data: rows } = await service
+        .from('whatsapp_messages')
+        .select('*')
+        .in('thread_id', ids)
+        .order('sent_at', { ascending: true, nullsFirst: true })
+        .limit(300)
+      if (rows && rows.length > 0) return rows as unknown as DashboardMessage[]
+    }
+  } catch (err) {
+    console.warn('[messages/GET] store read failed (phone path)', {
+      phone, panel, error: (err as Error).message?.slice(0, 160),
+    })
+  }
+
+  // FALLBACK: live Timelines (WhatsApp only) for a thread not yet in the store.
   let messages: TimelinesMessage[] = []
   try {
     const allChats = await getAllChats(panel)
@@ -90,8 +129,7 @@ async function fetchMessagesByPhone(
       console.warn('[messages/GET] no matching Timelines chat for phone', { phone, panel, totalChats: allChats.length })
     }
   } catch (err) {
-    const msg = (err as Error).message ?? ''
-    console.warn('[messages/GET] Timelines failed (phone path)', { phone, panel, error: msg.slice(0, 200) })
+    console.warn('[messages/GET] Timelines failed (phone path)', { phone, panel, error: (err as Error).message?.slice(0, 200) })
   }
   return messages
     .map((m) => messageToDashboard(m, phone, panel))
