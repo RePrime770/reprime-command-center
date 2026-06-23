@@ -74,7 +74,8 @@ function getAuthClient(account?: GmailAccountKey | string) {
   return auth
 }
 
-function client(account?: GmailAccountKey | string): gmail_v1.Gmail {
+/** Gmail API client bound to a specific mailbox (key or email; default 'fst'). */
+export function client(account?: GmailAccountKey | string): gmail_v1.Gmail {
   return google.gmail({ version: 'v1', auth: getAuthClient(account) })
 }
 

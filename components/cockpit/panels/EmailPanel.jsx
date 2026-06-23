@@ -308,7 +308,7 @@ function OpenedEmail({ email, onClose }) {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message_id: email.id, read: markRead }),
+        body: JSON.stringify({ message_id: email.id, read: markRead, account: email.inbox }),
       });
       if (!res.ok) setIsUnread(markRead); // revert on failure
     } catch {

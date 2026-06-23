@@ -1,16 +1,18 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { google } from 'googleapis'
 import { createServerClient } from '@/lib/supabase/server'
+import { client as gmailClient } from '@/lib/google/gmail'
 
 export const dynamic = 'force-dynamic'
 
 const ALLOWED_EMAIL = 'g@reprime.com'
 
 /**
- * POST /api/email/mark-read  { message_id, read: boolean }
- * Toggles Gmail's UNREAD label. Requires the GOOGLE_REFRESH_TOKEN to carry the
- * gmail.modify scope (granted via scripts/get-gmail-token.mjs). If the token
- * lacks the scope, Gmail returns 403 insufficient_scope → surfaced as needs_consent.
+ * POST /api/email/mark-read  { message_id, read: boolean, account?: string }
+ * Toggles Gmail's UNREAD label on the mailbox identified by `account` (the
+ * email's real inbox, e.g. g@reprime.com). Falls back to the default mailbox
+ * when `account` is absent/unconfigured. Requires that mailbox's refresh token
+ * to carry the gmail.modify scope; otherwise Gmail returns 403 insufficient_scope
+ * → surfaced as needs_consent.
  */
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient()
@@ -21,7 +23,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  let body: { message_id?: string; read?: boolean }
+  let body: { message_id?: string; read?: boolean; account?: string }
   try {
     body = (await request.json()) as typeof body
   } catch {
@@ -33,12 +35,9 @@ export async function POST(request: NextRequest) {
   }
   const markRead = body.read !== false // default true
 
-  const auth = new google.auth.OAuth2(
-    process.env.GOOGLE_OAUTH_CLIENT_ID,
-    process.env.GOOGLE_OAUTH_CLIENT_SECRET
-  )
-  auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN })
-  const gmail = google.gmail({ version: 'v1', auth })
+  // Bind to the mailbox the message actually belongs to. client() resolves the
+  // account by email or key and falls back to the default mailbox.
+  const gmail = gmailClient(body.account)
 
   try {
     await gmail.users.messages.modify({
