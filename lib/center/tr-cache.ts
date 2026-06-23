@@ -41,11 +41,12 @@ async function translateChunk(texts: string[]): Promise<string[]> {
 }
 
 async function translateBatch(texts: string[]): Promise<string[]> {
-  const out: string[] = []
-  for (let i = 0; i < texts.length; i += CHUNK) {
-    out.push(...(await translateChunk(texts.slice(i, i + CHUNK))))
-  }
-  return out
+  // Run the chunks in PARALLEL — sequential chunks blew the 60s function limit
+  // on a cold cache (504). Parallel keeps a cold call to ~one chunk's latency.
+  const chunks: string[][] = []
+  for (let i = 0; i < texts.length; i += CHUNK) chunks.push(texts.slice(i, i + CHUNK))
+  const results = await Promise.all(chunks.map((c) => translateChunk(c)))
+  return results.flat()
 }
 
 /**
@@ -69,7 +70,9 @@ export async function esCached(texts: Array<string | null | undefined>): Promise
   try {
     for (let i = 0; i < uniqHashes.length; i += 100) {
       const { data } = await supabase.from('tr_cache').select('src_hash, es').in('src_hash', uniqHashes.slice(i, i + 100))
-      for (const r of (data || []) as Array<{ src_hash: string; es: string }>) cached.set(r.src_hash, r.es)
+      // Ignore any poisoned row whose "translation" is still Hebrew (a failed
+      // translate that got cached) — treat it as a miss so it re-translates.
+      for (const r of (data || []) as Array<{ src_hash: string; es: string }>) if (r.es && !isHe(r.es)) cached.set(r.src_hash, r.es)
     }
   } catch { /* cache optional */ }
 
@@ -84,10 +87,11 @@ export async function esCached(texts: Array<string | null | undefined>): Promise
     const rows: Array<{ src_hash: string; src: string; es: string }> = []
     misses.forEach((m, k) => {
       const v = translated[k] || m[1]
+      if (isHe(v)) return // translation failed (still Hebrew) — don't cache it; retry next call
       cached.set(m[0], v)
       rows.push({ src_hash: m[0], src: m[1].slice(0, 4000), es: v })
     })
-    try { await supabase.from('tr_cache').upsert(rows, { onConflict: 'src_hash' }) } catch { /* best effort */ }
+    if (rows.length) { try { await supabase.from('tr_cache').upsert(rows, { onConflict: 'src_hash' }) } catch { /* best effort */ } }
   }
 
   for (const x of items) out[x.i] = cached.get(x.h) || x.t
