@@ -731,8 +731,36 @@
     if(clicker)clicker.onclick=function(){ inp.click(); };
   })();
 
-  window.PEOPLE=[]; loadLive(); setInterval(loadLive,20000);
+  window.PEOPLE=[]; loadLive();
+  // Fallback poll only — Realtime (below) delivers replies instantly. Kept slow
+  // as a safety net so a dropped socket can't strand the board.
+  setInterval(loadLive,30000);
   setInterval(function(){ if(window.renderApprovals)window.renderApprovals(); },60000);
+
+  // ── Instant push + bell ──────────────────────────────────────────────────
+  // The WhatsApp webhook and the email watcher write the contact board the
+  // moment a message lands; Supabase Realtime pushes that change to THIS screen
+  // immediately — the board refreshes and detectNew() rings the bell. No more
+  // constant searching; the second something comes in for one of our people it
+  // surfaces here.
+  (function realtime(){
+    var SB_URL='https://yrnujfhzmoasodawqfri.supabase.co';
+    var SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlybnVqZmh6bW9hc29kYXdxZnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0Mjg0NDMsImV4cCI6MjA5MzAwNDQ0M30.WTYWgfHVVNniCcSQALpjNw7hXKQbbkqNCzB0JvRRY70';
+    function start(){
+      try{
+        var c=window.supabase.createClient(SB_URL,SB_ANON);
+        var t=null;
+        c.channel('roster-board')
+         .on('postgres_changes',{event:'*',schema:'public',table:'roster'},function(){
+           clearTimeout(t); t=setTimeout(function(){ loadLive(); }, 600);
+         })
+         .subscribe();
+        window._rtOn=true;
+      }catch(e){}
+    }
+    if(window.supabase&&window.supabase.createClient){ start(); }
+    else{ var s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'; s.onload=start; s.onerror=function(){}; document.head.appendChild(s); }
+  })();
   // Email-audit top-bar warning button — opens the inline-fix modal.
   (function wireAudit(){
     var btn=document.getElementById('auditBtn'); if(btn)btn.onclick=function(){openAudit();};
