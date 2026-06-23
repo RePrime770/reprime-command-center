@@ -27,25 +27,39 @@ export async function GET() {
     if (r.email) byEmail.set(r.email.toLowerCase().trim(), r)
   }
 
+  // Our own sending addresses — an email FROM one of these to a contact is an
+  // OUTBOUND reply (clears "awaiting you"), not an inbound one.
+  const OURS = new Set(['g@reprime.com', 'g@floridastatetrust.com', 'g@reprime-terminal.com'])
+
   let matched = 0
   const errors: string[] = []
   try {
     const recent = await listRecent('me', 2) // g@reprime.com (GOOGLE_REFRESH_TOKEN), last 2 days
-    for (const m of recent.slice(0, 40)) {
+    for (const m of recent.slice(0, 60)) {
       try {
         const msg = await getMessage(m.id)
-        const from = parseFromHeader(msg.headers['from'])
-        const r = byEmail.get((from.address || '').toLowerCase().trim())
-        if (!r) continue // not one of our contacts
-        const receivedAt: string = msg.receivedAt || nowIso
-        // Skip if we already have this (or newer) reply recorded.
-        if (r.last_reply_at && receivedAt <= r.last_reply_at) continue
+        const fromAddr = (parseFromHeader(msg.headers['from']).address || '').toLowerCase().trim()
+        const at: string = msg.receivedAt || nowIso
+        // OUTBOUND (we emailed a contact, from any channel) → clear awaiting.
+        if (OURS.has(fromAddr)) {
+          const toAddr = (parseFromHeader(msg.headers['to']).address || '').toLowerCase().trim()
+          const rc = byEmail.get(toAddr)
+          if (rc && (!rc.last_reply_at || at > rc.last_reply_at)) {
+            await supabase.from('roster').update({ awaiting_us: false, last_from: 'us', last_reply_at: at, updated_at: nowIso }).eq('source_row', rc.source_row)
+            matched++
+          }
+          continue
+        }
+        // INBOUND (a contact emailed us) → flag awaiting you + show the reply.
+        const r = byEmail.get(fromAddr)
+        if (!r) continue
+        if (r.last_reply_at && at <= r.last_reply_at) continue
         const text = ((msg.headers['subject'] ? msg.headers['subject'] + ' — ' : '') + (msg.snippet || '')).slice(0, 500)
         const upd: Record<string, unknown> = {
           awaiting_us: true,
           last_from: 'them',
           last_reply_text: text,
-          last_reply_at: receivedAt,
+          last_reply_at: at,
           updated_at: nowIso,
         }
         if (r.board_stage !== 'booked' && r.board_stage !== 'declined') upd.board_stage = 'replied'
