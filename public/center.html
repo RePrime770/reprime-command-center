@@ -514,7 +514,7 @@
         var liveHasUs=h.chain.some(function(c){return c.who==='us';});
         var haveUs=(o.chain||[]).some(function(c){return c.who==='us';});
         if(liveHasUs || !haveUs || (o.chain||[]).length<=2){
-          o.chain=h.chain.map(function(c){return {who:c.who,b:(c.who==='them'?o.bucket:undefined),date:c.date,he:c.he,es:c.es,en:c.en,via:c.via};});
+          o.chain=h.chain.map(function(c){return {who:c.who,b:(c.who==='them'?o.bucket:undefined),date:c.date,he:c.he,es:c.es,en:c.en,via:c.via,audio:c.audio};});
           var cur=PEOPLE.filter(function(p){return p.queued;})[state.qi];
           if(cur&&cur.name===o.name){renderQueue();bindQueue();}
         }

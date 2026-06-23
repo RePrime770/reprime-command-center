@@ -17,7 +17,7 @@ const dig = (s: string) => (s || '').replace(/\D/g, '')
 const isHe = (s: string) => /[֐-׿]/.test(s || '')
 const fmtDate = (ts: string | number | undefined) => { if (!ts) return ''; const d = new Date(ts); return isNaN(d.getTime()) ? '' : new Intl.DateTimeFormat('en-US', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }).format(d) }
 
-type Msg = { who: string; date: string; text: string; ts: number; via?: 'wa' | 'email' }
+type Msg = { who: string; date: string; text: string; ts: number; via?: 'wa' | 'email'; audio?: string }
 
 async function storeThread(phone: string): Promise<Msg[]> {
   const supabase = createServiceClient()
@@ -27,16 +27,16 @@ async function storeThread(phone: string): Promise<Msg[]> {
   const ids = (threads || []).map((t: { id: number }) => t.id)
   if (!ids.length) return []
   const { data: msgs } = await supabase.from('whatsapp_messages')
-    .select('direction, body, media_type, sent_at').in('thread_id', ids)
+    .select('direction, body, media_type, media_url, sent_at').in('thread_id', ids)
     .order('sent_at', { ascending: false }).limit(60)
-  const rows = (msgs || []) as Array<{ direction: string; body: string | null; media_type: string | null; sent_at: string }>
-  return rows.map((m) => ({
-    who: m.direction === 'out' ? 'us' : 'them',
-    date: fmtDate(m.sent_at),
-    text: (m.body && m.body.trim()) ? m.body.slice(0, 500) : (m.media_type ? '📎 ' + m.media_type : '📎 media'),
-    ts: new Date(m.sent_at).getTime() || 0,
-    via: 'wa' as const,
-  }))
+  const rows = (msgs || []) as Array<{ direction: string; body: string | null; media_type: string | null; media_url: string | null; sent_at: string }>
+  return rows.map((m) => {
+    const isAudio = m.media_type === 'audio'
+    const text = (m.body && m.body.trim()) ? m.body.slice(0, 500) : (isAudio ? '🎤' : (m.media_type ? '📎 ' + m.media_type : '📎 media'))
+    // Only surface a player for a DURABLE stored copy — never the expired temp link.
+    const audio = (isAudio && m.media_url && m.media_url.includes('/storage/')) ? m.media_url : undefined
+    return { who: m.direction === 'out' ? 'us' : 'them', date: fmtDate(m.sent_at), text, ts: new Date(m.sent_at).getTime() || 0, via: 'wa' as const, audio }
+  })
 }
 
 // Merge two message lists (store + live), dedupe by who+text, sort oldest→newest.
