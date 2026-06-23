@@ -203,6 +203,44 @@ export async function sendChatMessage(chatId: number, text: string): Promise<Tim
   return (json.data ?? (json as unknown as TimelinesMessage)) as TimelinesMessage
 }
 
+// Authorization only — for multipart uploads where fetch must set its own
+// Content-Type (with the boundary). Using authHeaders() would force JSON.
+function authOnly() {
+  const key = process.env.TIMELINES_API_KEY
+  if (!key) throw new Error('TIMELINES_API_KEY not configured')
+  return { Authorization: `Bearer ${key}` }
+}
+
+// Upload a file to the Timelines workspace; returns its uid (used as file_uid).
+export async function uploadFile(buf: Buffer, filename: string, mime?: string): Promise<string> {
+  const fd = new FormData()
+  fd.append('file', new Blob([new Uint8Array(buf)], mime ? { type: mime } : {}), filename)
+  fd.append('filename', filename)
+  const res = await fetch(`${BASE_URL}/files_upload`, { method: 'POST', headers: authOnly(), body: fd, cache: 'no-store' })
+  const j = (await res.json().catch(() => ({}))) as { uid?: string; data?: { uid?: string; file_uid?: string } }
+  if (!res.ok) throw new Error(`Timelines files_upload ${res.status}: ${JSON.stringify(j).slice(0, 200)}`)
+  const uid = j.data?.uid || j.data?.file_uid || j.uid
+  if (!uid) throw new Error('Timelines files_upload: no uid in response')
+  return uid
+}
+
+// Send a message carrying an uploaded file (image/audio/document) by phone.
+export async function sendFileByPhone(opts: { phone: string; fileUid: string; text?: string; whatsappAccountPhone: string }): Promise<void> {
+  const res = await fetch(`${BASE_URL}/messages`, {
+    method: 'POST', headers: authHeaders(), cache: 'no-store',
+    body: JSON.stringify({ phone: opts.phone, text: opts.text || '', file_uid: opts.fileUid, whatsapp_account_phone: opts.whatsappAccountPhone }),
+  })
+  if (!res.ok) { const b = await res.text().catch(() => ''); throw new Error(`Timelines sendFile ${res.status}: ${b.slice(0, 200)}`) }
+}
+
+// Send a TRUE WhatsApp voice note into a chat (needs the numeric chat id).
+export async function sendVoiceMessage(chatId: number, buf: Buffer, filename = 'voice.ogg', mime = 'audio/ogg'): Promise<void> {
+  const fd = new FormData()
+  fd.append('file', new Blob([new Uint8Array(buf)], { type: mime }), filename)
+  const res = await fetch(`${BASE_URL}/chats/${chatId}/voice_message`, { method: 'POST', headers: authOnly(), body: fd, cache: 'no-store' })
+  if (!res.ok) { const b = await res.text().catch(() => ''); throw new Error(`Timelines voice_message ${res.status}: ${b.slice(0, 200)}`) }
+}
+
 export async function sendMessage(opts: {
   phone: string
   text: string

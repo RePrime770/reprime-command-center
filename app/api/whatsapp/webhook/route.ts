@@ -316,6 +316,9 @@ export async function POST(request: Request) {
     is_group: chat.is_group,
     jid: chat.jid || null,
     last_message_at: lastAt,
+    // Numeric Timelines chat id — needed to send a true WhatsApp voice note back
+    // (POST /chats/{id}/voice_message). Populates as contacts message us.
+    timelines_chat_id: chat.id || null,
   }
 
   console.log('[webhook] upserting thread', { panel, phone, timelines_chat_id: chat.id, lastAt })

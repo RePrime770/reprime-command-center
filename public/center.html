@@ -288,6 +288,11 @@
     var ch=CHMETA[p.channel].ac, chLabel=l()[p.channel];
     var draftEs={es:'Perfecto. Le agendo el jueves a las 10:00 y le envío el enlace ahora.',en:'Perfect. Booking thursday at 10:00 and sending the link now.'}[state.lang];
     var draftHe='מצוין. קבעתי ליום חמישי בעשר ושולח עכשיו את הלינק.';
+    // Record voice is only for ENGLISH threads — the secretary can't speak Hebrew,
+    // so Hebrew replies stay typed (Spanish → translated). English (or no inbound
+    // yet) → recording allowed.
+    var _lastThem=null;(p.chain||[]).forEach(function(c){if(c.who==='them')_lastThem=c;});
+    var canRecord=!(_lastThem&&_lastThem.he);
     el.innerHTML=
       '<div class="qcap"><b>'+esc(l().queue)+'</b><span class="pos">'+(state.qi+1)+' / '+q.length+'</span></div>'+
       '<div class="qbody">'+
@@ -311,6 +316,11 @@
           '<button class="oc no" data-oc="no">✕ '+esc(l().oc.no)+'</button>'+
           '<button class="oc remind" data-oc="remind">⏳ '+esc(l().oc.remind)+'</button>'+
         '</div>'+
+      '</div>'+
+      '<div class="qmedia" style="display:flex;gap:8px;padding:6px 0">'+
+        '<button class="qb attach" data-media="attach">📎 '+esc(state.lang==='es'?'Adjuntar archivo':'Attach file')+'</button>'+
+        (canRecord?('<button class="qb rec" data-media="rec">🎤 '+esc(state.lang==='es'?'Grabar voz':'Record voice')+'</button>'):'')+
+        '<input type="file" id="mediaFile" style="display:none">'+
       '</div>'+
       '<div class="qact">'+
         '<button class="qb send" data-q="send">➤ '+esc(l().send)+'</button>'+
@@ -521,6 +531,40 @@
       }
     }).catch(function(){});
   }
+  // ── Voice record + file attach (composer) ───────────────────────────────────
+  var _mrec=null,_mchunks=[];
+  function sendMedia(file,kind){
+    var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];if(!o)return;
+    var fd=new FormData();
+    fd.append('file',file,file.name||(kind==='voice'?'voice.m4a':'file'));
+    fd.append('kind',kind);
+    fd.append('channel',o._phone?'whatsapp':'email');
+    fd.append('phone',o._phone||'');fd.append('email',o._email||'');fd.append('account',o._acct||'305');
+    fd.append('text',(state._draft&&state._draft.he)||'');
+    toast(state.lang==='es'?'Enviando…':'Sending…');
+    fetch('/api/center/reply-media',{method:'POST',headers:{'x-center-pass':PASS},body:fd})
+      .then(function(r){return r.json();}).then(function(res){
+        if(res&&res.ok){o.queued=false;o.bucket='within';o.fu='silent';state._draftFor=null;toast(state.lang==='es'?'Enviado ✓':'Sent ✓');renderAll();}
+        else toast((state.lang==='es'?'Error: ':'Failed: ')+((res&&res.error)||''));
+      }).catch(function(){toast(state.lang==='es'?'Error al enviar':'Send failed');});
+  }
+  function toggleRecord(btn){
+    if(_mrec&&_mrec.state==='recording'){_mrec.stop();return;}
+    if(!navigator.mediaDevices||!window.MediaRecorder){toast('No mic');return;}
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      var mt=['audio/mp4','audio/webm;codecs=opus','audio/webm'].filter(function(t){return MediaRecorder.isTypeSupported(t);})[0]||'';
+      _mchunks=[];_mrec=mt?new MediaRecorder(stream,{mimeType:mt}):new MediaRecorder(stream);
+      _mrec.ondataavailable=function(e){if(e.data&&e.data.size)_mchunks.push(e.data);};
+      _mrec.onstop=function(){
+        stream.getTracks().forEach(function(t){t.stop();});
+        var type=(_mchunks[0]&&_mchunks[0].type)||mt||'audio/mp4';
+        var ext=type.indexOf('mp4')>=0?'m4a':(type.indexOf('webm')>=0?'webm':'m4a');
+        sendMedia(new File([new Blob(_mchunks,{type:type})],'voice.'+ext,{type:type}),'voice');
+      };
+      _mrec.start();
+      btn.textContent='■ '+(state.lang==='es'?'Detener y enviar':'Stop & send');btn.style.background='#c0392b';btn.style.color='#fff';
+    }).catch(function(){toast(state.lang==='es'?'Micrófono bloqueado':'Mic blocked');});
+  }
   var _rq=window.renderQueue;
   window.renderQueue=function(){ _rq(); var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi]; if(!o)return; if(!o._histLoaded){o._histLoaded=true;loadHistory(o);} if(state._draftFor!==o.name){state._draftFor=o.name;state._draft=null;state._sugs=null;loadDraft(o);} paintDraft(); };
   var _bq=window.bindQueue;
@@ -567,6 +611,11 @@
       if(state._draft){state._draft.he=(state._draft.he+' '+url).trim();state._draft.shown=(state._draft.shown+' '+url).trim();paintDraft();}
       toast(l().inserted+': '+l().ins[kind]);
     };});
+    // Attach file (both sides) + Record voice (English threads only)
+    var af=document.querySelector('[data-media="attach"]'),fi=document.getElementById('mediaFile');
+    if(af&&fi){af.onclick=function(){fi.value='';fi.click();};fi.onchange=function(){var f=fi.files&&fi.files[0];if(f)sendMedia(f,'file');};}
+    var rb=document.querySelector('[data-media="rec"]');
+    if(rb)rb.onclick=function(){toggleRecord(rb);};
   };
   // ── EMAIL AUDIT (secretary inline-fix) ───────────────────────────────────
   // The Ilit/Doron class of bug: a roster row whose email is somebody else's
