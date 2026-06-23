@@ -54,6 +54,14 @@ function contactPhone(from: string, to: string): string {
   return isOursOnly(from) ? to : from
 }
 
+// OpenPhone message/call payloads send `to` as an ARRAY (e.g. ["+13057784861"])
+// and `from` as a string. normalizePhone() throws on a non-string, so coerce
+// any phone field to its first string value before use.
+function firstPhone(v: unknown): string {
+  if (Array.isArray(v)) return typeof v[0] === 'string' ? v[0] : ''
+  return typeof v === 'string' ? v : ''
+}
+
 /**
  * Read all webhook signing secrets — supports both legacy single-key and the
  * new multi-key mode (each Quo webhook has its own HMAC key).
@@ -116,9 +124,11 @@ export async function POST(request: NextRequest) {
 
   // ── call.completed ─────────────────────────────────────────────────────────
   if (type === 'call.completed') {
-    const from = normalizePhone(obj.from as string) || (obj.from as string)
-    const to = normalizePhone(obj.to as string) || (obj.to as string)
-    const contact = normalizePhone(contactPhone(obj.from as string, obj.to as string))
+    const fromRaw = firstPhone(obj.from)
+    const toRaw = firstPhone(obj.to)
+    const from = normalizePhone(fromRaw) || fromRaw
+    const to = normalizePhone(toRaw) || toRaw
+    const contact = normalizePhone(contactPhone(fromRaw, toRaw))
 
     const row = {
       external_id: obj.id as string,
@@ -157,9 +167,11 @@ export async function POST(request: NextRequest) {
   // Quo's outbound event is named "message.delivered" in their v2 webhook
   // schema; the v1 alias "message.sent" is preserved for backward compat.
   if (type === 'message.received' || type === 'message.sent' || type === 'message.delivered') {
-    const from = normalizePhone(obj.from as string) || (obj.from as string)
-    const to = normalizePhone(obj.to as string) || (obj.to as string)
-    const contact = normalizePhone(contactPhone(obj.from as string, obj.to as string))
+    const fromRaw = firstPhone(obj.from)
+    const toRaw = firstPhone(obj.to)
+    const from = normalizePhone(fromRaw) || fromRaw
+    const to = normalizePhone(toRaw) || toRaw
+    const contact = normalizePhone(contactPhone(fromRaw, toRaw))
     const direction = (obj.direction as string) === 'outgoing' ? 'out' : 'in'
     const body = (obj.body as string) ?? null
     const msgId = obj.id as string
