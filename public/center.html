@@ -438,7 +438,18 @@
     }).catch(function(){toast&&toast('Load failed');});
   };
   function pickSug(){ var i=(state.tone==='prof'&&state._sugs&&state._sugs[1])?1:0; return state._sugs?state._sugs[i]:null; }
-  function paintDraft(){ if(!state._draft)return; var sb=document.querySelectorAll('.qsend .sb'); if(sb[0])sb[0].textContent=state._draft.shown; if(sb[1])sb[1].textContent=state._draft.he; }
+  function paintDraft(){
+    // Show each tone option's REAL Spanish text on its button so the Spanish
+    // secretary can read + choose between the two suggestions (not just a label).
+    if(state._sugs){
+      var tns=document.querySelectorAll('.tone .tn'), txs=document.querySelectorAll('.tone .tx');
+      for(var i=0;i<2;i++){ var s=state._sugs[i]; if(!s)continue;
+        if(tns[i])tns[i].textContent=s.label_es||(i?l().prof:l().friendly);
+        var t=(state.lang==='es'?(s.reply_es||''):(s.reply_he||'')); if(t.length>110)t=t.slice(0,110).trim()+'…';
+        if(txs[i])txs[i].textContent=t;
+      }
+    }
+    if(!state._draft)return; var sb=document.querySelectorAll('.qsend .sb'); if(sb[0])sb[0].textContent=state._draft.shown; if(sb[1])sb[1].textContent=state._draft.he; }
   function loadDraft(o){
     var thread=(o.chain||[]).map(function(c){return (c.who==='us'?'US: ':'THEM: ')+(c.he||c.en||c.es);}).join('\n');
     var latest=(o.chain&&o.chain[0])?(o.chain[0].he||o.chain[0].en||o.chain[0].es):'';
