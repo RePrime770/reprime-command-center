@@ -93,21 +93,43 @@ async function emailThread(email: string): Promise<Msg[]> {
   } catch { return [] }
 }
 
+// Force a batch of lines into natural Spanish (used to repair any es value that
+// came back empty or still in Hebrew — the secretary reads ONLY Spanish).
+async function forceSpanish(key: string, lines: string[]): Promise<string[]> {
+  const arr = (lines || []).map((x) => String(x || ''))
+  if (!arr.some((s) => s.trim())) return arr
+  try {
+    const sys = 'Translate each numbered line into natural Latin-American Spanish. Keep meaning + any URLs/emojis/media markers (📎). NEVER return Hebrew. Return STRICT JSON only: {"es":["...", ...]} one string per line in order.'
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 1500, system: sys, messages: [{ role: 'user', content: arr.map((s, i) => `${i + 1}. ${s}`).join('\n') }] }) })
+    const j = await r.json()
+    let t = (j.content || []).map((c: { text?: string }) => c.text || '').join('')
+    t = t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)
+    const es = (JSON.parse(t).es || []) as string[]
+    return arr.map((s, i) => es[i] ? String(es[i]) : s)
+  } catch { return arr }
+}
+
 async function translateChain(chain: Msg[]) {
   const key = process.env.ANTHROPIC_API_KEY
   if (!key || !chain.length) return chain.map((c) => ({ ...c, he: isHe(c.text) ? c.text : '', es: c.text, en: c.text }))
+  let arr: Array<{ es?: string; en?: string }> = []
   try {
-    const sys = 'Translate each WhatsApp/email line for an Israeli real-estate desk. Return STRICT JSON array (no fences), one object per input line IN ORDER, keys: es (natural Spanish), en (natural English). Keep media markers (📎 …) as-is. Faithful and short.'
+    const sys = 'Translate each WhatsApp/email line for an Israeli real-estate desk. Return STRICT JSON array (no fences), one object per input line IN ORDER, keys: es (natural Latin-American Spanish — NEVER Hebrew), en (natural English). Keep media markers (📎 …) and URLs as-is. Faithful and short.'
     const user = chain.map((c, i) => `${i + 1}. ${c.text}`).join('\n')
     const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 1500, system: sys, messages: [{ role: 'user', content: user }] }) })
     const j = await r.json()
     let t = (j.content || []).map((c: { text?: string }) => c.text || '').join('')
     t = t.slice(t.indexOf('['), t.lastIndexOf(']') + 1)
-    const arr = JSON.parse(t) as Array<{ es?: string; en?: string }>
-    return chain.map((c, i) => ({ ...c, he: isHe(c.text) ? c.text : '', es: arr[i]?.es || c.text, en: arr[i]?.en || c.text }))
-  } catch {
-    return chain.map((c) => ({ ...c, he: isHe(c.text) ? c.text : '', es: c.text, en: c.text }))
+    arr = JSON.parse(t) as Array<{ es?: string; en?: string }>
+  } catch { /* fall through — es repaired below */ }
+  const out = chain.map((c, i) => ({ ...c, he: isHe(c.text) ? c.text : '', es: (arr[i]?.es || ''), en: arr[i]?.en || c.text }))
+  // GUARANTEE Spanish: repair any es that is empty or still contains Hebrew.
+  const fix = out.map((c, i) => ((!c.es || isHe(c.es)) ? i : -1)).filter((i) => i >= 0)
+  if (fix.length) {
+    const repaired = await forceSpanish(key, fix.map((i) => chain[i].text))
+    fix.forEach((i, k) => { out[i].es = repaired[k] || out[i].es || chain[i].text })
   }
+  return out
 }
 
 export async function GET(request: Request) {

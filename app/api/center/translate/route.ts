@@ -44,6 +44,23 @@ async function claude(system: string, user: string) {
   return JSON.parse(t)
 }
 
+const hasHebrew = (s: string | undefined | null) => /[֐-׿]/.test(s || '')
+
+// Force a set of lines into natural Latin-American Spanish. Used to GUARANTEE the
+// secretary-facing fields are Spanish even when the model echoes Hebrew into them.
+async function toSpanish(lines: string[]): Promise<string[]> {
+  const arr = (lines || []).map((x) => String(x || ''))
+  if (!arr.some((s) => s.trim())) return arr
+  const sys = 'Translate each numbered line into natural, warm Latin-American Spanish for a Spanish-speaking secretary. Keep the meaning and tone; keep any URLs/emojis as-is; NEVER return Hebrew. Return STRICT JSON only: {"es":["...", ...]} with exactly one string per input line, in order.'
+  try {
+    const o = await claude(sys, arr.map((s, i) => `${i + 1}. ${s}`).join('\n'))
+    const es = Array.isArray(o.es) ? o.es : []
+    return arr.map((s, i) => (es[i] ? String(es[i]) : s))
+  } catch {
+    return arr
+  }
+}
+
 export async function POST(request: Request) {
   if (!centerAuthed(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   let body: { action?: string; thread?: string; latest?: string; draft?: string; target?: string; bookLink?: string }
@@ -55,6 +72,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ final: out.final || '' })
     }
     const out = await claude(SYS_ANALYZE, `Thread (old to new):\n${body.thread || '(no prior context — this was just the invitation)'}\n\nLatest from them: ${body.latest || ''}`)
+    // GUARANTEE the secretary-facing fields are Spanish. The model sometimes
+    // echoes Hebrew into reply_es / their_message_es / context_es; she can't read
+    // Hebrew — that's the whole point of this tool — so we re-translate from the
+    // Hebrew (reply_he / source) into Spanish, always.
+    if (out && Array.isArray(out.suggestions) && out.suggestions.length) {
+      const esReplies = await toSpanish(out.suggestions.map((s: { reply_he?: string; reply_es?: string }) => s.reply_he || s.reply_es || ''))
+      out.suggestions.forEach((s: { reply_es?: string }, i: number) => { if (esReplies[i]) s.reply_es = esReplies[i] })
+    }
+    if (out && hasHebrew(out.their_message_es)) { const t = await toSpanish([body.latest || out.their_message_es]); out.their_message_es = t[0] || out.their_message_es }
+    if (out && hasHebrew(out.context_es)) { const t = await toSpanish([out.context_es]); out.context_es = t[0] || out.context_es }
     // Default suggestion always carries the Zoom-scheduling link (the goal is to
     // get them on a Zoom). The 2nd stays clean. Append deterministically so the
     // link is always correct, never hallucinated.
