@@ -225,7 +225,9 @@
     // ENGLISH side (Gideon/Shirel): show the ORIGINAL untouched — Hebrew or English,
     // no translation (they read both).
     var es=state.lang==='es';
-    var primary = es ? (c.he ? (c.es||c.he) : (c.en||c.es||c.he||'')) : (c.he || c.en || c.es || '');
+    // Secretary (es): ALWAYS prefer the Spanish text — never fall back to Hebrew
+    // when Spanish exists. English content stays English. Gideon/Shirel (en): original.
+    var primary = es ? (c.es || c.he || c.en || '') : (c.he || c.en || c.es || '');
     var heMain = !es && !!c.he;
     var main = '<div class="x'+(heMain?' he':'')+'">'+esc(primary)+'</div>';
     var tr = (es && c.he && primary!==c.he) ? '<div class="tr he">'+esc(c.he)+'</div>' : '';
@@ -394,10 +396,10 @@
     var anchor={who:'us',b:undefined,date:'',he:'',es:'Invitación Terminal enviada',en:'Terminal invitation sent'};
     var chain;
     if(tj&&tj.length){
-      chain=tj.slice(-40).map(function(m){var t=(m.text||'').trim();return {who:(m.who==='us'?'us':'them'),b:(m.who==='us'?undefined:b),date:m.date||'',he:/[֐-׿]/.test(t)?t:'',es:t,en:t,via:m.via};});
+      chain=tj.slice(-40).map(function(m){var t=(m.text||'').trim();return {who:(m.who==='us'?'us':'them'),b:(m.who==='us'?undefined:b),date:m.date||'',he:/[֐-׿]/.test(t)?t:'',es:(m.es||t),en:t,via:m.via};});
       chain.unshift(anchor);
     } else if(snip){
-      chain=[anchor,{who:who,b:(who==='them'?b:undefined),date:'',he:he,es:snip,en:snip}];
+      chain=[anchor,{who:who,b:(who==='them'?b:undefined),date:'',he:he,es:(c.lastReplyEs||snip),en:snip}];
     } else {
       chain=[{who:'us',b:undefined,date:'',he:'',es:'Invitación Terminal enviada — esperando respuesta',en:'Terminal invitation sent — awaiting reply'}];
     }

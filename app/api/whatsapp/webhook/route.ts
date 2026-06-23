@@ -435,31 +435,47 @@ export async function POST(request: Request) {
   // Reflect this message on the /outreach board the instant it lands: update the
   // matching roster row's last message + append to thread_json (so cards/queue
   // show it without waiting for the hourly reconciliation cron). Non-fatal.
+  // MUST be awaited — a fire-and-forget promise is killed when the serverless
+  // function returns, which is why messages were saved but the board never
+  // flipped. Awaiting is cheap (one select + one update) and non-fatal on error.
   if (!chat.is_group && phone) {
-    void (async () => {
-      try {
-        const l9 = phone.replace(/\D/g, '').slice(-9)
-        if (!l9) return
-        const { data: rows } = await service.from('roster').select('source_row, phone, thread_json')
-        const match = (rows || []).find((r: { phone: string | null }) => !!r.phone && r.phone.replace(/\D/g, '').slice(-9) === l9) as { source_row: number; thread_json: string | null } | undefined
-        if (!match) return
-        const who = message.from_me ? 'us' : 'them'
-        const txt = (message.text || '').trim() || (mediaType ? '📎 ' + mediaType : '')
-        if (!txt) return
-        let date = ''
-        try { date = new Intl.DateTimeFormat('en-US', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }).format(new Date(sentAt || Date.now())) } catch { /* keep '' */ }
-        let arr: Array<{ who: string; date: string; text: string; via?: string }> = []
-        try { arr = match.thread_json ? JSON.parse(match.thread_json) : [] } catch { arr = [] }
-        arr.push({ who, date, text: txt.slice(0, 400), via: 'wa' })
-        if (arr.length > 40) arr = arr.slice(-40)
-        await service.from('roster').update({
-          thread_json: JSON.stringify(arr),
-          last_reply_text: txt.slice(0, 500),
-          last_from: who,
-          awaiting_us: !message.from_me,
-        }).eq('source_row', match.source_row)
-      } catch (e) { console.error('[webhook] board update non-fatal', (e as Error).message) }
-    })()
+    try {
+      const l9 = phone.replace(/\D/g, '').slice(-9)
+      if (l9) {
+        const { data: rows } = await service.from('roster').select('source_row, phone, board_stage, thread_json')
+        const match = (rows || []).find((r: { phone: string | null }) => !!r.phone && r.phone.replace(/\D/g, '').slice(-9) === l9) as { source_row: number; board_stage: string | null; thread_json: string | null } | undefined
+        if (match) {
+          const who = message.from_me ? 'us' : 'them'
+          const txt = (message.text || '').trim() || (mediaType ? '📎 ' + mediaType : '')
+          if (txt) {
+            let date = ''
+            try { date = new Intl.DateTimeFormat('en-US', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }).format(new Date(sentAt || Date.now())) } catch { /* keep '' */ }
+            let arr: Array<{ who: string; date: string; text: string; via?: string }> = []
+            try { arr = match.thread_json ? JSON.parse(match.thread_json) : [] } catch { arr = [] }
+            arr.push({ who, date, text: txt.slice(0, 400), via: 'wa' })
+            if (arr.length > 40) arr = arr.slice(-40)
+            const nowIso = new Date().toISOString()
+            const inbound = !message.from_me
+            // Inbound (them) → flips the board to 'replied' + awaiting us, and
+            // stamps last_reply_at so the alert cron can fire. Outbound (us) →
+            // clears awaiting us, leaves the stage as-is.
+            const upd: Record<string, unknown> = {
+              thread_json: JSON.stringify(arr),
+              last_reply_text: txt.slice(0, 500),
+              last_from: who,
+              awaiting_us: inbound,
+              last_reply_at: new Date(sentAt || Date.now()).toISOString(),
+              updated_at: nowIso,
+            }
+            if (inbound && match.board_stage !== 'booked' && match.board_stage !== 'declined') upd.board_stage = 'replied'
+            await service.from('roster').update(upd).eq('source_row', match.source_row)
+            console.log('[webhook] board updated', { source_row: match.source_row, inbound })
+          }
+        } else {
+          console.log('[webhook] board update: no roster match', { l9 })
+        }
+      }
+    } catch (e) { console.error('[webhook] board update non-fatal', (e as Error).message) }
   }
 
   // Mark dedup key only after successful write

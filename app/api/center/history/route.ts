@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { centerAuthed } from '@/lib/center/auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getMessages } from '@/lib/timelines/client'
+import { esCached } from '@/lib/center/tr-cache'
 import { google } from 'googleapis'
 
 export const dynamic = 'force-dynamic'
@@ -93,20 +94,11 @@ async function emailThread(email: string): Promise<Msg[]> {
   } catch { return [] }
 }
 
-// Force a batch of lines into natural Spanish (used to repair any es value that
-// came back empty or still in Hebrew — the secretary reads ONLY Spanish).
-async function forceSpanish(key: string, lines: string[]): Promise<string[]> {
-  const arr = (lines || []).map((x) => String(x || ''))
-  if (!arr.some((s) => s.trim())) return arr
-  try {
-    const sys = 'Translate each numbered line into natural Latin-American Spanish. Keep meaning + any URLs/emojis/media markers (📎). NEVER return Hebrew. Return STRICT JSON only: {"es":["...", ...]} one string per line in order.'
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 1500, system: sys, messages: [{ role: 'user', content: arr.map((s, i) => `${i + 1}. ${s}`).join('\n') }] }) })
-    const j = await r.json()
-    let t = (j.content || []).map((c: { text?: string }) => c.text || '').join('')
-    t = t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)
-    const es = (JSON.parse(t).es || []) as string[]
-    return arr.map((s, i) => es[i] ? String(es[i]) : s)
-  } catch { return arr }
+// Repair any es value that came back empty or still in Hebrew via the SHARED
+// translation cache — so the open thread uses the exact same Spanish the board
+// shows, and each line is translated at most once across the whole system.
+async function forceSpanish(_key: string, lines: string[]): Promise<string[]> {
+  return esCached(lines)
 }
 
 async function translateChain(chain: Msg[]) {

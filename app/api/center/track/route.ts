@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { centerAuthed } from '@/lib/center/auth'
+import { esCached } from '@/lib/center/tr-cache'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 // The follow-through board reads the ROSTER (seeded from the secretary's
 // Investor Board sheet — the real list of people we've worked), and upgrades
@@ -69,6 +71,7 @@ export async function GET(request: Request) {
       opened, watched, reachable, messaged, meetingStatus, inviteUrl,
       awaitingUs: r.awaiting_us === true,
       lastReply: (r.last_reply_text || r.latest || '').slice(0, 300),
+      lastReplyEs: '',
       lastFrom: r.last_from || null,
       threadJson: r.thread_json || null,
       outcome: r.outcome || '',
@@ -79,6 +82,34 @@ export async function GET(request: Request) {
       row: r.source_row,
     }
   })
+
+  // --- Spanish for the secretary: translate the preview text the board shows
+  // (last reply + the last 2 thread messages a card renders), cached so polling
+  // costs nothing after warm-up. Without this she reads raw Hebrew on the board.
+  const heRe = /[֐-׿]/
+  const toTr: string[] = []
+  const refs: Array<{ ci: number; lr: true } | { ci: number; mi: number }> = []
+  const parsed: Array<Array<{ who: string; date?: string; text?: string; via?: string; es?: string }> | null> = []
+  contacts.forEach((c, ci) => {
+    if (c.lastReply && heRe.test(c.lastReply)) { refs.push({ ci, lr: true }); toTr.push(c.lastReply) }
+    let tj: Array<{ who: string; text?: string; es?: string }> | null = null
+    try { tj = c.threadJson ? JSON.parse(c.threadJson) : null } catch { tj = null }
+    parsed[ci] = tj
+    if (Array.isArray(tj)) {
+      for (let mi = Math.max(0, tj.length - 2); mi < tj.length; mi++) {
+        const t = (tj[mi] && tj[mi].text) || ''
+        if (heRe.test(t)) { refs.push({ ci, mi }); toTr.push(t) }
+      }
+    }
+  })
+  if (toTr.length) {
+    const es = await esCached(toTr)
+    refs.forEach((r, k) => {
+      if ('lr' in r) contacts[r.ci].lastReplyEs = es[k]
+      else { const tj = parsed[r.ci]; if (tj && tj[r.mi]) tj[r.mi].es = es[k] }
+    })
+    contacts.forEach((c, ci) => { if (parsed[ci]) c.threadJson = JSON.stringify(parsed[ci]) })
+  }
 
   const active = contacts.filter((c) => !c.snoozed && c.stage !== 'booked' && c.stage !== 'declined')
   const counts: Record<string, number> = { replied: 0, sent: 0, booked: 0, declined: 0, unknown: 0 }
