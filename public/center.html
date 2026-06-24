@@ -304,7 +304,7 @@
           '<button class="tone'+(state.tone==='prof'?' sel':'')+'" data-tone="prof"><div class="tn">'+esc(l().prof)+'</div><div class="tx">'+(state.lang==='es'?'más corto y formal':'shorter, formal')+'</div></button>'+
         '</div></div>'+
         '<div class="qsend"><div class="sl">'+esc(l().sendsTo)+esc(chLabel)+'</div><div class="sb">'+esc(draftEs)+'</div>'+
-          '<div class="sl" style="margin-top:8px">'+esc(state.lang==='es'?'Se envía así · hebreo':'Sends as · Hebrew')+'</div><div class="sb he">'+esc(draftHe)+'</div></div>'+
+          '<div class="sl" style="margin-top:8px">'+esc(state.lang==='es'?('Se envía así · '+(state._outLang==='en'?'inglés':state._outLang==='es'?'español':'hebreo')):('Sends as · '+(state._outLang==='en'?'English':state._outLang==='es'?'Spanish':'Hebrew')))+'</div><div class="sb '+(state._outLang||'he')+'">'+esc(draftHe)+'</div></div>'+
         '<div class="qinsert"><div class="il">'+esc(l().insLbl)+'</div><div class="row">'+
           '<button class="ins invite" data-ins="invite">✉ '+esc(l().ins.invite)+'</button>'+
           '<button class="ins" data-ins="video">▶ '+esc(l().ins.video)+'</button>'+
@@ -508,6 +508,10 @@
     fetch('/api/center/translate',{method:'POST',headers:H(),body:JSON.stringify({action:'analyze',thread:thread||latest,latest:latest,bookLink:(o._inviteUrl||'')})})
       .then(function(r){return r.json();}).then(function(a){
         if(!a||!a.suggestions||!a.suggestions.length)return; state._sugs=a.suggestions;
+        // a.lang is "he" or "en" — the language the INVESTOR writes in, which is
+        // also the language we send back. Drives the "Sends as · ___" label so
+        // an English-speaking investor doesn't get a "HEBREO" label on an English reply.
+        state._outLang=(a.lang==='en'?'en':a.lang==='es'?'es':'he');
         var s=pickSug(); if(!s)return;
         state._draft={shown:(state.lang==='es'?s.reply_es:s.reply_he),he:s.reply_he,es:s.reply_es};
         var cur=PEOPLE.filter(function(p){return p.queued;})[state.qi];
