@@ -19,8 +19,8 @@ CRITICAL — READ WHAT THEY ACTUALLY WROTE FIRST. Classify their latest message 
  • Hostile / annoyed: short, gracious, back off.
 
 Return STRICT JSON only (no code fences):
- context_es: 1-2 Spanish sentences — what this is about + what we last said.
- their_message_es: their latest message in natural Spanish.
+ context_es: 1-2 sentences of context — IN SPANISH if the investor writes Hebrew, IN ENGLISH if the investor writes English (do NOT translate to Spanish for English threads).
+ their_message_es: their latest message — IN SPANISH if they write Hebrew, IN ENGLISH if they write English (i.e. just echo it for English threads).
  their_message_en: their latest message in natural English.
  their_intent: one of "interested" | "declined" | "declined_with_referral" | "question" | "pleasantry" | "hostile" | "other".
  lang: "he" or "en" — the language the investor writes in.
@@ -80,16 +80,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ final: out.final || '' })
     }
     const out = await claude(SYS_ANALYZE, `Thread (old to new):\n${body.thread || '(no prior context — this was just the invitation)'}\n\nLatest from them: ${body.latest || ''}`)
-    // GUARANTEE the secretary-facing fields are Spanish. The model sometimes
-    // echoes Hebrew into reply_es / their_message_es / context_es; she can't read
-    // Hebrew — that's the whole point of this tool — so we re-translate from the
-    // Hebrew (reply_he / source) into Spanish, always.
+    // ENGLISH IN, ENGLISH OUT — never translate. The Hebrew↔Spanish loop exists
+    // ONLY because the secretary can't read Hebrew. English threads bypass every
+    // translation step: she reads + replies in English directly.
+    const isEnThread = out && out.lang === 'en'
     if (out && Array.isArray(out.suggestions) && out.suggestions.length) {
-      const esReplies = await toSpanish(out.suggestions.map((s: { reply_he?: string; reply_es?: string }) => s.reply_he || s.reply_es || ''))
-      out.suggestions.forEach((s: { reply_es?: string }, i: number) => { if (esReplies[i]) s.reply_es = esReplies[i] })
+      if (isEnThread) {
+        // English thread: the model's reply_he IS the English outgoing message.
+        // Mirror it into reply_es so the UI shows the same English in both boxes;
+        // no Spanish translation runs.
+        out.suggestions.forEach((s: { reply_es?: string; reply_he?: string }) => { s.reply_es = s.reply_he || s.reply_es || '' })
+      } else {
+        // Hebrew thread: guarantee the secretary-facing reply is Spanish (the
+        // model sometimes echoes Hebrew into reply_es).
+        const esReplies = await toSpanish(out.suggestions.map((s: { reply_he?: string; reply_es?: string }) => s.reply_he || s.reply_es || ''))
+        out.suggestions.forEach((s: { reply_es?: string }, i: number) => { if (esReplies[i]) s.reply_es = esReplies[i] })
+      }
     }
-    if (out && hasHebrew(out.their_message_es)) { const t = await toSpanish([body.latest || out.their_message_es]); out.their_message_es = t[0] || out.their_message_es }
-    if (out && hasHebrew(out.context_es)) { const t = await toSpanish([out.context_es]); out.context_es = t[0] || out.context_es }
+    if (out && !isEnThread) {
+      // Hebrew-thread guarantees only — never run these on English threads.
+      if (hasHebrew(out.their_message_es)) { const t = await toSpanish([body.latest || out.their_message_es]); out.their_message_es = t[0] || out.their_message_es }
+      if (hasHebrew(out.context_es)) { const t = await toSpanish([out.context_es]); out.context_es = t[0] || out.context_es }
+    } else if (out && isEnThread) {
+      // English thread: secretary sees the English text in the Spanish slot too.
+      out.their_message_es = out.their_message_en || body.latest || out.their_message_es || ''
+      // context_es is just an English summary for her — leave the model's English output as-is.
+    }
     // Append the Zoom link to suggestion[0] ONLY when the model judged the intent
     // warrants pushing a meeting (push_zoom=true). For declined / pleasantry /
     // hostile, no link, no meeting-push label — the reply must match what they
