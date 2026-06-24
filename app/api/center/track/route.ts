@@ -96,7 +96,11 @@ export async function GET(request: Request) {
     try { tj = c.threadJson ? JSON.parse(c.threadJson) : null } catch { tj = null }
     parsed[ci] = tj
     if (Array.isArray(tj)) {
-      for (let mi = Math.max(0, tj.length - 2); mi < tj.length; mi++) {
+      // Translate EVERY Hebrew message in the thread (not just the last 2) — the
+      // queue panel renders the full chain, and partial translation left older
+      // inbound Hebrew messages showing only in Hebrew. esCached makes repeated
+      // translations free after first warm-up.
+      for (let mi = 0; mi < tj.length; mi++) {
         const t = (tj[mi] && tj[mi].text) || ''
         if (heRe.test(t)) { refs.push({ ci, mi }); toTr.push(t) }
       }
