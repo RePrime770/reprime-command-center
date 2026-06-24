@@ -152,10 +152,14 @@ async function runBatch(service: ReturnType<typeof createServiceClient>, limitIn
   // Least-recently-reconciled first so repeated runs cycle through everyone.
   const limit = Math.min(60, Math.max(1, limitIn || 30))
   const scope = scopeIn === 'all' ? 'all' : 'active'
-  let q = service.from('roster').select('source_row, phone, board_stage, thread_json, awaiting_us, last_reply_at').not('phone', 'is', null).order('updated_at', { ascending: true, nullsFirst: true }).limit(limit)
+  // `any` on the builder: chaining many Supabase filters makes the TS type
+  // recursion blow up ("excessively deep"); the runtime is unaffected.
+  let q = service.from('roster').select('source_row, phone, board_stage, thread_json, awaiting_us, last_reply_at') as any
+  q = q.not('phone', 'is', null)
   // Only contacts who have had real WhatsApp activity (last_reply_at set) — skip
   // invitees who never messaged on WhatsApp (nothing to mirror, wastes API calls).
-  if (scope === 'active') q = q.neq('board_stage', 'booked').neq('board_stage', 'declined').not('last_reply_at', 'is', null)
+  if (scope === 'active') { q = q.neq('board_stage', 'booked'); q = q.neq('board_stage', 'declined'); q = q.not('last_reply_at', 'is', null) }
+  q = q.order('updated_at', { ascending: true, nullsFirst: true }).limit(limit)
   const { data } = await q
   const rows = (data || []) as Roster[]
 
