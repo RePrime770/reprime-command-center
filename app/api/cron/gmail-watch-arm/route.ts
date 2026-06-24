@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { client as gmailClient } from '@/lib/google/gmail'
+import { centerAuthed } from '@/lib/center/auth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -12,11 +13,12 @@ const WATCH_EMAIL = 'g@reprime.com'
 const TOPIC = 'projects/reprime-command-center/topics/gmail-push'
 
 export async function GET(request: Request) {
+  // Vercel cron sends Authorization: Bearer ${CRON_SECRET}; a manual run can use
+  // the board password (x-center-pass) instead.
   const expected = process.env.CRON_SECRET
-  if (expected) {
-    const got = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
-    if (got !== expected) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
+  const got = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
+  const cronOk = expected ? got === expected : true
+  if (!cronOk && !centerAuthed(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   try {
     const gmail = gmailClient() // default = GOOGLE_REFRESH_TOKEN = g@reprime.com
     const res = await gmail.users.watch({ userId: 'me', requestBody: { topicName: TOPIC, labelIds: ['INBOX', 'SENT'], labelFilterBehavior: 'include' } })
