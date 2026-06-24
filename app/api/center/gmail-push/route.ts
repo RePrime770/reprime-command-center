@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { OAuth2Client } from 'google-auth-library'
 import { createServiceClient } from '@/lib/supabase/server'
 import { client as gmailClient, getMessage, parseFromHeader } from '@/lib/google/gmail'
-import { loadRosterByEmail, applyEmailMessage } from '@/lib/center/email-apply'
+import { loadTrackedEmails, applyEmailMessage, extractAddresses } from '@/lib/center/email-apply'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -69,14 +69,15 @@ export async function POST(request: Request) {
     // 5) Write each new message touching a roster contact onto the board.
     let applied = 0
     if (ids.size) {
-      const byEmail = await loadRosterByEmail(service)
+      const byEmail = await loadTrackedEmails(service)
       for (const id of ids) {
         try {
           const msg = await getMessage(id)
           const fromAddr = parseFromHeader(msg.headers['from']).address
-          const toAddr = parseFromHeader(msg.headers['to']).address
+          // Match every recipient across To + Cc against the tracked set.
+          const recipients = extractAddresses(`${msg.headers['to'] || ''},${msg.headers['cc'] || ''}`)
           const text = ((msg.headers['subject'] ? msg.headers['subject'] + ' — ' : '') + (msg.snippet || '')).slice(0, 500)
-          if (await applyEmailMessage(service, byEmail, { fromAddr, toAddr, text, at: msg.receivedAt })) applied++
+          if (await applyEmailMessage(service, byEmail, { fromAddr, recipients, text, at: msg.receivedAt })) applied++
         } catch { /* skip a bad message */ }
       }
     }
