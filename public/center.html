@@ -609,7 +609,16 @@
   var _bq=window.bindQueue;
   window.bindQueue=function(){
     _bq();
-    document.querySelectorAll('.tone').forEach(function(t){t.onclick=function(){state.tone=this.dataset.tone;var s=pickSug();if(s)state._draft={shown:(state.lang==='es'?s.reply_es:s.reply_he),he:s.reply_he,es:s.reply_es};renderQueue();bindQueue();};});
+    // IN-PLACE switch: flip the .sel highlight + repaint the draft bubble. Do
+    // NOT renderQueue() here — that rebuilds the whole queue HTML and snaps the
+    // scroll back to the top, which is jarring while she's reading the history.
+    document.querySelectorAll('.tone').forEach(function(t){t.onclick=function(){
+      state.tone=this.dataset.tone;
+      var s=pickSug();
+      if(s)state._draft={shown:(state.lang==='es'?s.reply_es:s.reply_he),he:s.reply_he,es:s.reply_es};
+      document.querySelectorAll('.tone').forEach(function(el){el.classList.toggle('sel', el.dataset.tone===state.tone);});
+      paintDraft();
+    };});
     var sb=document.querySelector('[data-q="send"]');
     if(sb) sb.onclick=function(){
       var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];if(!o)return;
