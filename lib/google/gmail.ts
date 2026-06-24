@@ -12,9 +12,12 @@ import { google, type gmail_v1 } from 'googleapis'
 /**
  * Multi-account registry. Each mailbox maps to its real email and the env var
  * holding its refresh token. NEVER hardcode a token value — only the env var
- * NAME lives here. 'fst' is the original single-account mailbox (its token is
- * the existing GOOGLE_REFRESH_TOKEN, which actually belongs to
- * g@floridastatetrust.com); 'reprime' is the new second mailbox.
+ * NAME lives here. NOTE (verified 2026-06-24 via users.getProfile): the default
+ * GOOGLE_REFRESH_TOKEN actually authenticates as **g@reprime.com** — the mailbox
+ * that sent the 209 invitations — NOT g@floridastatetrust.com. The 'fst' key name
+ * + email below are legacy/misleading; the token is reprime. GOOGLE_REFRESH_TOKEN_2
+ * is currently UNSET, so the 'reprime' key resolves to an empty token — never use
+ * the email-keyed lookup for reprime; use the default client (no account arg).
  */
 export type GmailAccountKey = 'fst' | 'reprime'
 
