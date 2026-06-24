@@ -86,6 +86,9 @@
   .cm .x{font-size:13px;line-height:1.45}
   .cm .tr{font-size:11px;margin-top:3px;opacity:.85;direction:ltr;text-align:left}
   .cm.us{background:#d9fdd3;color:#0b3d0b;border:1px solid #c5e8ba} .cm.last{background:var(--last-bg);color:var(--last-tx)}
+  /* Editable draft boxes: show she can type here. */
+  .qsend .sb[contenteditable="true"]{outline:none;cursor:text;min-height:1.4em}
+  .qsend .sb[contenteditable="true"]:focus{box-shadow:inset 0 0 0 2px #93c5fd;border-radius:6px}
   .cm.within{background:var(--within-bg);color:var(--within-tx)} .cm.silent{background:var(--silent-bg);color:var(--silent-tx)}
   .cm.next{background:var(--next-bg);color:var(--next-tx)} .cm.owe{background:var(--owe-bg);color:var(--owe-tx)}
   .approvals .qcap{background:#7a1f6b}
@@ -303,8 +306,8 @@
           '<button class="tone'+(state.tone==='friendly'?' sel':'')+'" data-tone="friendly"><div class="tn">'+esc(l().friendly)+'</div><div class="tx">'+(state.lang==='es'?'“claro, le agendo con gusto…”':'“sure, happy to book you…”')+'</div></button>'+
           '<button class="tone'+(state.tone==='prof'?' sel':'')+'" data-tone="prof"><div class="tn">'+esc(l().prof)+'</div><div class="tx">'+(state.lang==='es'?'más corto y formal':'shorter, formal')+'</div></button>'+
         '</div></div>'+
-        '<div class="qsend"><div class="sl">'+esc(l().sendsTo)+esc(chLabel)+'</div><div class="sb">'+esc(draftEs)+'</div>'+
-          '<div class="sl" style="margin-top:8px">'+esc(state.lang==='es'?('Se envía así · '+(state._outLang==='en'?'inglés':state._outLang==='es'?'español':'hebreo')):('Sends as · '+(state._outLang==='en'?'English':state._outLang==='es'?'Spanish':'Hebrew')))+'</div><div class="sb '+(state._outLang||'he')+'">'+esc(draftHe)+'</div></div>'+
+        '<div class="qsend"><div class="sl">'+esc(l().sendsTo)+esc(chLabel)+'</div><div class="sb" contenteditable="true" spellcheck="true" data-sb="es">'+esc(draftEs)+'</div>'+
+          '<div class="sl" style="margin-top:8px">'+esc(state.lang==='es'?('Se envía así · '+(state._outLang==='en'?'inglés':state._outLang==='es'?'español':'hebreo')):('Sends as · '+(state._outLang==='en'?'English':state._outLang==='es'?'Spanish':'Hebrew')))+'</div><div class="sb '+(state._outLang||'he')+'" contenteditable="true" spellcheck="true" data-sb="he">'+esc(draftHe)+'</div></div>'+
         '<div class="qinsert"><div class="il">'+esc(l().insLbl)+'</div><div class="row">'+
           '<button class="ins invite" data-ins="invite">✉ '+esc(l().ins.invite)+'</button>'+
           '<button class="ins" data-ins="video">▶ '+esc(l().ins.video)+'</button>'+
@@ -499,9 +502,14 @@
       }
     }
     if(!state._draft)return; var sb=document.querySelectorAll('.qsend .sb');
-    // Top box follows the CURRENT language (Spanish for the secretary), bottom is always the Hebrew that sends.
-    if(sb[0])sb[0].textContent=(state.lang==='es'?(state._draft.es||state._draft.shown):state._draft.he);
-    if(sb[1])sb[1].textContent=state._draft.he; }
+    // Top box = secretary's language. Bottom = the outgoing message that sends.
+    // SKIP the write if she's actively typing in that box (preserves her caret +
+    // any manual edits she's making). She edits → state._draft updates via the
+    // input handler in bindQueue → next repaint reads back her own text.
+    var topText=(state.lang==='es'?(state._draft.es||state._draft.shown||''):(state._draft.he||''));
+    var botText=state._draft.he||'';
+    if(sb[0] && document.activeElement!==sb[0] && sb[0].textContent!==topText) sb[0].textContent=topText;
+    if(sb[1] && document.activeElement!==sb[1] && sb[1].textContent!==botText) sb[1].textContent=botText; }
   function loadDraft(o){
     var thread=(o.chain||[]).map(function(c){return (c.who==='us'?'US: ':'THEM: ')+(c.he||c.en||c.es);}).join('\n');
     var latest=(o.chain&&o.chain[0])?(o.chain[0].he||o.chain[0].en||o.chain[0].es):'';
@@ -619,6 +627,26 @@
       document.querySelectorAll('.tone').forEach(function(el){el.classList.toggle('sel', el.dataset.tone===state.tone);});
       paintDraft();
     };});
+    // EDITABLE draft boxes — she can tweak the AI suggestion before sending.
+    // Bottom (data-sb="he") is what actually goes out. Top is her own view.
+    // On English threads the two are identical; edits on either sync to both
+    // so she never sees a mismatch between what she typed and what we'd send.
+    document.querySelectorAll('.qsend .sb').forEach(function(box){
+      box.oninput=function(){
+        if(!state._draft) return;
+        var txt=this.textContent;
+        var which=this.dataset.sb;
+        if(which==='he'){ state._draft.he=txt; if(state._outLang==='en') state._draft.es=txt; }
+        else { state._draft.es=txt; if(state._outLang==='en') state._draft.he=txt; }
+        if(state._outLang==='en'){
+          // Mirror the OTHER box's visible text — but only if it isn't focused,
+          // so we never yank the caret out from under her.
+          document.querySelectorAll('.qsend .sb').forEach(function(o){
+            if(o!==box && document.activeElement!==o && o.textContent!==txt) o.textContent=txt;
+          });
+        }
+      };
+    });
     var sb=document.querySelector('[data-q="send"]');
     if(sb) sb.onclick=function(){
       var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];if(!o)return;
