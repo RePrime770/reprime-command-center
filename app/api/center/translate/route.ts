@@ -81,13 +81,15 @@ export async function POST(request: Request) {
     }
     const out = await claude(SYS_ANALYZE, `Thread (old to new):\n${body.thread || '(no prior context — this was just the invitation)'}\n\nLatest from them: ${body.latest || ''}`)
     // ENGLISH IN, ENGLISH OUT — never translate. The Hebrew↔Spanish loop exists
-    // ONLY because the secretary can't read Hebrew. English threads bypass every
-    // translation step: she reads + replies in English directly.
-    // Trust CONTENT over the model's lang label: if their actual message has no
-    // Hebrew characters, it is an English thread regardless of what the model
-    // claims (defensive — covers missing/null lang, or model mis-tagging).
+    // ONLY because the secretary can't read Hebrew. Trust CONTENT over the
+    // model's lang label: the investor's ACTUAL latest message decides the
+    // thread language, regardless of what the model claims (mixed-language
+    // threads were confusing the model into returning lang:"en" with an empty
+    // reply_he). Then we OVERWRITE out.lang so downstream consumers (UI label)
+    // see the truth.
     const investorWroteHebrew = hasHebrew(body.latest)
-    const isEnThread = !investorWroteHebrew && (out?.lang === 'en' || /[A-Za-z]/.test(body.latest || ''))
+    const isEnThread = !investorWroteHebrew && /[A-Za-z]/.test(body.latest || '')
+    if (out) out.lang = isEnThread ? 'en' : 'he'
     if (out && Array.isArray(out.suggestions) && out.suggestions.length) {
       if (isEnThread) {
         // English thread: the model's reply_he IS the English outgoing message.
@@ -108,7 +110,17 @@ export async function POST(request: Request) {
         out.lang = 'en'
       } else {
         // Hebrew thread: guarantee the secretary-facing reply is Spanish (the
-        // model sometimes echoes Hebrew into reply_es).
+        // model sometimes echoes Hebrew into reply_es). ALSO salvage cases
+        // where the model returned an English reply by mistake on a Hebrew
+        // thread — that's not usable as the outgoing message, so we treat it
+        // as missing (empty reply_he) and let the UI show its placeholder.
+        out.suggestions.forEach((s: { reply_he?: string; reply_es?: string }) => {
+          const he = s.reply_he || ''
+          // If reply_he came back with NO Hebrew chars at all, the model
+          // mis-followed instructions — drop it rather than send English
+          // to a Hebrew investor.
+          if (he && !hasHebrew(he)) s.reply_he = ''
+        })
         const esReplies = await toSpanish(out.suggestions.map((s: { reply_he?: string; reply_es?: string }) => s.reply_he || s.reply_es || ''))
         out.suggestions.forEach((s: { reply_es?: string }, i: number) => { if (esReplies[i]) s.reply_es = esReplies[i] })
       }

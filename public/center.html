@@ -89,6 +89,8 @@
   /* Editable draft boxes: show she can type here. */
   .qsend .sb[contenteditable="true"]{outline:none;cursor:text;min-height:1.4em}
   .qsend .sb[contenteditable="true"]:focus{box-shadow:inset 0 0 0 2px #93c5fd;border-radius:6px}
+  /* Empty-state hint: if Nora couldn't suggest anything, show her she can still type. */
+  .qsend .sb[contenteditable="true"]:empty::before{content:attr(data-placeholder);color:#9ca3af;font-style:italic}
   .cm.within{background:var(--within-bg);color:var(--within-tx)} .cm.silent{background:var(--silent-bg);color:var(--silent-tx)}
   .cm.next{background:var(--next-bg);color:var(--next-tx)} .cm.owe{background:var(--owe-bg);color:var(--owe-tx)}
   .approvals .qcap{background:#7a1f6b}
@@ -306,8 +308,8 @@
           '<button class="tone'+(state.tone==='friendly'?' sel':'')+'" data-tone="friendly"><div class="tn">'+esc(l().friendly)+'</div><div class="tx">'+(state.lang==='es'?'“claro, le agendo con gusto…”':'“sure, happy to book you…”')+'</div></button>'+
           '<button class="tone'+(state.tone==='prof'?' sel':'')+'" data-tone="prof"><div class="tn">'+esc(l().prof)+'</div><div class="tx">'+(state.lang==='es'?'más corto y formal':'shorter, formal')+'</div></button>'+
         '</div></div>'+
-        '<div class="qsend"><div class="sl">'+esc(l().sendsTo)+esc(chLabel)+'</div><div class="sb" contenteditable="true" spellcheck="true" data-sb="es">'+esc(draftEs)+'</div>'+
-          '<div class="sl" style="margin-top:8px">'+esc(state.lang==='es'?('Se envía así · '+(state._outLang==='en'?'inglés':state._outLang==='es'?'español':'hebreo')):('Sends as · '+(state._outLang==='en'?'English':state._outLang==='es'?'Spanish':'Hebrew')))+'</div><div class="sb '+(state._outLang||'he')+'" contenteditable="true" spellcheck="true" data-sb="he">'+esc(draftHe)+'</div></div>'+
+        '<div class="qsend"><div class="sl">'+esc(l().sendsTo)+esc(chLabel)+'</div><div class="sb" contenteditable="true" spellcheck="true" data-sb="es" data-placeholder="'+esc(state.lang==='es'?'Nora no sugirió nada — escribe tu respuesta aquí':'Nora had nothing to suggest — type your reply')+'">'+esc(draftEs)+'</div>'+
+          '<div class="sl" style="margin-top:8px">'+esc(state.lang==='es'?('Se envía así · '+(state._outLang==='en'?'inglés':state._outLang==='es'?'español':'hebreo')):('Sends as · '+(state._outLang==='en'?'English':state._outLang==='es'?'Spanish':'Hebrew')))+'</div><div class="sb '+(state._outLang||'he')+'" contenteditable="true" spellcheck="true" data-sb="he" data-placeholder="'+esc(state._outLang==='en'?'Type your reply here':(state.lang==='es'?'Escribe la versión que se envía':'הקלד את התשובה'))+'">'+esc(draftHe)+'</div></div>'+
         '<div class="qinsert"><div class="il">'+esc(l().insLbl)+'</div><div class="row">'+
           '<button class="ins invite" data-ins="invite">✉ '+esc(l().ins.invite)+'</button>'+
           '<button class="ins" data-ins="video">▶ '+esc(l().ins.video)+'</button>'+
