@@ -25,7 +25,7 @@ Return STRICT JSON only (no code fences):
  their_intent: one of "interested" | "declined" | "declined_with_referral" | "question" | "pleasantry" | "hostile" | "other".
  lang: "he" or "en" — the language the investor writes in.
  push_zoom: boolean — true ONLY if their_intent is "interested" or "question" AND a Zoom invite is the right next move. False for declined, pleasantry, hostile.
- suggestions: array of EXACTLY 2 reply options, keys: label_es (2-4 word label of the angle — IN SPANISH if the investor writes Hebrew (e.g. "Agradecer y dejar puerta", "Pedir referencia", "Agendar Zoom"), IN ENGLISH if they write English (e.g. "Thank and leave door open", "Ask for referral", "Book Zoom")), reply_es (the secretary-facing rendering — IN SPANISH if the investor writes Hebrew so she can read it, ELSE the EXACT SAME English reply as reply_he), reply_he (the outgoing message exactly as Gideon would send — Israeli Hebrew if the investor writes Hebrew, otherwise English).
+ suggestions: array of EXACTLY 2 reply options, keys: label_es (2-4 word label of the angle — IN SPANISH if the investor writes Hebrew (e.g. "Agradecer y dejar puerta", "Pedir referencia", "Agendar Zoom"), IN ENGLISH if they write English (e.g. "Thank and leave door open", "Ask for referral", "Book Zoom")), label_en (the SAME 2-4 word label ALWAYS in natural English regardless of the investor's language — for the principal's English-side view), reply_es (the secretary-facing rendering — IN SPANISH if the investor writes Hebrew so she can read it, ELSE the EXACT SAME English reply as reply_he), reply_he (the outgoing message exactly as Gideon would send — Israeli Hebrew if the investor writes Hebrew, otherwise English).
   • If push_zoom is TRUE: suggestion[0] warmly drives to Zoom (lead into the link, don't write one); suggestion[1] is the same intent without the link.
   • If push_zoom is FALSE: NEITHER suggestion pushes a Zoom or asks for a meeting. Both fit the actual intent (e.g. for declined_with_referral: [0] thank + ask who to reach out to, [1] thank + leave door open). Labels must reflect what the reply actually does.
 
@@ -154,7 +154,9 @@ export async function POST(request: Request) {
       // Keep the model's own labels (they already reflect the actual intent).
       // Only fall back if the model didn't return one.
       if (s0 && !s0.label_es) s0.label_es = pushZoom ? 'Agendar Zoom' : 'Opción 1'
+      if (s0 && !s0.label_en) s0.label_en = pushZoom ? 'Book Zoom' : 'Option 1'
       if (out.suggestions[1] && !out.suggestions[1].label_es) out.suggestions[1].label_es = 'Opción 2'
+      if (out.suggestions[1] && !out.suggestions[1].label_en) out.suggestions[1].label_en = 'Option 2'
     }
     return NextResponse.json(out)
   } catch (e) {

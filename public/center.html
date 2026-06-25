@@ -124,9 +124,8 @@
   .qcap b{font-weight:800;font-size:15px;flex:1}
   .qcap .pos{font-size:12px;opacity:.85;font-weight:700}
   /* Layout flip (Gideon): controls pinned on TOP, history scrolls BELOW, up-arrows between. */
-  .qbody{flex:1;overflow:hidden;min-height:0;display:flex;flex-direction:column}
-  .qbody>*{flex-shrink:0}
-  .qhist{flex:1 1 0;overflow-y:auto;min-height:90px}
+  .qbody{flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column}
+  .qhist{min-height:150px;border-top:1px solid var(--line)}
   .qup{display:flex;align-items:center;justify-content:center;gap:10px;color:#94a3b8;font-size:11px;font-weight:800;letter-spacing:.12em;padding:7px;background:#F8FAFC;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
   /* Both-card strip: last WhatsApp + last email side-by-side (Gideon D). */
   .bothstrip{margin:0 13px 6px;border:1px solid var(--line);border-radius:9px;padding:8px;background:#FAFBFD}
@@ -586,7 +585,7 @@
     if(state._sugs){
       var tns=document.querySelectorAll('.tone .tn'), txs=document.querySelectorAll('.tone .tx');
       for(var i=0;i<2;i++){ var s=state._sugs[i]; if(!s)continue;
-        if(tns[i])tns[i].textContent=s.label_es||(i?l().prof:l().friendly);
+        if(tns[i])tns[i].textContent=(state.lang==='es'?s.label_es:(s.label_en||s.label_es))||(i?l().prof:l().friendly);
         var t=(state.lang==='es'?(s.reply_es||''):(s.reply_he||'')); if(t.length>110)t=t.slice(0,110).trim()+'…';
         if(txs[i])txs[i].textContent=t;
       }
@@ -602,7 +601,12 @@
     if(sb[1] && document.activeElement!==sb[1] && sb[1].textContent!==botText) sb[1].textContent=botText; }
   function loadDraft(o){
     var thread=(o.chain||[]).map(function(c){return (c.who==='us'?'US: ':'THEM: ')+(c.he||c.en||c.es);}).join('\n');
-    var latest=(o.chain&&o.chain[0])?(o.chain[0].he||o.chain[0].en||o.chain[0].es):'';
+    // The message we reply to = the investor's MOST RECENT message (last 'them'
+    // in the thread), NOT chain[0] — chain[0] is the oldest entry (the invitation
+    // anchor). Passing the anchor as "latest" is why Nora often had nothing to say.
+    var latest='';
+    for(var _i=(o.chain||[]).length-1;_i>=0;_i--){var _c=o.chain[_i];if(_c&&_c.who==='them'&&(_c.he||_c.en||_c.es)){latest=(_c.he||_c.en||_c.es||'');break;}}
+    if(!latest){var _last=(o.chain||[])[(o.chain||[]).length-1];latest=_last?(_last.he||_last.en||_last.es||''):'';}
     fetch('/api/center/translate',{method:'POST',headers:H(),body:JSON.stringify({action:'analyze',thread:thread||latest,latest:latest,bookLink:(o._inviteUrl||'')})})
       .then(function(r){return r.json();}).then(function(a){
         if(!a||!a.suggestions||!a.suggestions.length)return; state._sugs=a.suggestions;
@@ -630,7 +634,9 @@
         if(liveHasUs || !haveUs || (o.chain||[]).length<=2){
           o.chain=h.chain.map(function(c){return {who:c.who,b:(c.who==='them'?o.bucket:undefined),date:c.date,he:c.he,es:c.es,en:c.en,via:c.via,audio:c.audio};});
           var cur=PEOPLE.filter(function(p){return p.queued;})[state.qi];
-          if(cur&&cur.name===o.name){renderQueue();bindQueue();}
+          // Thread just got fuller — re-run Nora so she suggests off the COMPLETE
+          // conversation, not the thin version loaded at card-open.
+          if(cur&&cur.name===o.name){loadDraft(o);renderQueue();bindQueue();}
         }
       }
     }).catch(function(){});
