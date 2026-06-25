@@ -331,6 +331,7 @@
         '<button class="qb send" data-q="send">➤ '+esc(l().send)+'</button>'+
         '<button class="qb snooze" data-q="snooze">⏰ '+esc(l().snooze)+'</button>'+
         '<button class="qb" data-q="skip">'+esc(l().skip)+'</button>'+
+        '<button class="qb" data-q="clear">🧹 '+esc(state.lang==='es'?'Limpiar':'Clear')+'</button>'+
         '<button class="qb next" data-q="next">'+esc(l().next)+' →</button>'+
       '</div>';
   }
@@ -382,6 +383,7 @@
       if(a==='send'){o.queued=false;o.bucket='within';o.fu='silent';toast(state.lang==='es'?'Enviado · vuelve a su columna':'Sent · back to its column');renderAll();}
       else if(a==='snooze'){o.queued=false;o.bucket='silent';toast(state.lang==='es'?'Pospuesto → archivo':'Snoozed → archive');renderAll();}
       else if(a==='skip'){state.qi=Math.min(q.length-1,state.qi+1);renderQueue();bindQueue();}
+      else if(a==='clear'){ try{ state._draft={shown:'',he:'',es:''}; document.querySelectorAll('.qsend .sb').forEach(function(b){b.textContent='';}); var f=document.querySelector('.qsend .sb'); if(f)f.focus(); }catch(e){} toast(state.lang==='es'?'Limpiado — escribe tu mensaje':'Cleared — type your reply'); }
       else if(a==='next'){state.qi=Math.min(q.length-1,state.qi+1);renderQueue();bindQueue();}
     };});
     document.querySelectorAll('[data-ins]').forEach(function(b){b.onclick=function(){toast(l().inserted+': '+l().ins[this.dataset.ins]);};});
@@ -703,15 +705,13 @@
   // modal listing every flagged row. Secretary either types the correct email
   // (Fix) or confirms the existing one is right (Verified). HIGH rows block
   // outbound sends + bookings until cleared (server-side guards).
+  // Email Audit panel KILLED per Gideon 2026-06-25. Its naive name-vs-email
+  // string match flagged addresses he had already verified (Ofer→obtmanagement,
+  // Doron→da-tax, Uri→mermelstei, etc.) — pure noise that created the
+  // "going in circles" feeling. Button stays permanently hidden. Contact-data
+  // verification is done against roster / live-WhatsApp ground truth, not a string match.
   function renderAudit(){
-    fetch('/api/center/email-audit',{headers:{'x-center-pass':PASS}}).then(function(r){return r.json();}).then(function(j){
-      var rows=(j&&j.rows)||[]; var hi=rows.filter(function(x){return x.email_audit_flag==='high';}).length; var rv=rows.length-hi;
-      var btn=document.getElementById('auditBtn'); var cnt=document.getElementById('auditCnt'); var lbl=document.getElementById('auditLbl');
-      if(!rows.length){btn.style.display='none';return;}
-      btn.style.display=''; lbl.textContent=(state.lang==='es'?'Auditoría':'Audit');
-      cnt.textContent=' '+(hi?(hi+'⚠'):(rv+''))+(rv&&hi?(' · '+rv):'');
-      window._auditRows=rows;
-    }).catch(function(){});
+    var btn=document.getElementById('auditBtn'); if(btn)btn.style.display='none';
   }
   function openAudit(){
     var rows=window._auditRows||[]; var list=document.getElementById('auditList'); if(!list)return;
