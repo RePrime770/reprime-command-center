@@ -128,6 +128,15 @@
   .qbody>*{flex-shrink:0}
   .qhist{flex:1 1 0;overflow-y:auto;min-height:90px}
   .qup{display:flex;align-items:center;justify-content:center;gap:10px;color:#94a3b8;font-size:11px;font-weight:800;letter-spacing:.12em;padding:7px;background:#F8FAFC;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  /* Both-card strip: last WhatsApp + last email side-by-side (Gideon D). */
+  .bothstrip{margin:0 13px 6px;border:1px solid var(--line);border-radius:9px;padding:8px;background:#FAFBFD}
+  .preftag{font-size:11px;font-weight:800;color:#92400E;background:#FBF1DC;border-radius:6px;padding:3px 8px;display:inline-block;margin-bottom:6px}
+  .bsrow{display:flex;gap:8px}
+  .bscol{flex:1;min-width:0;border:1px solid var(--line);border-radius:7px;padding:6px 8px;background:#fff}
+  .bshd{font-size:10px;font-weight:900;letter-spacing:.04em;margin-bottom:3px}
+  .bshd.wa{color:var(--wa)} .bshd.email{color:var(--email)}
+  .bsmsg{font-size:11.5px;line-height:1.35;color:var(--ink);word-break:break-word}
+  .bssent{font-size:10px;color:var(--dim);margin-top:4px;font-weight:700}
   .qwho{padding:10px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
   .qwho .av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px}
   .qwho b{font-size:17px;font-weight:800;display:block}
@@ -294,6 +303,34 @@
     var vtag=c.via?'<span class="vtag '+c.via+'">'+(c.via==='email'?'📧 Email':'WhatsApp')+'</span>':'';
     return '<div class="cm '+cls+'"><div class="h">'+esc(head)+vtag+'</div>'+main+audio+tr+'</div>';
   }
+  // BOTH-card (Gideon D): for a contact we have on WhatsApp AND email, show the
+  // last message on EACH channel side-by-side, which channel they usually reply on,
+  // and when we last sent on each — so the secretary never double-sends.
+  function bothSummary(p){
+    var ch=p.chain||[], lastWA=null,lastEmail=null,themWA=0,themEmail=0,lastUsWA=null,lastUsEmail=null;
+    ch.forEach(function(c){
+      if(c.via==='wa'){ lastWA=c; if(c.who==='them')themWA++; if(c.who==='us')lastUsWA=c; }
+      else if(c.via==='email'){ lastEmail=c; if(c.who==='them')themEmail++; if(c.who==='us')lastUsEmail=c; }
+    });
+    return {lastWA:lastWA,lastEmail:lastEmail,lastUsWA:lastUsWA,lastUsEmail:lastUsEmail,prefer:(themWA===themEmail?'':(themWA>themEmail?'wa':'email'))};
+  }
+  function fmtBoth(c,es){
+    if(!c) return '<span style="opacity:.55">'+esc(es?'sin mensajes aún':'no messages yet')+'</span>';
+    var who=(c.who==='us'?(es?'nosotros':'us'):(es?'ellos':'them'));
+    var t=(es?(c.es||c.he||c.en):(c.he||c.en||c.es))||''; if(t.length>64)t=t.slice(0,64).trim()+'…';
+    return '<b>'+esc(who)+'</b> · '+esc(c.date||'')+'<br>'+esc(t);
+  }
+  function renderBothStrip(p){
+    var es=state.lang==='es', s=bothSummary(p);
+    var pref=s.prefer==='wa'?(es?'Suele responder por WhatsApp':'Usually replies on WhatsApp'):s.prefer==='email'?(es?'Suele responder por Email':'Usually replies on Email'):'';
+    var sentWA=s.lastUsWA?((es?'WhatsApp enviado':'WhatsApp sent')+' · '+esc(s.lastUsWA.date||'')):'';
+    var sentEm=s.lastUsEmail?((es?'Email enviado':'Email sent')+' · '+esc(s.lastUsEmail.date||'')):'';
+    return '<div class="bothstrip">'+(pref?'<div class="preftag">⭐ '+esc(pref)+'</div>':'')+
+      '<div class="bsrow">'+
+        '<div class="bscol"><div class="bshd wa">WhatsApp</div><div class="bsmsg">'+fmtBoth(s.lastWA,es)+'</div>'+(sentWA?'<div class="bssent">'+sentWA+'</div>':'')+'</div>'+
+        '<div class="bscol"><div class="bshd email">Email</div><div class="bsmsg">'+fmtBoth(s.lastEmail,es)+'</div>'+(sentEm?'<div class="bssent">'+sentEm+'</div>':'')+'</div>'+
+      '</div></div>';
+  }
   // Did the booked meeting actually happen? (set by the meeting-verify cron)
   function mtgBadge(s){
     var es=state.lang==='es';
@@ -354,6 +391,7 @@
       '<div class="qbody">'+
         '<div class="qwho"><span class="av" style="background:'+ch+'">'+esc(p.name.slice(0,2).toUpperCase())+'</span>'+
           '<span style="flex:1;min-width:0"><b>'+esc(p.name)+'</b><span class="ch" style="color:'+ch+'">'+esc(chLabel)+(p.channel==='both'?'':'')+'</span></span></div>'+
+        (p.channel==='both'?renderBothStrip(p):'')+
         '<div class="nora"><div class="lbl">'+esc(l().nora)+'</div><div class="tones">'+
           '<button class="tone'+(state.tone==='friendly'?' sel':'')+'" data-tone="friendly"><div class="tn">'+esc(l().friendly)+'</div><div class="tx">'+(state.lang==='es'?'“claro, le agendo con gusto…”':'“sure, happy to book you…”')+'</div></button>'+
           '<button class="tone'+(state.tone==='prof'?' sel':'')+'" data-tone="prof"><div class="tn">'+esc(l().prof)+'</div><div class="tx">'+(state.lang==='es'?'más corto y formal':'shorter, formal')+'</div></button>'+
