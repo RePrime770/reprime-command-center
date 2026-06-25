@@ -77,9 +77,9 @@
   .fu .d{font-weight:900}
   .chain{padding:8px 9px;display:flex;flex-direction:column;gap:7px}
   .cm{border-radius:8px;padding:6px 9px;background:#fff;color:#111;border:1px solid #e7e7e7}
-  .cm.them{background:#fff;color:#111;border:1px solid #e7e7e7}
-  .cm.us.email{background:#dbeafe;color:#0b2e6b;border:1px solid #bcd4f5}
-  .cm.them.email{background:#eef2fb;color:#111;border:1px solid #dbe4f3}
+  /* Bubble color = WHO, never channel (Gideon): cream for them, green for us, regardless of WhatsApp/email. Channel shows only on the vtag chip. */
+  .cm.them,.cm.them.email{background:#FBF4E9;color:#3a2e16;border:1px solid #EADBC4}
+  .cm.us.email{background:#d9fdd3;color:#0b3d0b;border:1px solid #c5e8ba}
   .cm .h{font-size:9.5px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;margin-bottom:2px;opacity:.85}
   .vtag{font-size:9px;font-weight:800;letter-spacing:.03em;padding:1px 6px;border-radius:6px;margin-left:6px;vertical-align:middle}
   .vtag.wa{background:#d9fdd3;color:#0b6b2e} .vtag.email{background:#dbeafe;color:#1e40af}
@@ -112,7 +112,11 @@
   .qcap{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#0F172A;color:#fff;flex-shrink:0}
   .qcap b{font-weight:800;font-size:15px;flex:1}
   .qcap .pos{font-size:12px;opacity:.85;font-weight:700}
-  .qbody{flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column}
+  /* Layout flip (Gideon): controls pinned on TOP, history scrolls BELOW, up-arrows between. */
+  .qbody{flex:1;overflow:hidden;min-height:0;display:flex;flex-direction:column}
+  .qbody>*{flex-shrink:0}
+  .qhist{flex:1 1 0;overflow-y:auto;min-height:90px}
+  .qup{display:flex;align-items:center;justify-content:center;gap:10px;color:#94a3b8;font-size:11px;font-weight:800;letter-spacing:.12em;padding:7px;background:#F8FAFC;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
   .qwho{padding:10px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
   .qwho .av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px}
   .qwho b{font-size:17px;font-weight:800;display:block}
@@ -121,8 +125,9 @@
   .qsec .lbl{font-size:11px;font-weight:800;letter-spacing:.05em;color:var(--dim);text-transform:uppercase;margin-bottom:7px}
   .nora{margin:10px 13px;padding:10px 12px;background:#FFFDF5;border:1px solid #FFCC3366;border-left:4px solid #FFCC33;border-radius:9px}
   .nora .lbl{font-size:11px;font-weight:800;color:var(--mut);letter-spacing:.05em;margin-bottom:6px}
-  .tones{display:flex;gap:7px}
-  .tone{flex:1;min-width:0;border:1px solid var(--line);border-radius:9px;padding:8px 9px;background:#fff;text-align:left}
+  /* All four boxes equal width (Gideon E): stack the two tone options full-width like the two draft boxes. */
+  .tones{display:flex;flex-direction:column;gap:7px}
+  .tone{min-width:0;border:1px solid var(--line);border-radius:9px;padding:8px 9px;background:#fff;text-align:left}
   .tone.sel{border-color:#0F172A;box-shadow:0 0 0 1px #0F172A}
   .tone .tn{font-weight:800;font-size:12.5px}
   .tone .tx{font-size:12px;color:var(--mut);margin-top:2px;line-height:1.4}
@@ -303,7 +308,6 @@
       '<div class="qbody">'+
         '<div class="qwho"><span class="av" style="background:'+ch+'">'+esc(p.name.slice(0,2).toUpperCase())+'</span>'+
           '<span style="flex:1;min-width:0"><b>'+esc(p.name)+'</b><span class="ch" style="color:'+ch+'">'+esc(chLabel)+(p.channel==='both'?'':'')+'</span></span></div>'+
-        '<div class="qsec"><div class="lbl">'+esc(state.lang==='es'?'Historial':'History')+'</div><div class="chain">'+p.chain.map(cmHTML).join('')+'</div></div>'+
         '<div class="nora"><div class="lbl">'+esc(l().nora)+'</div><div class="tones">'+
           '<button class="tone'+(state.tone==='friendly'?' sel':'')+'" data-tone="friendly"><div class="tn">'+esc(l().friendly)+'</div><div class="tx">'+(state.lang==='es'?'“claro, le agendo con gusto…”':'“sure, happy to book you…”')+'</div></button>'+
           '<button class="tone'+(state.tone==='prof'?' sel':'')+'" data-tone="prof"><div class="tn">'+esc(l().prof)+'</div><div class="tx">'+(state.lang==='es'?'más corto y formal':'shorter, formal')+'</div></button>'+
@@ -319,20 +323,23 @@
         '<div class="qoutcome"><span class="ol">'+esc(l().ocLbl)+'</span>'+
           '<button class="oc booked" data-oc="booked">✓ '+esc(l().oc.booked)+'</button>'+
           '<button class="oc no" data-oc="no">✕ '+esc(l().oc.no)+'</button>'+
+          '<button class="oc remind" data-oc="remind1w">⏳ '+esc(state.lang==='es'?'Recordar +1 sem':'Remind +1 wk')+'</button>'+
           '<button class="oc remind" data-oc="remind">⏳ '+esc(l().oc.remind)+'</button>'+
         '</div>'+
-      '</div>'+
-      '<div class="qmedia" style="display:flex;gap:8px;padding:6px 0">'+
-        '<button class="qb attach" data-media="attach">📎 '+esc(state.lang==='es'?'Adjuntar archivo':'Attach file')+'</button>'+
-        (canRecord?('<button class="qb rec" data-media="rec">🎤 '+esc(state.lang==='es'?'Grabar voz':'Record voice')+'</button>'):'')+
-        '<input type="file" id="mediaFile" style="display:none">'+
-      '</div>'+
-      '<div class="qact">'+
-        '<button class="qb send" data-q="send">➤ '+esc(l().send)+'</button>'+
-        '<button class="qb snooze" data-q="snooze">⏰ '+esc(l().snooze)+'</button>'+
-        '<button class="qb" data-q="skip">'+esc(l().skip)+'</button>'+
-        '<button class="qb" data-q="clear">🧹 '+esc(state.lang==='es'?'Limpiar':'Clear')+'</button>'+
-        '<button class="qb next" data-q="next">'+esc(l().next)+' →</button>'+
+        '<div class="qmedia" style="display:flex;gap:8px;padding:6px 13px">'+
+          '<button class="qb attach" data-media="attach">📎 '+esc(state.lang==='es'?'Adjuntar archivo':'Attach file')+'</button>'+
+          (canRecord?('<button class="qb rec" data-media="rec">🎤 '+esc(state.lang==='es'?'Grabar voz':'Record voice')+'</button>'):'')+
+          '<input type="file" id="mediaFile" style="display:none">'+
+        '</div>'+
+        '<div class="qact">'+
+          '<button class="qb send" data-q="send">➤ '+esc(l().send)+'</button>'+
+          '<button class="qb snooze" data-q="snooze">⏰ '+esc(l().snooze)+'</button>'+
+          '<button class="qb" data-q="skip">'+esc(l().skip)+'</button>'+
+          '<button class="qb" data-q="clear">🧹 '+esc(state.lang==='es'?'Limpiar':'Clear')+'</button>'+
+          '<button class="qb next" data-q="next">'+esc(l().next)+' →</button>'+
+        '</div>'+
+        '<div class="qup">↑ ↑ ↑ &nbsp;'+esc(state.lang==='es'?'HISTORIAL ABAJO':'HISTORY BELOW')+'</div>'+
+        '<div class="qsec qhist"><div class="lbl">'+esc(state.lang==='es'?'Historial':'History')+'</div><div class="chain">'+p.chain.map(cmHTML).join('')+'</div></div>'+
       '</div>';
   }
 
@@ -676,10 +683,10 @@
     if(sn) sn.onclick=function(){var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];if(!o)return;fetch('/api/center/remind',{method:'POST',headers:H(),body:JSON.stringify({row:o._row,days:7})});o.queued=false;o.bucket='silent';state._draftFor=null;toast(state.lang==='es'?'Pospuesto':'Snoozed');renderAll();};
     document.querySelectorAll('[data-oc]').forEach(function(b){b.onclick=function(){
       var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];if(!o)return;var oc=this.dataset.oc;
-      if(oc==='remind') fetch('/api/center/remind',{method:'POST',headers:H(),body:JSON.stringify({row:o._row,days:30})});
+      if(oc==='remind'||oc==='remind1w') fetch('/api/center/remind',{method:'POST',headers:H(),body:JSON.stringify({row:o._row,days:(oc==='remind1w'?7:30)})});
       else fetch('/api/center/outcome',{method:'POST',headers:H(),body:JSON.stringify({row:o._row,outcome:oc})});
       o.queued=false;o.bucket=(oc==='booked'?'mtg':oc==='no'?'cold':'rem');if(oc==='booked')o.booked=true;state._draftFor=null;
-      toast(oc==='booked'?l().outBooked:oc==='no'?l().outNo:l().outRem);renderAll();
+      toast(oc==='booked'?l().outBooked:oc==='no'?l().outNo:(state.lang==='es'?'Recordatorio guardado':'Reminder set'));renderAll();
     };});
     document.querySelectorAll('[data-ins]').forEach(function(b){b.onclick=function(){
       var kind=this.dataset.ins,url={video:'https://youtu.be/1tFycgsst1c',book:'https://reprime-terminal.com',link:'https://reprime-terminal.com',invite:'https://reprime-terminal.com'}[kind]||'';
