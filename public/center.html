@@ -774,15 +774,25 @@
       toast(oc==='booked'?l().outBooked:oc==='no'?l().outNo:(state.lang==='es'?'Recordatorio guardado':'Reminder set'));renderAll();
     };});
     document.querySelectorAll('[data-ins]').forEach(function(b){b.onclick=function(){
-      var kind=this.dataset.ins,url={video:'https://youtu.be/1tFycgsst1c',book:'https://reprime-terminal.com',link:'https://reprime-terminal.com',invite:'https://reprime-terminal.com'}[kind]||'';
-      // For invite/link, use the open person's minted /invite/<uuid> link when we
-      // have one on the contact; otherwise keep the generic URL. Best-effort.
-      if(kind==='invite'||kind==='link'){
-        var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];
-        var minted=o&&(o._inviteUrl||o._invite||o.mintedUrl);
-        if(minted)url=minted;
-      }
-      if(state._draft){state._draft.he=(state._draft.he+' '+url).trim();state._draft.shown=(state._draft.shown+' '+url).trim();paintDraft();}
+      var kind=this.dataset.ins;
+      var q=PEOPLE.filter(function(p){return p.queued;}),o=q[state.qi];
+      // Invitation / Terminal link / Book Zoom ALL = this contact's own minted
+      // /invite/<uuid> (it IS the personal booking link). Generic scheduler only
+      // if this contact has no minted link. Video = the explainer.
+      var minted=(o&&(o._inviteUrl||o._invite||o.mintedUrl))||'';
+      var SCHED='https://scheduler.zoom.us/gideon-gratsiani/schedule-with-gideon-czf4njv8';
+      var url = kind==='video' ? 'https://youtu.be/1tFycgsst1c'
+              : (kind==='invite'||kind==='link'||kind==='book') ? (minted||SCHED)
+              : '';
+      if(!url){toast(state.lang==='es'?'Sin enlace':'No link');return;}
+      if(!state._draft) state._draft={shown:'',he:'',es:''};
+      // IDEMPOTENT: never append a link already in the draft (Nora may have added
+      // the Zoom link, or the button got tapped twice) — that produced the doubled,
+      // broken URL. Put it on its own line so links never mash together.
+      if((state._draft.he||'').indexOf(url)>=0){toast(state.lang==='es'?'Ya está en el mensaje':'Already in the message');return;}
+      var add=function(s){return ((s||'').replace(/\s+$/,'')+'\n'+url).trim();};
+      state._draft.he=add(state._draft.he); state._draft.es=add(state._draft.es); state._draft.shown=add(state._draft.shown);
+      paintDraft();
       toast(l().inserted+': '+l().ins[kind]);
     };});
     // Attach file (both sides) + Record voice (English threads only)
