@@ -35,6 +35,17 @@
   .stat b{color:#fff;font-weight:800}
   .stat.owe{background:rgba(219,39,119,.18);border-color:rgba(219,39,119,.4);color:#f9a8d4}
   .stat.book{background:rgba(16,163,74,.16);border-color:rgba(16,163,74,.4);color:#86efac}
+  /* Expanded status-row tag colors (soft tints on the dark bar) + active filter outline. */
+  .stat.t-pink{background:rgba(219,39,119,.16);border-color:rgba(219,39,119,.34);color:#f9a8d4}
+  .stat.t-green{background:rgba(16,163,74,.16);border-color:rgba(16,163,74,.34);color:#86efac}
+  .stat.t-red{background:rgba(220,38,38,.16);border-color:rgba(220,38,38,.34);color:#fca5a5}
+  .stat.t-redm{background:rgba(127,29,29,.22);border-color:rgba(127,29,29,.45);color:#fda4a4}
+  .stat.t-amber{background:rgba(217,119,6,.16);border-color:rgba(217,119,6,.34);color:#fcd34d}
+  .stat.t-gold{background:rgba(255,204,51,.18);border-color:rgba(255,204,51,.42);color:#FFCC33}
+  .stat.t-blue{background:rgba(37,99,235,.16);border-color:rgba(37,99,235,.34);color:#93c5fd}
+  .stat.t-violet{background:rgba(124,58,237,.16);border-color:rgba(124,58,237,.34);color:#c4b5fd}
+  .stat.t-gray{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14);color:#cbd5e1}
+  .stat.sel{outline:2px solid #FFCC33;outline-offset:1px}
   .top .sp{flex:1}
   .tbtn{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:6px 11px;color:#e2e8f0;font-size:13px;font-weight:600}
   .tbtn input{background:transparent;border:none;outline:none;color:#fff;font-family:inherit;font-size:13px;width:88px}
@@ -205,6 +216,40 @@
   };
   var FILTER_KEYS=['last','within','silent','next','owe','mtg','cold','rem'];
   var CHMETA={wa:{ac:'#0D9488'},email:{ac:'#2563EB'},both:{ac:'#7C3AED'}};
+  // Top status row (Gideon G): every pipeline state at a glance, each clickable to
+  // filter ALL columns to that bucket. Counts computed live from window.PEOPLE.
+  var STATUS_TAGS=[
+    {k:'noreply',       es:'Sin respuesta', en:'No reply',       cls:'t-gray'},
+    {k:'replied',       es:'Respondieron',  en:'Replied',        cls:'t-blue'},
+    {k:'weowe',         es:'Nos deben',     en:'We owe',         cls:'t-pink'},
+    {k:'theyowe',       es:'Les toca',      en:'They owe',       cls:'t-amber'},
+    {k:'booked',        es:'Agendados',     en:'Booked',         cls:'t-green'},
+    {k:'attended',      es:'Asistió',       en:'Attended',       cls:'t-green'},
+    {k:'noshow',        es:'No vino',       en:'No-show',        cls:'t-red'},
+    {k:'committed',     es:'Comprometido',  en:'Committed',      cls:'t-gold'},
+    {k:'notinterested', es:'No interesado', en:'Not interested', cls:'t-redm'},
+    {k:'duetoday',      es:'Para hoy',      en:'Due today',      cls:'t-blue'},
+    {k:'snoozed',       es:'Pospuesto',     en:'Snoozed',        cls:'t-violet'},
+    {k:'priority',      es:'Prioridad',     en:'Priority',       cls:'t-amber'},
+    {k:'nocontact',     es:'Sin contacto',  en:'No contact',     cls:'t-gray'}
+  ];
+  function statusKeys(p){
+    var k=[];
+    if(!p._reachable) k.push('nocontact');
+    if(p._meeting==='attended') k.push('attended');
+    if(p._meeting==='no_show') k.push('noshow');
+    if(p.booked) k.push('booked');
+    if(p._outcome==='committed') k.push('committed');
+    if(p.bucket==='cold'||p._stage==='declined'||p._outcome==='no') k.push('notinterested');
+    if(p._awaiting) k.push('weowe');
+    if(!p._awaiting && p._lastFrom==='us' && (p._stage==='replied'||p._stage==='sent')) k.push('theyowe');
+    if(p._stage==='replied') k.push('replied');
+    if((p._stage==='sent'||p._stage==='unknown') && !p._awaiting && p._lastFrom!=='us') k.push('noreply');
+    if(p._due) k.push('duetoday');
+    if(p._snoozed) k.push('snoozed');
+    if(p._priority) k.push('priority');
+    return k;
+  }
 
   function P(name,channel,bucket,fu,fuDate,chain,opts){return Object.assign({name:name,channel:channel,bucket:bucket,fu:fu,fuDate:fuDate,chain:chain,queued:false},opts||{});}
   // chain comment: {who:'us'|'them', b:bucket(for them), date, he, es, en}
@@ -214,7 +259,7 @@
   PEOPLE.forEach(function(p){ if(p.bucket==='owe') p.queued=true; });
   function repliedPeople(){ return PEOPLE.filter(function(p){ return !p.queued && !p.booked && p.chain[0] && p.chain[0].who==='them'; }); }
 
-  var state={lang:'es', filter:{wa:null,email:null,both:null}, qi:0, tone:'friendly', q:''};
+  var state={lang:'es', filter:{wa:null,email:null,both:null}, statusFilter:null, qi:0, tone:'friendly', q:''};
   function l(){return L[state.lang];}
   function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show')},1600);}
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -275,6 +320,7 @@
   function renderColumn(ch){
     var people=PEOPLE.map(function(p,i){return {p:p,i:i};}).filter(function(o){
       if(o.p.channel!==ch||o.p.queued) return false;
+      if(state.statusFilter&&statusKeys(o.p).indexOf(state.statusFilter)<0) return false;
       if(state.filter[ch]&&o.p.bucket!==state.filter[ch]) return false;
       if(state.q&&o.p.name.toLowerCase().indexOf(state.q)<0) return false;
       return true;
@@ -344,24 +390,18 @@
   }
 
   function renderStats(){
-    var oweN=PEOPLE.filter(function(p){return p.bucket==='owe'&&p.queued;}).length;
-    var repN=repliedPeople().length;
-    var bookN=PEOPLE.filter(function(p){return !p.queued&&p.booked;}).length;
-    var auto=state.lang==='es'?'→ cola':'→ queue';
-    // Live numbers from /api/center/track (stored on window by loadLive). Fall
-    // back to the people loaded in memory so the bar is never blank on first paint.
-    var t=window._track||null, c=(t&&t.counts)||{};
-    var invN = t ? (t.contacts?t.contacts.length:0) : PEOPLE.length;
-    var replied = t ? (c.replied||0) : repN;
-    var weOwe = t ? (t.awaitingUs||0) : oweN;
-    var booked = t ? (c.booked||0) : bookN;
-    var out = t ? (c.declined||c.cold||0) : 0;
-    document.getElementById('stats').innerHTML=
-      '<span class="stat">'+l().stats.inv+' <b>'+invN+'</b></span>'+
-      '<button class="stat act" data-cat="rep">'+l().stats.rep+' <b>'+replied+'</b>'+(repN?'<span class="addmini" title="agregar a la cola">+ '+repN+'</span>':'')+'</button>'+
-      '<span class="stat owe">'+l().stats.owe+' <b>'+weOwe+'</b><span class="auto">'+auto+'</span></span>'+
-      '<button class="stat book act" data-cat="book">'+l().stats.book+' <b>'+booked+'</b>'+(bookN?'<span class="addmini" title="agregar a la cola">+ '+bookN+'</span>':'')+'</button>'+
-      '<span class="stat">'+l().stats.out+' <b>'+out+'</b></span>';
+    // Every pipeline state at a glance, computed from the live people so the
+    // counts EXACTLY match what each tag filters to. Click a tag → all columns
+    // filter to that bucket; click again (or "Invited") → clear.
+    var P=window.PEOPLE||[];
+    var es=state.lang==='es';
+    var cnt={}; P.forEach(function(p){ statusKeys(p).forEach(function(k){ cnt[k]=(cnt[k]||0)+1; }); });
+    var html='<button class="stat'+(state.statusFilter?'':' sel')+'" data-status="">'+(es?'Invitados':'Invited')+' <b>'+P.length+'</b></button>';
+    STATUS_TAGS.forEach(function(t){
+      var sel=state.statusFilter===t.k?' sel':'';
+      html+='<button class="stat act '+t.cls+sel+'" data-status="'+t.k+'">'+(es?t.es:t.en)+' <b>'+(cnt[t.k]||0)+'</b></button>';
+    });
+    document.getElementById('stats').innerHTML=html;
   }
 
   function renderAll(){
@@ -379,6 +419,7 @@
   }
   function bind(){
     document.querySelectorAll('.chip').forEach(function(c){c.onclick=function(e){e.stopPropagation();var ch=this.dataset.ch,b=this.dataset.b;state.filter[ch]=state.filter[ch]===b?null:b;renderAll();};});
+    document.querySelectorAll('[data-status]').forEach(function(b){b.onclick=function(){var s=this.dataset.status;state.statusFilter=(s===''?null:(state.statusFilter===s?null:s));renderAll();};});
     document.querySelectorAll('[data-addq]').forEach(function(b){b.onclick=function(){var ch=this.dataset.addq;var sel=state.filter[ch];var grp=PEOPLE.filter(function(p){return p.channel===ch&&!p.queued&&(!sel||p.bucket===sel);});grp.forEach(function(p){p.queued=true;});toast((state.lang==='es'?'Agregados ':'Added ')+grp.length+(state.lang==='es'?' a la cola':' to queue'));renderAll();};});
     document.querySelectorAll('[data-cat]').forEach(function(b){b.onclick=function(){var cat=this.dataset.cat,grp=[];if(cat==='rep')grp=repliedPeople();else if(cat==='book')grp=PEOPLE.filter(function(p){return !p.queued&&p.booked;});if(!grp.length){toast(state.lang==='es'?'Nada para agregar':'Nothing to add');return;}grp.forEach(function(p){p.queued=true;});toast((state.lang==='es'?'Agregados ':'Added ')+grp.length+(state.lang==='es'?' a la cola':' to queue'));renderAll();};});
     document.querySelectorAll('.tone').forEach(function(t){t.onclick=function(){state.tone=this.dataset.tone;renderQueue();bindQueue();};});
@@ -432,7 +473,7 @@
     } else {
       chain=[{who:'us',b:undefined,date:'',he:'',es:'Invitación Terminal enviada — esperando respuesta',en:'Terminal invitation sent — awaiting reply'}];
     }
-    return {name:c.name,channel:channel,bucket:b,fu:(c.awaitingUs?'reply':(b==='mtg'?'mtg':'silent')),fuDate:(c.remindAt?new Date(c.remindAt).toLocaleDateString():''),chain:chain,booked:c.stage==='booked',meetingStatus:c.meetingStatus||'',queued:!!c.awaitingUs,_phone:c.phone,_email:c.email,_inviteUrl:c.inviteUrl||'',_row:c.row,_acct:'305'};
+    return {name:c.name,channel:channel,bucket:b,fu:(c.awaitingUs?'reply':(b==='mtg'?'mtg':'silent')),fuDate:(c.remindAt?new Date(c.remindAt).toLocaleDateString():''),chain:chain,booked:c.stage==='booked',meetingStatus:c.meetingStatus||'',queued:!!c.awaitingUs,_phone:c.phone,_email:c.email,_inviteUrl:c.inviteUrl||'',_row:c.row,_acct:'305',_stage:c.stage,_awaiting:!!c.awaitingUs,_lastFrom:c.lastFrom||'',_reachable:!!(c.phone||c.email),_due:!!c.due,_snoozed:!!c.snoozed,_outcome:c.outcome||'',_opened:!!c.opened,_watched:!!c.watched,_note:c.followupNote||''};
   }
   // --- real-time inbound detection + chime -------------------------------
   // Track who is awaiting our reply + the text of their last inbound message,
