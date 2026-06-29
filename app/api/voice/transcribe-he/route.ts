@@ -19,10 +19,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing audio file' }, { status: 400 })
   }
 
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-  const result = await openai.audio.transcriptions.create({
+  // Groq Whisper Large v3 supports Hebrew natively and runs ~10x faster than
+  // OpenAI Whisper. Falls back to OpenAI if GROQ_API_KEY is absent.
+  const useGroq = !!process.env.GROQ_API_KEY
+  const client = useGroq
+    ? new OpenAI({ apiKey: process.env.GROQ_API_KEY!, baseURL: 'https://api.groq.com/openai/v1' })
+    : new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+
+  const result = await client.audio.transcriptions.create({
     file: audio,
-    model: 'whisper-1',
+    model: useGroq ? 'whisper-large-v3' : 'whisper-1',
     language: 'he',
     response_format: 'json',
   })
