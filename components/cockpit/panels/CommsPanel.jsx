@@ -103,7 +103,13 @@ function useThreadMessages(thread) {
           id: m.id,
           from: m.direction === 'out' ? 'me' : (contactId ?? 'them'),
           ts: m.sent_at,
-          body: m.body || (m.media_filename ? `[${m.media_type || 'attachment'}]` : ''),
+          body: m.body || '',
+          // Preserve media so the Message renderer can show the actual photo /
+          // video / file instead of a "[image]" text placeholder (the bug:
+          // images weren't loading because the URL was dropped here).
+          mediaUrl: m.media_url || null,
+          mediaType: m.media_type || null,
+          mediaFilename: m.media_filename || null,
         }));
         setMessages(adapted);
       })
@@ -1024,6 +1030,10 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
 }
 
 function Message({ m, ch, contactName, isHe, highlight }) {
+  const [imgFailed, setImgFailed] = React.useState(false);
+  const isImage = m.mediaUrl && m.mediaType === 'image' && !imgFailed;
+  const isVideo = m.mediaUrl && m.mediaType === 'video';
+  const isOtherMedia = m.mediaUrl && !isImage && !isVideo;
   return (
     <div
       className={isHe ? 'hebrew' : ''}
@@ -1046,7 +1056,38 @@ function Message({ m, ch, contactName, isHe, highlight }) {
         {m.from === 'me' ? 'GIDEON' : (contactName || '').toUpperCase()}
         {highlight && <span style={{ marginLeft: 6, color: ch?.hex, fontWeight: 800 }}>· NEWEST</span>}
       </div>
-      {m.body}
+      {m.body && <div>{m.body}</div>}
+      {/* Real media — image renders inline (link to full); video plays inline;
+          anything else (PDF/doc/audio, or an image whose URL failed) shows a
+          clickable attachment link. */}
+      {isImage && (
+        <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginTop: m.body ? 6 : 0 }}>
+          <img
+            src={m.mediaUrl}
+            alt={m.mediaFilename || 'image'}
+            onError={() => setImgFailed(true)}
+            style={{ maxWidth: '100%', maxHeight: 260, borderRadius: 6, display: 'block' }}
+          />
+        </a>
+      )}
+      {isVideo && (
+        <video
+          src={m.mediaUrl}
+          controls
+          preload="metadata"
+          style={{ maxWidth: '100%', maxHeight: 260, borderRadius: 6, marginTop: m.body ? 6 : 0, display: 'block' }}
+        />
+      )}
+      {isOtherMedia && (
+        <a
+          href={m.mediaUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: m.body ? 6 : 0, color: ch?.hex || '#1E88E5', fontWeight: 700, textDecoration: 'none' }}
+        >
+          <Paperclip size={14} strokeWidth={2.4} /> {m.mediaFilename || (m.mediaType ? `${m.mediaType} attachment` : 'Attachment')}
+        </a>
+      )}
     </div>
   );
 }
