@@ -1,14 +1,19 @@
 /**
- * One-shot Google consent → GOOGLE_REFRESH_TOKEN_2 for the SECOND mailbox
- * (g@reprime.com). This does NOT touch the existing GOOGLE_REFRESH_TOKEN
- * (g@floridastatetrust.com) — it only adds/updates GOOGLE_REFRESH_TOKEN_2.
+ * One-shot Google consent → GOOGLE_REFRESH_TOKEN_2 for the SECOND mailbox.
+ *
+ * Live state (verified via /api/center/gmail-whoami): the existing
+ * GOOGLE_REFRESH_TOKEN belongs to g@reprime.com (primary, already live).
+ * GOOGLE_REFRESH_TOKEN_2 should belong to g@floridastatetrust.com.
+ *
+ * This script connects g@floridastatetrust.com and does NOT touch the
+ * primary token.
  *
  * Run from the repo root:
  *   node scripts/get-reprime-gmail-token.mjs
  *
- * It opens a Google permission screen. ⚠️ SIGN IN AS g@reprime.com.
+ * A Google permission screen opens. ⚠️ SIGN IN AS g@floridastatetrust.com.
  * Click Allow. The new refresh token is written to .env.local as
- * GOOGLE_REFRESH_TOKEN_2 and printed so it can be pushed to Vercel.
+ * GOOGLE_REFRESH_TOKEN_2 and printed so it can be pasted into Vercel.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { google } from 'googleapis'

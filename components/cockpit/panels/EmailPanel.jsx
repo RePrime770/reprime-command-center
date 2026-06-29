@@ -283,7 +283,23 @@ export default function EmailPanel({ width }) {
  * confirm-before-send gate as replies. To/Subject/Body are real inputs.
  */
 function ComposeEmail({ onClose }) {
-  const ib = inboxMeta('g@reprime.com');
+  // From-account picker — defaults to primary (g@reprime.com). When the
+  // secondary (g@floridastatetrust.com) refresh token is configured, the
+  // user can flip to send from that mailbox. The /api/email/send route
+  // resolves the `account` field via resolveReplyFrom() server-side.
+  const { emailSecondary } = useLiveData();
+  const secondaryOk = emailSecondary && emailSecondary.ok === true && typeof emailSecondary.email === 'string';
+  const fromOptions = secondaryOk
+    ? ['g@reprime.com', emailSecondary.email]
+    : ['g@reprime.com'];
+  const [from, setFrom] = useState(fromOptions[0]);
+  // If options change (e.g. FST token comes online while composer is open),
+  // keep the current selection valid.
+  useEffect(() => {
+    if (!fromOptions.includes(from)) setFrom(fromOptions[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondaryOk]);
+  const ib = inboxMeta(from);
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -298,7 +314,7 @@ function ComposeEmail({ onClose }) {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: to.trim(), subject: subject.trim() || '(no subject)', body: body.trim(), account: 'g@reprime.com' }),
+        body: JSON.stringify({ to: to.trim(), subject: subject.trim() || '(no subject)', body: body.trim(), account: from }),
       });
       setSendState(res.ok ? 'sent' : 'error');
       if (res.ok) setTimeout(onClose, 900);
@@ -314,9 +330,24 @@ function ComposeEmail({ onClose }) {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: ib.faded }}>
-      <div style={{ padding: '8px 10px', background: '#FFFFFF', borderBottom: `1px solid ${semantic.divider}`, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+      <div style={{ padding: '8px 10px', background: '#FFFFFF', borderBottom: `1px solid ${semantic.divider}`, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 16, fontWeight: 800, color: ink[700] }}>New email</span>
-        <span style={{ fontSize: 13, fontWeight: 700, color: ib.color }}>from {ib.label}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: ink[500] }}>From:</span>
+        {fromOptions.length > 1 ? (
+          <select
+            value={from}
+            onChange={(e) => { setFrom(e.target.value); setSendState('idle'); }}
+            disabled={sendState === 'sending' || sendState === 'confirm'}
+            title="Pick the mailbox this message sends from"
+            style={{ fontSize: 14, fontWeight: 700, color: ib.color, border: `1px solid ${ib.color}55`, background: '#FFFFFF', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            {fromOptions.map((addr) => (
+              <option key={addr} value={addr}>{inboxMeta(addr).label} ({addr})</option>
+            ))}
+          </select>
+        ) : (
+          <span style={{ fontSize: 13, fontWeight: 700, color: ib.color }}>{ib.label} ({from})</span>
+        )}
         <span style={{ flex: 1 }} />
         <button type="button" onClick={onClose} title="Close" style={{ background: 'transparent', border: 'none', color: ink[500], cursor: 'pointer', padding: 4 }}>
           <X size={16} strokeWidth={2.4} />
@@ -1168,9 +1199,11 @@ function VoiceMessageButton() {
  * appear here — only the env var NAME (e.g. GOOGLE_REFRESH_TOKEN_2).
  */
 function SetupRequiredPane({ meta }) {
-  const envList = Array.isArray(meta.missingEnv) && meta.missingEnv.length
-    ? meta.missingEnv
-    : ['GOOGLE_REFRESH_TOKEN_2'];
+  const envVar = Array.isArray(meta.missingEnv) && meta.missingEnv[0]
+    ? meta.missingEnv[0]
+    : 'GOOGLE_REFRESH_TOKEN_2';
+  const targetEmail = meta.k && meta.k.includes('@') ? meta.k : 'g@floridastatetrust.com';
+  const mono = 'ui-monospace, SFMono-Regular, Menlo, monospace';
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: 16, background: meta.faded }}>
       <div
@@ -1180,28 +1213,42 @@ function SetupRequiredPane({ meta }) {
           borderLeft: `5px solid ${meta.color}`,
           borderRadius: 8,
           padding: 16,
-          maxWidth: 520,
+          maxWidth: 640,
         }}
       >
         <div style={{ fontSize: 13, fontWeight: 800, color: meta.textOnFaded, letterSpacing: '0.12em', marginBottom: 6 }}>
           SETUP REQUIRED
         </div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: ink[700], marginBottom: 8 }}>
-          {meta.label} not configured
+        <div style={{ fontSize: 18, fontWeight: 800, color: ink[700], marginBottom: 10 }}>
+          Connect {targetEmail}
         </div>
-        <div style={{ fontSize: 15, lineHeight: 1.5, color: ink[700], marginBottom: 10 }}>
-          The second Gmail account is not connected yet. Set the following
-          environment variable on Vercel to enable this inbox:
-        </div>
-        <ul style={{ margin: '0 0 10px 18px', padding: 0, fontSize: 15, color: ink[700] }}>
-          {envList.map((v) => (
-            <li key={v} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontWeight: 700 }}>{v}</li>
-          ))}
-        </ul>
+
+        <ol style={{ margin: '0 0 12px 20px', padding: 0, fontSize: 15, lineHeight: 1.6, color: ink[700] }}>
+          <li style={{ marginBottom: 8 }}>
+            From a terminal in this repo, run:
+            <pre style={{ margin: '6px 0 0', padding: '8px 12px', background: '#F1F5F9', border: `1px solid ${semantic.divider}`, borderRadius: 6, fontSize: 13, fontFamily: mono, overflowX: 'auto' }}>
+              node scripts/get-reprime-gmail-token.mjs
+            </pre>
+            <div style={{ fontSize: 13, color: ink[500], marginTop: 4 }}>
+              A browser tab opens. <b>Sign in as {targetEmail}</b> and click <b>Allow</b>.
+            </div>
+          </li>
+          <li style={{ marginBottom: 8 }}>
+            The script prints the refresh token. Copy it.
+          </li>
+          <li>
+            On Vercel → Project Settings → Environment Variables, add:
+            <pre style={{ margin: '6px 0 0', padding: '8px 12px', background: '#F1F5F9', border: `1px solid ${semantic.divider}`, borderRadius: 6, fontSize: 13, fontFamily: mono, overflowX: 'auto' }}>
+              {envVar}={'<paste token>'}
+            </pre>
+            <div style={{ fontSize: 13, color: ink[500], marginTop: 4 }}>
+              Redeploy (or wait for the next deploy). This tab auto-replaces with the live inbox.
+            </div>
+          </li>
+        </ol>
+
         <div style={{ fontSize: 13, color: ink[500], lineHeight: 1.5 }}>
-          See <code style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>docs/ENVIRONMENT_AUDIT.md</code>{' '}
-          for the OAuth steps. Once the token is set, this tab automatically
-          replaces this notice with the live inbox on the next refresh.
+          Once connected, Compose shows a <b>From:</b> picker so you can send from either mailbox. Full reference: <code style={{ fontFamily: mono }}>docs/ENVIRONMENT_AUDIT.md</code>.
         </div>
       </div>
     </div>
