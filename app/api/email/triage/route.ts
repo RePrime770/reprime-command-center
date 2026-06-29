@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { findPersonByEmail } from '@/lib/pipedrive/client'
-import { secondaryAccountStatus } from '@/lib/google/gmail'
+import { GMAIL_ACCOUNTS, secondaryAccountStatus } from '@/lib/google/gmail'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +44,25 @@ function getRedis(): Redis | null {
   const token = process.env.UPSTASH_REDIS_REST_TOKEN
   if (!url || !token) return null
   return new Redis({ url, token })
+}
+
+/**
+ * Normalize a stored account_email value to the REAL mailbox address.
+ *
+ * Legacy rows scored before the multi-account refactor (and rows from any
+ * older slot-key path) may carry slot keys like 'primary' / 'fst' / 'reprime'
+ * in reasons.account_email. The cockpit tab+badge UI keys off the real email
+ * (e.g. 'g@reprime.com'), so resolve here once instead of letting the bad
+ * value flow through and mislabel rows.
+ */
+function normalizeAccountEmail(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const v = value.trim().toLowerCase()
+  if (!v) return null
+  if (v.includes('@')) return v
+  if (v === 'primary' || v === 'reprime') return GMAIL_ACCOUNTS.primary.email
+  if (v === 'fst') return GMAIL_ACCOUNTS.fst.email
+  return null
 }
 
 async function resolveAddress(
@@ -97,7 +116,11 @@ export async function GET(request: Request) {
   const minScore = Number(searchParams.get('min_score') ?? DEFAULT_MIN_SCORE)
   // Optional account filter (mailbox email). When absent, return every mailbox
   // — each item carries its real account_email so the cockpit can tab/merge.
-  const accountFilter = (searchParams.get('account') || '').trim().toLowerCase()
+  // Accept either a real email ('g@reprime.com') or a slot key ('primary' /
+  // 'fst') as the account filter — normalize to the real email so we match
+  // against the normalized account_email stamped on each item.
+  const rawAccount = (searchParams.get('account') || '').trim().toLowerCase()
+  const accountFilter = normalizeAccountEmail(rawAccount) || rawAccount
 
   const service = createServiceClient()
   const { data: rows, error } = await service
@@ -134,7 +157,9 @@ export async function GET(request: Request) {
         // Real mailbox this message belongs to (stored at sync time). May be
         // null for legacy rows scored before multi-account; the cockpit
         // tolerates that and groups them under the default inbox.
-        account_email: reasons.account_email || null,
+        // Always stamp the REAL mailbox address (e.g. 'g@reprime.com'), never
+        // a slot key — see normalizeAccountEmail() above.
+        account_email: normalizeAccountEmail(reasons.account_email),
         from_address: r.from_address,
         from_name: fromName || resolved.pipedrive_name || '',
         pipedrive_id: resolved.pipedrive_id,

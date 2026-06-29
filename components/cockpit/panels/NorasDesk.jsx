@@ -108,12 +108,13 @@ export default function NorasDesk({ width }) {
                   color: active ? '#FFFFFF' : (isOverdueChip && count ? OVERDUE_COLOR : ink[500]),
                   border: `1px solid ${active ? (isOverdueChip ? OVERDUE_COLOR : NORA) : semantic.border}`,
                   borderRadius: 999,
-                  padding: '2px 10px',
-                  fontSize: 12,
+                  padding: '8px 14px',
+                  fontSize: 15,
                   fontWeight: 800,
                   letterSpacing: '0.06em',
                   cursor: 'pointer',
                   fontFamily: 'inherit',
+                  transition: 'all 0.12s ease',
                 }}
               >
                 {f}{count ? ` · ${count}` : ''}
@@ -404,11 +405,12 @@ function RemindPicker({ item }) {
             color: '#0E7490',
             border: '1px solid #A5F0FC',
             borderRadius: 999,
-            padding: '2px 10px',
-            fontSize: 13,
+            padding: '7px 12px',
+            fontSize: 14,
             fontWeight: 700,
             cursor: state === 'saving' ? 'default' : 'pointer',
             fontFamily: 'inherit',
+            transition: 'all 0.12s ease',
           }}
         >
           {label}
@@ -424,12 +426,14 @@ function primaryActionStyle(color) {
     background: color,
     color: '#FFFFFF',
     border: 'none',
-    borderRadius: 6,
-    padding: '5px 12px',
-    fontSize: 15,
+    borderRadius: 10,
+    padding: '10px 16px',
+    fontSize: 17,
     fontWeight: 800,
     cursor: 'pointer',
-    fontFamily: 'inherit'
+    fontFamily: 'inherit',
+    transition: 'all 0.12s ease',
+    boxShadow: '0 1px 2px rgba(15,23,42,0.06)'
   };
 }
 
@@ -438,12 +442,13 @@ function ghostActionStyle() {
     background: '#F8FAFC',
     color: ink[700],
     border: `1px solid ${semantic.border}`,
-    borderRadius: 6,
-    padding: '5px 10px',
-    fontSize: 15,
+    borderRadius: 8,
+    padding: '9px 14px',
+    fontSize: 16,
     fontWeight: 700,
     cursor: 'pointer',
-    fontFamily: 'inherit'
+    fontFamily: 'inherit',
+    transition: 'all 0.12s ease'
   };
 }
 

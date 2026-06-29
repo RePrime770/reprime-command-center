@@ -46,18 +46,19 @@ export function ListenButton({ text, getText, language, onPlay, compact = false 
           border: `1px solid ${errored ? '#FCA5A5' : disabled ? 'rgba(15,23,42,0.10)' : playing ? brand.gold : 'rgba(15,23,42,0.18)'}`,
           opacity: disabled ? 0.65 : 1,
           borderRadius: 999,
-          padding: '4px 10px',
+          padding: '8px 14px',
           fontSize: 16,
           fontWeight: 700,
           cursor: 'pointer',
           display: 'inline-flex',
           alignItems: 'center',
-          gap: 4,
+          gap: 6,
           fontFamily: 'inherit',
-          letterSpacing: '0.04em'
+          letterSpacing: '0.04em',
+          transition: 'all 0.12s ease'
         }}
       >
-        <Icon size={12} strokeWidth={2.4} />
+        <Icon size={15} strokeWidth={2.4} />
         EN<span style={{ opacity: 0.55, margin: '0 2px' }}>·</span>HE
       </button>
     );
@@ -73,20 +74,22 @@ export function ListenButton({ text, getText, language, onPlay, compact = false 
         background: errored ? '#FEE2E2' : disabled ? '#F1F5F9' : playing ? brand.gold : '#FFFFFF',
         color: errored ? '#B91C1C' : disabled ? ink[400] : playing ? brand.navy : ink[700],
         border: `1px solid ${errored ? '#FCA5A5' : disabled ? 'rgba(15,23,42,0.10)' : playing ? brand.gold : 'rgba(15,23,42,0.18)'}`,
-        borderRadius: 8,
-        padding: '6px 12px',
-        fontSize: 18,
+        borderRadius: 10,
+        padding: '11px 18px',
+        fontSize: 19,
         fontWeight: 700,
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.65 : 1,
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 6,
+        gap: 8,
         fontFamily: 'inherit',
-        letterSpacing: '0.04em'
+        letterSpacing: '0.04em',
+        transition: 'all 0.12s ease',
+        boxShadow: '0 1px 2px rgba(15,23,42,0.06)'
       }}
     >
-      <Icon size={14} strokeWidth={2.2} className={busy ? 'spin' : undefined} />
+      <Icon size={17} strokeWidth={2.2} className={busy ? 'spin' : undefined} />
       {disabled ? 'TTS off' : errored ? 'Retry' : busy ? '…' : playing ? 'Playing' : 'Listen'}
       <span style={{ opacity: 0.55 }}>·</span>
       <span className="hebrew">האזן</span>
@@ -144,19 +147,21 @@ export function RecordButton({ onRecord, recording: controlled, label, onTranscr
         background: bg,
         color: fg,
         border: `1px solid ${bd}`,
-        borderRadius: 8,
-        padding: '6px 12px',
-        fontSize: 18,
+        borderRadius: 10,
+        padding: '11px 18px',
+        fontSize: 19,
         fontWeight: 700,
         cursor: 'pointer',
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 6,
+        gap: 8,
         fontFamily: 'inherit',
-        letterSpacing: '0.04em'
+        letterSpacing: '0.04em',
+        transition: 'all 0.12s ease',
+        boxShadow: '0 1px 2px rgba(15,23,42,0.06)'
       }}
     >
-      <Icon size={14} strokeWidth={2.4} className={transcribing ? 'spin' : undefined} />
+      <Icon size={17} strokeWidth={2.4} className={transcribing ? 'spin' : undefined} />
       {label || (errored ? 'Retry' : done ? 'OK' : transcribing ? '…' : recording ? 'Stop' : 'Record')}
       <span style={{ opacity: 0.55 }}>·</span>
       <span className="hebrew">{recording ? 'עצור' : 'הקלט'}</span>
@@ -229,18 +234,19 @@ export function DictateButtons({ compact = false, onText }) {
               color: fg,
               border: `1px solid ${bd}`,
               borderRadius: 8,
-              padding: compact ? '4px 10px' : '6px 12px',
+              padding: compact ? '8px 13px' : '11px 16px',
               fontSize: compact ? 15 : 17,
               fontWeight: 700,
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 5,
+              gap: 6,
               fontFamily: 'inherit',
-              letterSpacing: '0.02em'
+              letterSpacing: '0.02em',
+              transition: 'all 0.12s ease'
             }}
           >
-            <Icon size={compact ? 12 : 14} strokeWidth={2.4} className={transcribing ? 'spin' : undefined} />
+            <Icon size={compact ? 15 : 17} strokeWidth={2.4} className={transcribing ? 'spin' : undefined} />
             <span className={l.he ? 'hebrew' : ''}>
               {errored ? 'Retry' : done ? 'OK' : transcribing ? '…' : on ? 'Stop' : l.label}
             </span>

@@ -139,8 +139,9 @@ export default function NotesPanel({ width }) {
           onKeyDown={(e) => { if (e.key === 'Enter') add(); }}
           placeholder="Note title…"
           style={{
-            width: '100%', border: `1px solid ${semantic.border}`, borderRadius: 6,
-            padding: '7px 9px', fontSize: 15, fontFamily: 'inherit', color: ink[700], marginBottom: 6,
+            width: '100%', border: `1px solid ${semantic.border}`, borderRadius: 8,
+            padding: '11px 13px', fontSize: 16, fontFamily: 'inherit', color: ink[700], marginBottom: 8,
+            transition: 'all 0.12s ease',
           }}
         />
         <textarea
@@ -149,24 +150,27 @@ export default function NotesPanel({ width }) {
           placeholder="Details (optional) — or dictate"
           rows={2}
           style={{
-            width: '100%', border: `1px solid ${semantic.border}`, borderRadius: 6,
-            padding: '7px 9px', fontSize: 14, fontFamily: 'inherit', color: ink[700], resize: 'vertical',
+            width: '100%', border: `1px solid ${semantic.border}`, borderRadius: 8,
+            padding: '11px 13px', fontSize: 16, fontFamily: 'inherit', color: ink[700], resize: 'vertical',
+            transition: 'all 0.12s ease',
           }}
         />
-        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
           <button
             type="button"
             onClick={add}
             disabled={!title.trim() || saving}
             style={{
-              flex: 1, background: ACCENT, color: '#FFFFFF', border: 'none', borderRadius: 6,
-              padding: '7px 10px', fontSize: 15, fontWeight: 800, fontFamily: 'inherit',
+              flex: 1, background: ACCENT, color: '#FFFFFF', border: 'none', borderRadius: 10,
+              padding: '11px 16px', fontSize: 19, fontWeight: 800, fontFamily: 'inherit',
               cursor: title.trim() && !saving ? 'pointer' : 'default',
               opacity: title.trim() && !saving ? 1 : 0.5,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+              transition: 'all 0.12s ease',
+              boxShadow: '0 1px 2px rgba(15,23,42,0.06)',
             }}
           >
-            <Plus size={14} strokeWidth={2.6} /> {saving ? 'Saving…' : 'Add note'}
+            <Plus size={17} strokeWidth={2.6} /> {saving ? 'Saving…' : 'Add note'}
           </button>
           <button
             type="button"
@@ -174,29 +178,31 @@ export default function NotesPanel({ width }) {
             title={recording ? 'Stop & transcribe' : 'Dictate the note'}
             style={{
               background: recording ? '#E53935' : '#FFFFFF', color: recording ? '#FFFFFF' : ink[700],
-              border: `1px solid ${recording ? '#E53935' : semantic.border}`, borderRadius: 6,
-              padding: '7px 11px', cursor: 'pointer', fontFamily: 'inherit',
+              border: `1px solid ${recording ? '#E53935' : semantic.border}`, borderRadius: 10,
+              padding: '11px 15px', cursor: 'pointer', fontFamily: 'inherit',
               display: 'inline-flex', alignItems: 'center',
+              transition: 'all 0.12s ease',
+              boxShadow: '0 1px 2px rgba(15,23,42,0.06)',
             }}
           >
-            {recording ? <Square size={14} strokeWidth={2.4} /> : <Mic size={14} strokeWidth={2.4} />}
+            {recording ? <Square size={17} strokeWidth={2.4} /> : <Mic size={17} strokeWidth={2.4} />}
           </button>
         </div>
       </div>
 
       {/* Search */}
-      <div style={{ padding: '6px 8px', borderBottom: `1px solid ${semantic.divider}`, background: '#FFFFFF', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Search size={14} strokeWidth={2.4} color={ink[300]} />
+      <div style={{ padding: '10px 12px', borderBottom: `1px solid ${semantic.divider}`, background: '#FFFFFF', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Search size={17} strokeWidth={2.4} color={ink[300]} />
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search notes…"
-          style={{ flex: 1, border: 'none', outline: 'none', fontSize: 14, fontFamily: 'inherit', color: ink[700], background: 'transparent' }}
+          style={{ flex: 1, border: 'none', outline: 'none', fontSize: 16, fontFamily: 'inherit', color: ink[700], background: 'transparent', padding: '4px 0' }}
         />
         {query && (
-          <button type="button" onClick={() => setQuery('')} title="Clear search" style={{ background: 'transparent', border: 'none', color: ink[300], cursor: 'pointer', padding: 2 }}>
-            <X size={13} strokeWidth={2.4} />
+          <button type="button" onClick={() => setQuery('')} title="Clear search" style={{ background: 'transparent', border: 'none', color: ink[300], cursor: 'pointer', padding: '8px 10px', borderRadius: 8, transition: 'all 0.12s ease', display: 'inline-flex', alignItems: 'center' }}>
+            <X size={16} strokeWidth={2.4} />
           </button>
         )}
       </div>
@@ -223,38 +229,38 @@ export default function NotesPanel({ width }) {
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  style={{ width: '100%', border: `1px solid ${semantic.border}`, borderRadius: 6, padding: '6px 8px', fontSize: 15, fontFamily: 'inherit', color: ink[700] }}
+                  style={{ width: '100%', border: `1px solid ${semantic.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 16, fontFamily: 'inherit', color: ink[700], transition: 'all 0.12s ease' }}
                 />
                 <textarea
                   value={editBody}
                   onChange={(e) => setEditBody(e.target.value)}
                   rows={3}
-                  style={{ width: '100%', border: `1px solid ${semantic.border}`, borderRadius: 6, padding: '6px 8px', fontSize: 14, fontFamily: 'inherit', color: ink[700], resize: 'vertical' }}
+                  style={{ width: '100%', border: `1px solid ${semantic.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 16, fontFamily: 'inherit', color: ink[700], resize: 'vertical', transition: 'all 0.12s ease' }}
                 />
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button type="button" onClick={() => saveEdit(n.id)} disabled={!editTitle.trim()} style={{ background: ACCENT, color: '#FFFFFF', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 14, fontWeight: 800, cursor: editTitle.trim() ? 'pointer' : 'default', opacity: editTitle.trim() ? 1 : 0.5, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <Check size={13} strokeWidth={2.6} /> Save
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" onClick={() => saveEdit(n.id)} disabled={!editTitle.trim()} style={{ background: ACCENT, color: '#FFFFFF', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 16, fontWeight: 800, cursor: editTitle.trim() ? 'pointer' : 'default', opacity: editTitle.trim() ? 1 : 0.5, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'all 0.12s ease', boxShadow: '0 1px 2px rgba(15,23,42,0.06)' }}>
+                    <Check size={16} strokeWidth={2.6} /> Save
                   </button>
-                  <button type="button" onClick={cancelEdit} style={{ background: 'transparent', color: ink[500], border: `1px solid ${semantic.border}`, borderRadius: 6, padding: '5px 12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <button type="button" onClick={cancelEdit} style={{ background: 'transparent', color: ink[500], border: `1px solid ${semantic.border}`, borderRadius: 8, padding: '9px 16px', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s ease' }}>
                     Cancel
                   </button>
                 </div>
               </div>
             ) : (
               <>
-                <div style={{ position: 'absolute', top: 5, right: 5, display: 'flex', gap: 2 }}>
-                  <button type="button" onClick={() => togglePin(n)} title={n.is_pinned ? 'Unpin' : 'Pin to top'} style={{ background: 'transparent', border: 'none', color: n.is_pinned ? ACCENT : ink[300], cursor: 'pointer', padding: 2 }}>
-                    <Pin size={13} strokeWidth={2.4} fill={n.is_pinned ? ACCENT : 'none'} />
+                <div style={{ position: 'absolute', top: 4, right: 4, display: 'flex', gap: 2 }}>
+                  <button type="button" onClick={() => togglePin(n)} title={n.is_pinned ? 'Unpin' : 'Pin to top'} style={{ background: 'transparent', border: 'none', color: n.is_pinned ? ACCENT : ink[300], cursor: 'pointer', padding: '8px 10px', borderRadius: 7, transition: 'all 0.12s ease', display: 'inline-flex', alignItems: 'center' }}>
+                    <Pin size={16} strokeWidth={2.4} fill={n.is_pinned ? ACCENT : 'none'} />
                   </button>
-                  <button type="button" onClick={() => startEdit(n)} title="Edit note" style={{ background: 'transparent', border: 'none', color: ink[300], cursor: 'pointer', padding: 2 }}>
-                    <Pencil size={13} strokeWidth={2.4} />
+                  <button type="button" onClick={() => startEdit(n)} title="Edit note" style={{ background: 'transparent', border: 'none', color: ink[300], cursor: 'pointer', padding: '8px 10px', borderRadius: 7, transition: 'all 0.12s ease', display: 'inline-flex', alignItems: 'center' }}>
+                    <Pencil size={16} strokeWidth={2.4} />
                   </button>
-                  <button type="button" onClick={() => remove(n.id)} title="Delete note" style={{ background: 'transparent', border: 'none', color: ink[300], cursor: 'pointer', padding: 2 }}>
-                    <X size={13} strokeWidth={2.4} />
+                  <button type="button" onClick={() => remove(n.id)} title="Delete note" style={{ background: 'transparent', border: 'none', color: ink[300], cursor: 'pointer', padding: '8px 10px', borderRadius: 7, transition: 'all 0.12s ease', display: 'inline-flex', alignItems: 'center' }}>
+                    <X size={16} strokeWidth={2.4} />
                   </button>
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: ink[700], paddingRight: 56, lineHeight: 1.3 }}>{n.title}</div>
-                {n.body && <div style={{ fontSize: 14, color: ink[500], marginTop: 2, lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>{n.body}</div>}
+                <div style={{ fontSize: 17, fontWeight: 700, color: ink[700], paddingRight: 110, lineHeight: 1.3 }}>{n.title}</div>
+                {n.body && <div style={{ fontSize: 15, color: ink[500], marginTop: 3, lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>{n.body}</div>}
               </>
             )}
           </div>

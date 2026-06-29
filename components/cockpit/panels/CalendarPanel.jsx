@@ -130,19 +130,20 @@ export default function CalendarPanel({ width }) {
           display: 'block',
           width: '100%',
           textAlign: 'left',
-          padding: '8px 12px',
+          padding: '12px 16px',
           background: '#FFF3E0',
           border: 'none',
           borderBottom: `1px solid #FFCC80`,
           cursor: 'pointer',
           fontFamily: 'inherit',
-          flexShrink: 0
+          flexShrink: 0,
+          transition: 'all 0.12s ease'
         }}
       >
-        <div style={{ fontSize: 13, letterSpacing: '0.12em', color: '#E65100', fontWeight: 800 }}>
+        <div style={{ fontSize: 14, letterSpacing: '0.12em', color: '#E65100', fontWeight: 800 }}>
           RELIGIOUS CALENDAR
         </div>
-        <div style={{ fontSize: 16, color: '#5D4037', marginTop: 2, lineHeight: 1.3 }}>
+        <div style={{ fontSize: 17, color: '#5D4037', marginTop: 3, lineHeight: 1.3 }}>
           {religiousLine}
         </div>
       </button>
@@ -159,7 +160,7 @@ export default function CalendarPanel({ width }) {
           gap: 6
         }}
       >
-        <span style={{ fontSize: 14, fontWeight: 800, color: ink[500], letterSpacing: '0.08em' }}>Memo</span>
+        <span style={{ fontSize: 16, fontWeight: 800, color: ink[500], letterSpacing: '0.08em' }}>Memo</span>
         <DictateButtons compact onText={(t) => setMemo((m) => (m ? `${m} ${t}` : t))} />
         <ListenButton compact getText={() => memo || agendaText} />
       </div>
@@ -190,8 +191,11 @@ export default function CalendarPanel({ width }) {
               color: ink[300],
               cursor: 'pointer',
               fontFamily: 'inherit',
-              fontSize: 13,
+              fontSize: 15,
               fontWeight: 700,
+              padding: '8px 10px',
+              borderRadius: 7,
+              transition: 'all 0.12s ease',
             }}
           >
             clear
@@ -208,15 +212,16 @@ export default function CalendarPanel({ width }) {
             onClick={() => setView(key)}
             style={{
               flex: 1,
-              padding: '4px 8px',
+              padding: '9px 14px',
               border: `1px solid ${semantic.divider}`,
-              borderRadius: 6,
+              borderRadius: 8,
               background: view === key ? '#00897B' : '#FFFFFF',
               color: view === key ? '#FFFFFF' : ink[700],
               fontWeight: 700,
-              fontSize: 13,
+              fontSize: 16,
               cursor: 'pointer',
               fontFamily: 'inherit',
+              transition: 'all 0.12s ease',
             }}
           >
             {label}
@@ -311,7 +316,7 @@ function EventRow({ event, now, nowEventId, nextEventId }) {
             NOW
           </span>
         )}
-        <Icon size={13} strokeWidth={2.2} color="#00695C" />
+        <Icon size={16} strokeWidth={2.2} color="#00695C" />
         <span className={isHe ? 'hebrew' : ''} style={{ fontSize: 18, fontWeight: 600, color: ink[700], flex: 1, lineHeight: 1.3 }}>
           {event.title}
         </span>
@@ -346,13 +351,15 @@ function EventRow({ event, now, nowEventId, nextEventId }) {
               background: brand.gold,
               color: brand.navy,
               border: 'none',
-              borderRadius: 6,
-              padding: '3px 10px',
-              fontSize: 16,
+              borderRadius: 8,
+              padding: '9px 16px',
+              fontSize: 17,
               fontWeight: 800,
               cursor: event.joinUrl ? 'pointer' : 'default',
               opacity: event.joinUrl ? 1 : 0.5,
-              fontFamily: 'inherit'
+              fontFamily: 'inherit',
+              transition: 'all 0.12s ease',
+              boxShadow: '0 1px 2px rgba(15,23,42,0.06)'
             }}
           >
             Join Zoom

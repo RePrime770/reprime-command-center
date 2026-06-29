@@ -107,14 +107,24 @@ export default function EmailPanel({ width }) {
       return next;
     });
   const byInbox = inbox === 'all' ? emails : emails.filter((e) => e.inbox === inbox);
+  // Sort the "All" view by timestamp desc so the most-recent message across
+  // BOTH mailboxes lands on top. Per-mailbox tabs keep server-returned order
+  // (already score-then-time desc from /api/email/triage).
+  const sortedByInbox = inbox === 'all'
+    ? [...byInbox].sort((a, b) => {
+        const ta = a.ts ? Date.parse(a.ts) : 0;
+        const tb = b.ts ? Date.parse(b.ts) : 0;
+        return tb - ta;
+      })
+    : byInbox;
   const q = search.trim().toLowerCase();
   const filtered = q
-    ? byInbox.filter((e) =>
+    ? sortedByInbox.filter((e) =>
         [e.from, e.subject, e.preview]
           .filter(Boolean)
           .some((v) => String(v).toLowerCase().includes(q))
       )
-    : byInbox;
+    : sortedByInbox;
   const opened = openedId ? emails.find((e) => e.id === openedId) : null;
 
   return (
@@ -140,13 +150,13 @@ export default function EmailPanel({ width }) {
               onClick={() => { setInbox(ib.k); setOpenedId(null); }}
               style={{
                 flex: 1,
-                padding: '4px 6px',
+                padding: '8px 10px',
                 background: active ? ib.color : '#FFFFFF',
                 color: active ? '#FFFFFF' : ib.color,
                 border: `1px solid ${ib.color}55`,
                 borderTop: `2px solid ${ib.color}`,
                 borderRadius: 6,
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: 700,
                 cursor: 'pointer',
                 fontFamily: 'inherit',
@@ -154,7 +164,7 @@ export default function EmailPanel({ width }) {
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 5
+                gap: 6
               }}
             >
               {ib.label}
@@ -162,11 +172,11 @@ export default function EmailPanel({ width }) {
                 background: count > 0 ? (active ? '#FFFFFF' : ib.color) : '#E2E8F0',
                 color: count > 0 ? (active ? ib.color : '#FFFFFF') : ink[500],
                 borderRadius: 999,
-                padding: '0 6px',
-                fontSize: 11,
+                padding: '1px 8px',
+                fontSize: 13,
                 fontWeight: 800,
                 letterSpacing: '0.02em',
-                minWidth: 16,
+                minWidth: 18,
                 textAlign: 'center'
               }}>{count}</span>
             </button>
@@ -223,7 +233,7 @@ export default function EmailPanel({ width }) {
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: 6,
-                padding: '6px 10px',
+                padding: '10px 16px',
                 fontSize: 18,
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -231,10 +241,10 @@ export default function EmailPanel({ width }) {
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 6
+                gap: 8
               }}
             >
-              <PenSquare size={13} strokeWidth={2.4} /> Compose
+              <PenSquare size={16} strokeWidth={2.4} /> Compose
             </button>
           </div>
           <div
@@ -339,7 +349,7 @@ function ComposeEmail({ onClose }) {
             onChange={(e) => { setFrom(e.target.value); setSendState('idle'); }}
             disabled={sendState === 'sending' || sendState === 'confirm'}
             title="Pick the mailbox this message sends from"
-            style={{ fontSize: 14, fontWeight: 700, color: ib.color, border: `1px solid ${ib.color}55`, background: '#FFFFFF', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit' }}
+            style={{ fontSize: 16, fontWeight: 700, color: ib.color, border: `1px solid ${ib.color}55`, background: '#FFFFFF', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit' }}
           >
             {fromOptions.map((addr) => (
               <option key={addr} value={addr}>{inboxMeta(addr).label} ({addr})</option>
@@ -370,9 +380,9 @@ function ComposeEmail({ onClose }) {
               onClick={() => { if (canSend) setSendState('confirm'); }}
               disabled={!canSend && sendState !== 'error'}
               title={!emailOk ? 'Enter a valid recipient email' : 'Send (asks to confirm)'}
-              style={{ background: sendState === 'sent' ? '#16A34A' : sendState === 'error' ? '#B91C1C' : ib.color, color: '#FFFFFF', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: 17, fontWeight: 800, cursor: canSend || sendState === 'error' ? 'pointer' : 'default', opacity: canSend || sendState === 'sent' || sendState === 'error' ? 1 : 0.5, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              style={{ background: sendState === 'sent' ? '#16A34A' : sendState === 'error' ? '#B91C1C' : ib.color, color: '#FFFFFF', border: 'none', borderRadius: 6, padding: '10px 22px', fontSize: 19, fontWeight: 800, cursor: canSend || sendState === 'error' ? 'pointer' : 'default', opacity: canSend || sendState === 'sent' || sendState === 'error' ? 1 : 0.5, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              <Send size={12} strokeWidth={2.6} /> {sendState === 'sending' ? 'Sending…' : sendState === 'sent' ? 'Sent ✓' : sendState === 'error' ? 'Retry' : 'Send'}
+              <Send size={16} strokeWidth={2.6} /> {sendState === 'sending' ? 'Sending…' : sendState === 'sent' ? 'Sent ✓' : sendState === 'error' ? 'Retry' : 'Send'}
             </button>
           )}
           <DictateButtons onText={(t) => { setBody((prev) => (prev ? `${prev} ${t}` : t)); setSendState('idle'); }} />
@@ -420,9 +430,26 @@ function EmailRow({ email, onOpen, reminded, onToggleRemind }) {
             {email.from}
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <RemindButton reminded={reminded} onToggle={onToggleRemind} />
-          <span style={{ fontSize: 13, color: ib.color, fontWeight: 700, letterSpacing: '0.06em' }}>{ib.label}</span>
+          {/* Per-row source badge — makes "All" view legible: each row carries
+              a visible colored chip ("g@reprime" / "g@floridastate") with the
+              mailbox color so origin is obvious at a glance. */}
+          <span
+            title={email.inbox || ''}
+            style={{
+              fontSize: 13,
+              color: '#FFFFFF',
+              background: ib.color,
+              fontWeight: 800,
+              letterSpacing: '0.04em',
+              padding: '2px 8px',
+              borderRadius: 4,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {ib.label}
+          </span>
           <span style={{ fontSize: 14, color: ink[300], fontWeight: 600 }}>{fmtRelative(email.ts)}</span>
         </div>
       </div>
@@ -609,18 +636,18 @@ function OpenedEmail({ email, onClose }) {
             color: ink[700],
             border: `1px solid ${semantic.border}`,
             borderRadius: 999,
-            padding: '4px 10px',
-            fontSize: 13,
+            padding: '7px 14px',
+            fontSize: 16,
             fontWeight: 800,
             cursor: 'pointer',
             fontFamily: 'inherit',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 4,
+            gap: 5,
             letterSpacing: '0.04em',
           }}
         >
-          <ArrowLeft size={12} strokeWidth={2.6} /> Back
+          <ArrowLeft size={16} strokeWidth={2.6} /> Back
         </button>
         <span
           style={{
@@ -1057,18 +1084,18 @@ function EmailReplyZone({ ib, defaultDraft, replyMode, setReplyMode, replyText, 
               color: '#FFFFFF',
               border: 'none',
               borderRadius: 6,
-              padding: '6px 14px',
-              fontSize: 18,
+              padding: '10px 20px',
+              fontSize: 19,
               fontWeight: 800,
               cursor: canSend || sendState === 'error' ? 'pointer' : 'default',
               opacity: canSend || sendState === 'sent' || sendState === 'error' ? 1 : 0.5,
               fontFamily: 'inherit',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 5
+              gap: 6
             }}
           >
-            <Send size={12} strokeWidth={2.6} />{' '}
+            <Send size={16} strokeWidth={2.6} />{' '}
             {sendState === 'sending' ? 'Sending…' : sendState === 'sent' ? 'Sent ✓' : sendState === 'error' ? 'Retry' : sendLabel}
           </button>
         )}
@@ -1136,19 +1163,19 @@ function RemindButton({ reminded, onToggle }) {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 2,
+        gap: 3,
         background: reminded ? '#FFCC33' : 'transparent',
         color: reminded ? '#1E293B' : ink[300],
         border: `1px solid ${reminded ? '#FFCC33' : 'rgba(15,23,42,0.18)'}`,
         borderRadius: 999,
-        padding: '1px 6px',
-        fontSize: 12,
+        padding: '4px 10px',
+        fontSize: 15,
         fontWeight: 800,
         letterSpacing: '0.04em',
         cursor: 'pointer'
       }}
     >
-      <Clock size={11} strokeWidth={2.6} />
+      <Clock size={15} strokeWidth={2.6} />
       1h
     </span>
   );
@@ -1230,6 +1257,12 @@ function SetupRequiredPane({ meta }) {
           <div style={{ fontSize: 14, lineHeight: 1.5, color: ink[700], marginBottom: 10 }}>
             Click the button below. Google opens, you sign in as <b>{targetEmail}</b>, click Allow, and the next screen shows the refresh token with a copy button.
           </div>
+          {/* Real bug Gideon hit: Chrome auto-picked kazi@reprime.com on the
+              chooser. The fix is one click on "Use another account" — call
+              it out here so the next person doesn't get stuck. */}
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#9A3412', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 6, padding: '8px 10px', marginBottom: 10, lineHeight: 1.45 }}>
+            If Google shows <code style={{ fontFamily: mono }}>kazi@reprime.com</code>, click <b>“Use another account”</b> in the chooser and sign in as <b>{targetEmail}</b> — Chrome may remember a different default account.
+          </div>
           <a
             href="/api/google/connect-secondary"
             style={{
@@ -1286,7 +1319,7 @@ function emailReplyIconStyle() {
     color: ink[700],
     border: `1px solid ${semantic.border}`,
     borderRadius: 6,
-    padding: '6px 9px',
+    padding: '9px 12px',
     cursor: 'pointer',
     fontFamily: 'inherit',
     display: 'inline-flex',
@@ -1301,7 +1334,7 @@ function emailReplyActionStyle() {
     color: ink[700],
     border: `1px solid ${semantic.border}`,
     borderRadius: 6,
-    padding: '5px 10px',
+    padding: '8px 14px',
     fontSize: 16,
     fontWeight: 700,
     cursor: 'pointer',

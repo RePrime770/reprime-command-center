@@ -339,7 +339,7 @@ export default function NoraChat({ focusSignal }) {
       )}
 
       {/* Input */}
-      <form onSubmit={onSubmit} style={{ display: 'flex', alignItems: 'center', gap: 6, border: `2px solid ${NORA}`, borderRadius: 8, padding: '4px 6px 4px 10px', background: '#FFFFFF' }}>
+      <form onSubmit={onSubmit} style={{ display: 'flex', alignItems: 'center', gap: 8, border: `2px solid ${NORA}`, borderRadius: 10, padding: '6px 8px 6px 12px', background: '#FFFFFF' }}>
         <input
           ref={inputRef}
           type="text"
@@ -347,7 +347,7 @@ export default function NoraChat({ focusSignal }) {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask Nora, or tell her to call, Zoom, or remind you…"
           disabled={sending}
-          style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 16, color: ink[700], fontFamily: 'inherit' }}
+          style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 17, color: ink[700], fontFamily: 'inherit', padding: '6px 0' }}
         />
         <button
           type="button"
@@ -356,7 +356,7 @@ export default function NoraChat({ focusSignal }) {
           aria-label={muted ? 'Unmute Nora voice replies' : 'Mute Nora voice replies'}
           style={iconBtn(muted ? '#F1F5F9' : NORA_FADED, muted ? ink[300] : NORA)}
         >
-          {muted ? <VolumeX size={15} strokeWidth={2.4} /> : <Volume2 size={15} strokeWidth={2.4} />}
+          {muted ? <VolumeX size={17} strokeWidth={2.4} /> : <Volume2 size={17} strokeWidth={2.4} />}
         </button>
         <button
           type="button"
@@ -366,8 +366,8 @@ export default function NoraChat({ focusSignal }) {
           aria-label={voiceLang === 'he' ? 'Switch mic language to English' : 'Switch mic language to Hebrew'}
           style={{
             ...iconBtn(NORA_FADED, NORA),
-            padding: '5px 7px',
-            fontSize: 12,
+            padding: '9px 11px',
+            fontSize: 14,
             fontWeight: 800,
             letterSpacing: '0.04em',
             opacity: recording ? 0.5 : 1,
@@ -382,16 +382,16 @@ export default function NoraChat({ focusSignal }) {
           aria-label={recording ? 'Stop recording' : 'Speak to Nora'}
           style={iconBtn(recording ? '#E53935' : NORA_FADED, recording ? '#FFFFFF' : NORA)}
         >
-          {recording ? <Square size={15} strokeWidth={2.4} /> : <Mic size={15} strokeWidth={2.4} />}
+          {recording ? <Square size={17} strokeWidth={2.4} /> : <Mic size={17} strokeWidth={2.4} />}
         </button>
         <button
           type="submit"
           disabled={sending || !input.trim()}
           title="Send to Nora"
           aria-label="Send to Nora"
-          style={{ ...iconBtn(NORA, '#FFFFFF'), opacity: sending || !input.trim() ? 0.5 : 1, padding: '6px 10px' }}
+          style={{ ...iconBtn(NORA, '#FFFFFF'), opacity: sending || !input.trim() ? 0.5 : 1, padding: '10px 14px', boxShadow: '0 1px 2px rgba(15,23,42,0.06)' }}
         >
-          <Send size={14} strokeWidth={2.6} />
+          <Send size={17} strokeWidth={2.6} />
         </button>
       </form>
     </div>
@@ -433,11 +433,12 @@ function iconBtn(bg, fg) {
     background: bg,
     color: fg,
     border: bg === '#7C3AED' || bg === '#E53935' ? 'none' : `1px solid ${NORA}55`,
-    borderRadius: 6,
-    padding: '5px 8px',
+    borderRadius: 8,
+    padding: '9px 11px',
     cursor: 'pointer',
     fontFamily: 'inherit',
     display: 'inline-flex',
     alignItems: 'center',
+    transition: 'all 0.12s ease',
   };
 }

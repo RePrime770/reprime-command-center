@@ -82,7 +82,7 @@ export default function InvestorsPanel({ width }) {
           alignItems: 'center'
         }}
       >
-        <ArrowUpDown size={11} strokeWidth={2.4} color={magenta} style={{ marginLeft: 3 }} />
+        <ArrowUpDown size={15} strokeWidth={2.4} color={magenta} style={{ marginLeft: 4 }} />
         {SORT_OPTIONS.map((o) => (
           <button
             key={o.id}
@@ -90,16 +90,17 @@ export default function InvestorsPanel({ width }) {
             onClick={() => setSort(o.id)}
             style={{
               flex: 1,
-              padding: '3px 4px',
+              padding: '8px 10px',
               background: sort === o.id ? magenta : 'transparent',
               color: sort === o.id ? '#FFFFFF' : ink[500],
               border: `1px solid ${sort === o.id ? magenta : 'rgba(15,23,42,0.12)'}`,
-              borderRadius: 5,
-              fontSize: 13,
+              borderRadius: 7,
+              fontSize: 15,
               fontWeight: 700,
               cursor: 'pointer',
               fontFamily: 'inherit',
-              letterSpacing: '0.04em'
+              letterSpacing: '0.04em',
+              transition: 'all 0.12s ease'
             }}
           >
             {o.label}
@@ -340,19 +341,21 @@ function Row({ inv }) {
             background: magenta,
             color: '#FFFFFF',
             border: 'none',
-            borderRadius: 5,
-            padding: '3px 8px',
-            fontSize: 14,
+            borderRadius: 8,
+            padding: '9px 14px',
+            fontSize: 16,
             fontWeight: 800,
             cursor: 'pointer',
             fontFamily: 'inherit',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 3
+            gap: 6,
+            transition: 'all 0.12s ease',
+            boxShadow: '0 1px 2px rgba(15,23,42,0.06)'
           }}
         >
-          <Star size={10} fill="#FFFFFF" stroke="#FFFFFF" />
+          <Star size={15} fill="#FFFFFF" stroke="#FFFFFF" />
           Open Profile
         </button>
       </div>
@@ -373,9 +376,9 @@ function ActionChip({ color, icon: Icon, onClick, children, disabled = false, ti
         background: '#FFFFFF',
         color,
         border: `1px solid ${color}55`,
-        borderRadius: 5,
-        padding: '3px 6px',
-        fontSize: 14,
+        borderRadius: 8,
+        padding: '9px 12px',
+        fontSize: 15,
         fontWeight: 700,
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.5 : 1,
@@ -383,10 +386,11 @@ function ActionChip({ color, icon: Icon, onClick, children, disabled = false, ti
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 3
+        gap: 6,
+        transition: 'all 0.12s ease'
       }}
     >
-      <Icon size={10} strokeWidth={2.4} />
+      <Icon size={15} strokeWidth={2.4} />
       {children}
     </button>
   );

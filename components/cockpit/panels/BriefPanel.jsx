@@ -31,22 +31,23 @@ export default function BriefPanel({ width }) {
               onClick={() => setTab(t.id)}
               style={{
                 flex: 1,
-                padding: '8px 10px',
+                padding: '12px 14px',
                 background: active ? t.color : 'transparent',
                 color: active ? '#FFFFFF' : ink[500],
                 border: 'none',
                 borderBottom: active ? `3px solid ${t.color}` : '3px solid transparent',
-                fontSize: 18,
+                fontSize: 19,
                 fontWeight: 700,
                 cursor: 'pointer',
                 fontFamily: 'inherit',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 6
+                gap: 8,
+                transition: 'all 0.12s ease'
               }}
             >
-              <t.icon size={13} strokeWidth={2.4} /> {t.label}
+              <t.icon size={17} strokeWidth={2.4} /> {t.label}
             </button>
           );
         })}
@@ -106,12 +107,14 @@ function MorningContent({ morningBrief }) {
                   background: brand.gold,
                   color: brand.navy,
                   border: 'none',
-                  borderRadius: 6,
-                  padding: '3px 10px',
-                  fontSize: 16,
+                  borderRadius: 8,
+                  padding: '8px 14px',
+                  fontSize: 17,
                   fontWeight: 800,
                   cursor: 'pointer',
-                  fontFamily: 'inherit'
+                  fontFamily: 'inherit',
+                  transition: 'all 0.12s ease',
+                  boxShadow: '0 1px 2px rgba(15,23,42,0.06)'
                 }}
               >
                 {a}

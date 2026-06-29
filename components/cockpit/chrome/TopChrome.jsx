@@ -196,20 +196,21 @@ function TerminalButton() {
         color: brand.goldSoft,
         border: `1px solid rgba(255,204,51,0.22)`,
         borderRadius: 999,
-        padding: '0 10px',
-        height: 30,
+        padding: '0 14px',
+        height: 36,
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 5,
+        gap: 7,
         cursor: 'pointer',
         fontFamily: 'inherit',
-        fontSize: 13,
+        fontSize: 16,
         fontWeight: 700,
         letterSpacing: '0.04em',
         flexShrink: 0,
+        transition: 'all 0.12s ease',
       }}
     >
-      <ExternalLink size={12} strokeWidth={2.4} />
+      <ExternalLink size={16} strokeWidth={2.4} />
       Terminal
     </button>
   );
@@ -227,17 +228,18 @@ function HelpButton({ onOpen }) {
         color: brand.goldSoft,
         border: `1px solid rgba(255,204,51,0.22)`,
         borderRadius: 999,
-        width: 30,
-        height: 30,
+        width: 38,
+        height: 38,
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
         fontFamily: 'inherit',
         flexShrink: 0,
+        transition: 'all 0.12s ease',
       }}
     >
-      <HelpCircle size={16} strokeWidth={2.2} />
+      <HelpCircle size={19} strokeWidth={2.2} />
     </button>
   );
 }
@@ -279,15 +281,17 @@ function UserPill() {
           color: brand.navy,
           border: 'none',
           borderRadius: 999,
-          width: 30,
-          height: 30,
-          fontSize: 14,
+          width: 38,
+          height: 38,
+          fontSize: 17,
           fontWeight: 800,
           cursor: 'pointer',
           fontFamily: 'inherit',
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
+          transition: 'all 0.12s ease',
+          boxShadow: '0 1px 2px rgba(15,23,42,0.06)',
         }}
       >
         {initial}
@@ -303,11 +307,12 @@ function UserPill() {
           </div>
           <button type="button" onClick={signOut} disabled={busy} style={{
             marginTop: 6, width: '100%', background: 'transparent', color: '#FFFFFF',
-            border: 'none', borderRadius: 6, padding: '8px 6px', fontSize: 14, fontWeight: 700,
+            border: 'none', borderRadius: 8, padding: '11px 12px', fontSize: 16, fontWeight: 700,
             cursor: busy ? 'wait' : 'pointer', fontFamily: 'inherit',
-            display: 'inline-flex', alignItems: 'center', gap: 8, textAlign: 'left',
+            display: 'inline-flex', alignItems: 'center', gap: 10, textAlign: 'left',
+            transition: 'all 0.12s ease',
           }}>
-            <LogOut size={14} strokeWidth={2.2} />
+            <LogOut size={17} strokeWidth={2.2} />
             {busy ? 'Signing out…' : 'Sign out'}
           </button>
         </div>
@@ -392,12 +397,14 @@ function Row3Tier1() {
             background: brand.gold,
             color: ink[900],
             border: 'none',
-            borderRadius: 6,
-            padding: '5px 16px',
-            fontSize: 18,
+            borderRadius: 10,
+            padding: '11px 20px',
+            fontSize: 19,
             fontWeight: 800,
             cursor: 'pointer',
-            fontFamily: 'inherit'
+            fontFamily: 'inherit',
+            transition: 'all 0.12s ease',
+            boxShadow: '0 1px 2px rgba(15,23,42,0.06)'
           }}
         >
           {cfg.cta}
@@ -415,12 +422,13 @@ function Row3Tier1() {
           background: 'rgba(0,0,0,0.18)',
           color: '#FFFFFF',
           border: 'none',
-          borderRadius: 6,
-          padding: '5px 10px',
-          fontSize: 16,
+          borderRadius: 8,
+          padding: '10px 16px',
+          fontSize: 17,
           fontWeight: 700,
           cursor: 'pointer',
-          fontFamily: 'inherit'
+          fontFamily: 'inherit',
+          transition: 'all 0.12s ease'
         }}
       >
         Dismiss

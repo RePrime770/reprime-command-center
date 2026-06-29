@@ -545,21 +545,22 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 4,
-            padding: '4px 8px',
-            marginRight: 4,
+            gap: 6,
+            padding: '9px 14px',
+            marginRight: 6,
             background: '#F1F5F9',
             color: ink[700],
             border: `1px solid ${semantic.border}`,
-            borderRadius: 6,
-            fontSize: 13,
+            borderRadius: 8,
+            fontSize: 16,
             fontWeight: 700,
             letterSpacing: '0.04em',
             cursor: 'pointer',
-            fontFamily: 'inherit'
+            fontFamily: 'inherit',
+            transition: 'all 0.12s ease'
           }}
         >
-          <ArrowLeft size={13} strokeWidth={2.6} /> Back
+          <ArrowLeft size={16} strokeWidth={2.6} /> Back
         </button>
         <span style={{ width: 10, height: 10, borderRadius: 999, background: ch?.hex || ink[300] }} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -573,7 +574,7 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
             style={headerActionStyle(CH.investor.hex, '#FFFFFF')}
             title="Open Profile (★ only way to surface drawer)"
           >
-            <Star size={11} fill="#FFFFFF" stroke="#FFFFFF" /> Profile
+            <Star size={15} fill="#FFFFFF" stroke="#FFFFFF" /> Profile
           </button>
         )}
         <button
@@ -583,7 +584,7 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
           style={{ ...headerActionStyle(zoomErr ? '#E53935' : '#2D8CFF'), opacity: zoomBusy ? 0.6 : 1, cursor: zoomBusy ? 'wait' : 'pointer' }}
           title={zoomErr ? 'Zoom unavailable — try again' : 'Invite to Zoom — creates a real meeting and drops the link into the reply box for review (does not auto-send)'}
         >
-          <Video size={11} strokeWidth={2.4} /> {zoomBusy ? '…' : zoomErr ? 'Zoom ✗' : 'Zoom'}
+          <Video size={15} strokeWidth={2.4} /> {zoomBusy ? '…' : zoomErr ? 'Zoom ✗' : 'Zoom'}
         </button>
         <button
           type="button"
@@ -592,7 +593,7 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
           style={{ ...headerActionStyle(isStaff ? CH.staff.hex : '#64748B'), opacity: laneBusy ? 0.6 : 1, cursor: laneBusy ? 'wait' : 'pointer' }}
           title={laneMsg || (isStaff ? 'Remove from Staff lane' : 'Move this person into the Staff lane (exclusive)')}
         >
-          <Home size={11} strokeWidth={2.4} /> {laneBusy ? '…' : isStaff ? 'Staff ✓' : laneMsg ? laneMsg : '→ Staff'}
+          <Home size={15} strokeWidth={2.4} /> {laneBusy ? '…' : isStaff ? 'Staff ✓' : laneMsg ? laneMsg : '→ Staff'}
         </button>
         <ListenButton compact />
         <ReminderPicker />
@@ -789,13 +790,14 @@ function NoraElevatedRead({ thread, block, channel: ch, contextText }) {
               style={{
                 background: '#F8FAFC',
                 border: `1px solid ${semantic.border}`,
-                borderRadius: 6,
-                padding: '3px 10px',
+                borderRadius: 8,
+                padding: '8px 14px',
                 fontSize: 16,
                 fontWeight: 600,
                 color: ink[700],
                 cursor: 'pointer',
-                fontFamily: 'inherit'
+                fontFamily: 'inherit',
+                transition: 'all 0.12s ease'
               }}
             >
               {a}
@@ -1016,19 +1018,21 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
             background: sendState === 'sent' ? '#16A34A' : sendState === 'error' ? '#B91C1C' : channelColor,
             color: '#FFFFFF',
             border: 'none',
-            borderRadius: 6,
-            padding: '6px 14px',
-            fontSize: 18,
+            borderRadius: 10,
+            padding: '11px 18px',
+            fontSize: 19,
             fontWeight: 800,
             cursor: canSend ? 'pointer' : 'default',
             opacity: canSend || sendState === 'sent' || sendState === 'error' ? 1 : 0.55,
             fontFamily: 'inherit',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 5
+            gap: 7,
+            transition: 'all 0.12s ease',
+            boxShadow: '0 1px 2px rgba(15,23,42,0.06)'
           }}
         >
-          <Send size={12} strokeWidth={2.6} /> {sendLabel}
+          <Send size={17} strokeWidth={2.6} /> {sendLabel}
         </button>
         {/* Dictation — two explicit language buttons (Gideon 2026-06-16): tap the language you'll speak.
             Transcript appends into the reply box and flips it into editable mode. */}
@@ -1054,7 +1058,7 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
           title={attaching ? 'Uploading…' : 'Attach a file'}
           aria-label="Attach a file"
         >
-          <Paperclip size={15} strokeWidth={2.2} />
+          <Paperclip size={17} strokeWidth={2.2} />
         </button>
         {/* Voice message — records → uploads → sends a real WhatsApp voice note */}
         <VoiceNoteButton channelColor={channelColor} phone={phone} panel={panel} contactName={contactName} />
@@ -1236,13 +1240,14 @@ function ChannelFilterPills({ value, setValue, kinds, subId }) {
               color: active ? '#FFFFFF' : c,
               border: `1px solid ${active ? c : 'rgba(15,23,42,0.16)'}`,
               borderRadius: 999,
-              padding: '2px 9px',
-              fontSize: 12,
+              padding: '8px 14px',
+              fontSize: 15,
               fontWeight: 800,
               letterSpacing: '0.06em',
               cursor: 'pointer',
               fontFamily: 'inherit',
-              lineHeight: 1.4
+              lineHeight: 1.4,
+              transition: 'all 0.12s ease'
             }}
           >
             {opt}
@@ -1274,21 +1279,22 @@ function RemindBell({ reminded = false, onToggle }) {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 2,
+        gap: 4,
         flexShrink: 0,
         cursor: 'pointer',
-        borderRadius: 6,
-        padding: '2px 5px',
+        borderRadius: 7,
+        padding: '6px 9px',
         background: reminded ? `${gold}26` : 'transparent',
         border: `1px solid ${reminded ? gold : 'rgba(15,23,42,0.16)'}`,
         color: reminded ? '#92400E' : ink[300],
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: 800,
         letterSpacing: '0.04em',
-        lineHeight: 1
+        lineHeight: 1,
+        transition: 'all 0.12s ease'
       }}
     >
-      <Clock size={12} strokeWidth={2.4} color={reminded ? gold : undefined} />
+      <Clock size={15} strokeWidth={2.4} color={reminded ? gold : undefined} />
       1h
     </span>
   );
@@ -1369,12 +1375,13 @@ function replyActionStyle() {
     background: '#F8FAFC',
     color: ink[700],
     border: `1px solid ${semantic.border}`,
-    borderRadius: 6,
-    padding: '5px 10px',
+    borderRadius: 8,
+    padding: '9px 14px',
     fontSize: 16,
     fontWeight: 700,
     cursor: 'pointer',
-    fontFamily: 'inherit'
+    fontFamily: 'inherit',
+    transition: 'all 0.12s ease'
   };
 }
 
@@ -1384,13 +1391,14 @@ function replyIconActionStyle() {
     background: '#F8FAFC',
     color: ink[700],
     border: `1px solid ${semantic.border}`,
-    borderRadius: 6,
-    padding: '5px 8px',
+    borderRadius: 8,
+    padding: '9px 11px',
     cursor: 'pointer',
     fontFamily: 'inherit',
     display: 'inline-flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    transition: 'all 0.12s ease'
   };
 }
 
@@ -1516,15 +1524,17 @@ function headerActionStyle(bg, fg) {
     background: bg,
     color: fg || '#FFFFFF',
     border: 'none',
-    borderRadius: 6,
-    padding: '4px 10px',
-    fontSize: 16,
+    borderRadius: 8,
+    padding: '9px 14px',
+    fontSize: 17,
     fontWeight: 700,
     cursor: 'pointer',
     fontFamily: 'inherit',
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 4,
-    flexShrink: 0
+    gap: 6,
+    flexShrink: 0,
+    transition: 'all 0.12s ease',
+    boxShadow: '0 1px 2px rgba(15,23,42,0.06)'
   };
 }
