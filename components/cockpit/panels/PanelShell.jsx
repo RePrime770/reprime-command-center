@@ -1,5 +1,6 @@
 import React from 'react';
 import { ink, semantic } from '../lib/colors.js';
+import { useLocale } from '../lib/i18n.jsx';
 
 /**
  * Panel shell — saturated accent header band + white body + 1px border + drop-shadow card.
@@ -24,6 +25,7 @@ export default function PanelShell({
   bodyBg = '#FFFFFF',
   children
 }) {
+  const { t } = useLocale();
   return (
     <section
       style={{
@@ -53,11 +55,11 @@ export default function PanelShell({
       >
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: '0.14em' }}>
-            {title}
+            {t(title)}
           </span>
           {subtitle && (
             <span style={{ fontSize: 14, opacity: 0.85, letterSpacing: '0.1em', fontWeight: 600 }}>
-              {subtitle}
+              {t(subtitle)}
             </span>
           )}
         </div>

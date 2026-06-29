@@ -1,5 +1,6 @@
 import React from 'react';
 import { DemoProvider, useDemo } from './demo/DemoContext.jsx';
+import { LocaleProvider } from './lib/i18n.jsx';
 
 // v3 chrome — 2 rows + conditional Tier-1 alert lane in Row 3. PTT centered, sub-strip + browser button + memory + momentum integrated.
 import TopChrome from './chrome/TopChrome.jsx';
@@ -47,9 +48,11 @@ const PANEL_WIDTHS = {
 
 export default function App() {
   return (
-    <DemoProvider>
-      <Cockpit />
-    </DemoProvider>
+    <LocaleProvider>
+      <DemoProvider>
+        <Cockpit />
+      </DemoProvider>
+    </LocaleProvider>
   );
 }
 

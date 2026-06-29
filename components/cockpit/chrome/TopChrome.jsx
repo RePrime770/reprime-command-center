@@ -7,6 +7,7 @@ import {
 import { brand, slate, tier as TIER, ink } from '../lib/colors.js';
 import { useDemo } from '../demo/DemoContext.jsx';
 import { useLiveData } from '../live/CockpitLiveData.jsx';
+import { useLocale } from '../lib/i18n.jsx';
 
 // ============================================================
 // TopChrome v5 — LEAN COMMS-ONLY top bar
@@ -134,10 +135,11 @@ function Row1() {
       {/* CENTER spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* RIGHT — Concierge (comms actions) + clock/Shabbat */}
+      {/* RIGHT — Concierge (comms actions) + language + clock/Shabbat */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <ConciergeCluster />
         <ClusterDivider />
+        <LangToggle />
         <ClockShabbat />
       </div>
     </div>
@@ -263,6 +265,7 @@ function Row3Tier1() {
 // ============================================================
 function PttCluster() {
   const { state, set } = useDemo();
+  const { t } = useLocale();
   const ptt = state.pttState || 'idle';
   const mode = state.noraMode || 'listen'; // 'listen' | 'participate'
   const liveStatus = state.noraLiveStatus || 'idle'; // 'idle' | 'listening' | 'drafting' | 'researching' | 'speaking' | 'on-call'
@@ -314,10 +317,10 @@ function PttCluster() {
         {active && <span className="pulse-ring" style={{ position: 'absolute', inset: -2, border: `2px solid ${cfg.ring}`, borderRadius: 999 }} />}
         <Mic size={22} strokeWidth={2.4} />
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.05 }}>
-          <span style={{ fontSize: 21, fontWeight: 800 }}>{cfg.label}</span>
+          <span style={{ fontSize: 21, fontWeight: 800 }}>{t(cfg.label)}</span>
           {cfg.sub && (
             <span style={{ fontSize: 13, opacity: 0.78, letterSpacing: '0.06em' }}>
-              {cfg.sub}
+              {t(cfg.sub)}
             </span>
           )}
         </div>
@@ -490,8 +493,42 @@ function Wordmark() {
   );
 }
 
+// EN / עב language toggle — flips the cockpit chrome language (persisted) and
+// sets <html lang>. Text-only (the kiosk layout stays LTR; Hebrew message
+// bodies already render RTL per-element).
+function LangToggle() {
+  const { locale, setLocale } = useLocale();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+      {[{ k: 'en', label: 'EN' }, { k: 'he', label: 'עב' }].map((o) => (
+        <button
+          key={o.k}
+          type="button"
+          onClick={() => setLocale(o.k)}
+          title={o.k === 'he' ? 'עברית' : 'English'}
+          style={{
+            background: locale === o.k ? brand.gold : 'transparent',
+            color: locale === o.k ? brand.navy : brand.goldSoft,
+            border: `1px solid ${locale === o.k ? brand.gold : 'rgba(255,204,51,0.22)'}`,
+            borderRadius: 6,
+            padding: '2px 8px',
+            fontSize: 14,
+            fontWeight: 800,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            minWidth: 30,
+          }}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ConciergeCluster() {
   const { state, set } = useDemo();
+  const { t } = useLocale();
   const handle = (k) => {
     if (k === 'Search')     { set('searchOpen', !state.searchOpen); return; }
     if (k === 'Email')      { set('emailComposeOpen', true); return; }
@@ -502,9 +539,9 @@ function ConciergeCluster() {
   return (
     <div style={{ display: 'flex', gap: 4 }}>
       {CONCIERGE.map((c) => (
-        <button key={c.k} type="button" onClick={() => handle(c.k)} style={pillBtn({ bg: c.color, fg: '#FFFFFF' })} title={c.k}>
+        <button key={c.k} type="button" onClick={() => handle(c.k)} style={pillBtn({ bg: c.color, fg: '#FFFFFF' })} title={t(c.k)}>
           <c.icon size={11} strokeWidth={2.4} />
-          {c.k}
+          {t(c.k)}
         </button>
       ))}
     </div>
