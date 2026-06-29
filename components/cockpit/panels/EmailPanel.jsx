@@ -1223,32 +1223,57 @@ function SetupRequiredPane({ meta }) {
           Connect {targetEmail}
         </div>
 
-        <ol style={{ margin: '0 0 12px 20px', padding: 0, fontSize: 15, lineHeight: 1.6, color: ink[700] }}>
-          <li style={{ marginBottom: 8 }}>
-            From a terminal in this repo, run:
-            <pre style={{ margin: '6px 0 0', padding: '8px 12px', background: '#F1F5F9', border: `1px solid ${semantic.divider}`, borderRadius: 6, fontSize: 13, fontFamily: mono, overflowX: 'auto' }}>
-              node scripts/get-reprime-gmail-token.mjs
+        <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, padding: 14, marginBottom: 14 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#1E40AF', marginBottom: 6 }}>
+            One-click in-browser flow (recommended)
+          </div>
+          <div style={{ fontSize: 14, lineHeight: 1.5, color: ink[700], marginBottom: 10 }}>
+            Click the button below. Google opens, you sign in as <b>{targetEmail}</b>, click Allow, and the next screen shows the refresh token with a copy button.
+          </div>
+          <a
+            href="/api/google/connect-secondary"
+            style={{
+              display: 'inline-block',
+              background: meta.color,
+              color: '#FFFFFF',
+              textDecoration: 'none',
+              fontSize: 15,
+              fontWeight: 800,
+              padding: '8px 16px',
+              borderRadius: 6,
+              letterSpacing: '0.02em',
+            }}
+          >
+            Connect {targetEmail}
+          </a>
+          <div style={{ fontSize: 12, color: ink[500], marginTop: 10, lineHeight: 1.5 }}>
+            <b>One-time setup:</b> in Google Cloud Console, the OAuth client must have this redirect URI registered:
+            <pre style={{ margin: '4px 0 0', padding: '6px 10px', background: '#FFFFFF', border: '1px solid #BFDBFE', borderRadius: 4, fontSize: 12, fontFamily: mono, overflowX: 'auto' }}>
+              {typeof window !== 'undefined' ? window.location.origin : 'https://project-7e87w.vercel.app'}/api/google/connect-secondary/callback
             </pre>
-            <div style={{ fontSize: 13, color: ink[500], marginTop: 4 }}>
-              A browser tab opens. <b>Sign in as {targetEmail}</b> and click <b>Allow</b>.
-            </div>
-          </li>
-          <li style={{ marginBottom: 8 }}>
-            The script prints the refresh token. Copy it.
-          </li>
-          <li>
-            On Vercel → Project Settings → Environment Variables, add:
-            <pre style={{ margin: '6px 0 0', padding: '8px 12px', background: '#F1F5F9', border: `1px solid ${semantic.divider}`, borderRadius: 6, fontSize: 13, fontFamily: mono, overflowX: 'auto' }}>
-              {envVar}={'<paste token>'}
-            </pre>
-            <div style={{ fontSize: 13, color: ink[500], marginTop: 4 }}>
-              Redeploy (or wait for the next deploy). This tab auto-replaces with the live inbox.
-            </div>
-          </li>
-        </ol>
+          </div>
+        </div>
+
+        <details style={{ marginBottom: 10 }}>
+          <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 700, color: ink[500] }}>Or use the CLI script</summary>
+          <ol style={{ margin: '10px 0 0 20px', padding: 0, fontSize: 14, lineHeight: 1.6, color: ink[700] }}>
+            <li style={{ marginBottom: 8 }}>
+              From a terminal in this repo, run:
+              <pre style={{ margin: '6px 0 0', padding: '8px 12px', background: '#F1F5F9', border: `1px solid ${semantic.divider}`, borderRadius: 6, fontSize: 13, fontFamily: mono, overflowX: 'auto' }}>
+                node scripts/get-reprime-gmail-token.mjs
+              </pre>
+              <div style={{ fontSize: 12, color: ink[500], marginTop: 4 }}>
+                A browser tab opens. <b>Sign in as {targetEmail}</b> and click <b>Allow</b>.
+              </div>
+            </li>
+            <li>
+              The script prints the refresh token. Copy it and paste into Vercel as <code style={{ fontFamily: mono }}>{envVar}</code>.
+            </li>
+          </ol>
+        </details>
 
         <div style={{ fontSize: 13, color: ink[500], lineHeight: 1.5 }}>
-          Once connected, Compose shows a <b>From:</b> picker so you can send from either mailbox. Full reference: <code style={{ fontFamily: mono }}>docs/ENVIRONMENT_AUDIT.md</code>.
+          After the token lands on Vercel, this tab auto-replaces with the live inbox on the next refresh. Compose will gain a <b>From:</b> picker so you can send from either mailbox.
         </div>
       </div>
     </div>

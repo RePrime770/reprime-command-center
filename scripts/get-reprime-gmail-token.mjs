@@ -54,18 +54,40 @@ const SCOPES = [
 ]
 
 const oauth2 = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT)
-const authUrl = oauth2.generateAuthUrl({ access_type: 'offline', prompt: 'consent', scope: SCOPES })
+// response_type is explicit (googleapis defaults it, but make it bulletproof
+// in case a callsite ever drops it). access_type=offline → returns the
+// refresh_token we need; prompt=consent forces the consent screen even when
+// Google has remembered prior approval (avoids "no refresh_token returned").
+const authUrl = oauth2.generateAuthUrl({
+  access_type: 'offline',
+  prompt: 'consent',
+  scope: SCOPES,
+  response_type: 'code',
+})
 
 console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-console.log('  SECOND MAILBOX — SIGN IN AS g@reprime.com (NOT floridastatetrust).')
+console.log('  SECOND MAILBOX — SIGN IN AS g@floridastatetrust.com (NOT reprime.com).')
 console.log('  Click ALLOW. If the browser does not open, paste this URL:\n')
 console.log('  ' + authUrl + '\n')
 console.log('  (waiting on http://localhost:8765/cb …)')
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
 
+// Auto-open the URL. CRITICAL: do NOT use { shell: true } here. The auth URL
+// contains '&' characters which the shell interprets as command separators —
+// that's what caused the "Required parameter is missing: response_type" 400
+// error in prior runs (the URL got truncated at the first '&', losing every
+// param after it). Pass the URL as a single argv item to the opener directly.
 try {
-  const opener = process.platform === 'win32' ? 'start' : process.platform === 'darwin' ? 'open' : 'xdg-open'
-  spawn(opener, [authUrl], { shell: true, detached: true, stdio: 'ignore' }).unref()
+  const platform = process.platform
+  if (platform === 'darwin') {
+    spawn('open', [authUrl], { detached: true, stdio: 'ignore' }).unref()
+  } else if (platform === 'win32') {
+    // cmd /c start "" "<url>" — the empty "" is the optional window title;
+    // wrapping the URL in quotes prevents '&' shell interpretation on Windows.
+    spawn('cmd', ['/c', 'start', '""', authUrl], { detached: true, stdio: 'ignore' }).unref()
+  } else {
+    spawn('xdg-open', [authUrl], { detached: true, stdio: 'ignore' }).unref()
+  }
 } catch {}
 
 const server = http.createServer(async (req, res) => {
