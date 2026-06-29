@@ -442,6 +442,40 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
     }
   };
 
+  // Move-to-lane — exclusively reassign this thread to Staff (or back to its
+  // natural lane). Calls PATCH /api/whatsapp/threads/[id] using the DB row id.
+  // Gracefully reports when the lane_override migration hasn't been applied yet.
+  const [laneBusy, setLaneBusy] = React.useState(false);
+  const [laneMsg, setLaneMsg] = React.useState('');
+  const isStaff = thread.staffTag === true;
+  const moveToLane = async () => {
+    if (laneBusy || !thread.rowId) {
+      if (!thread.rowId) setLaneMsg('No record id');
+      return;
+    }
+    setLaneBusy(true);
+    setLaneMsg('');
+    try {
+      const res = await fetch(`/api/whatsapp/threads/${encodeURIComponent(thread.rowId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ lane_override: isStaff ? 'general' : 'staff' }),
+      });
+      if (res.ok) {
+        setLaneMsg(isStaff ? 'Moved out of Staff' : 'Moved to Staff');
+      } else if (res.status === 503) {
+        setLaneMsg('Needs DB migration');
+      } else {
+        setLaneMsg('Move failed');
+      }
+    } catch {
+      setLaneMsg('Move failed');
+    } finally {
+      setLaneBusy(false);
+    }
+  };
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: fadedBg }}>
       {/* Header */}
@@ -480,6 +514,15 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
           title={zoomErr ? 'Zoom unavailable — try again' : 'Invite to Zoom — creates a real meeting and drops the link into the reply box for review (does not auto-send)'}
         >
           <Video size={11} strokeWidth={2.4} /> {zoomBusy ? '…' : zoomErr ? 'Zoom ✗' : 'Zoom'}
+        </button>
+        <button
+          type="button"
+          onClick={moveToLane}
+          disabled={laneBusy}
+          style={{ ...headerActionStyle(isStaff ? CH.staff.hex : '#64748B'), opacity: laneBusy ? 0.6 : 1, cursor: laneBusy ? 'wait' : 'pointer' }}
+          title={laneMsg || (isStaff ? 'Remove from Staff lane' : 'Move this person into the Staff lane (exclusive)')}
+        >
+          <Home size={11} strokeWidth={2.4} /> {laneBusy ? '…' : isStaff ? 'Staff ✓' : laneMsg ? laneMsg : '→ Staff'}
         </button>
         <ListenButton compact />
         <ReminderPicker />

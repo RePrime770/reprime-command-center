@@ -14,7 +14,7 @@ import {
   panelFromAccountId,
   parseTimelinesTimestamp,
 } from '@/lib/timelines/parse'
-import type { Panel, TimelinesChat, DashboardThread } from '@/lib/timelines/types'
+import type { Panel, TimelinesChat, DashboardThread, ChannelType } from '@/lib/timelines/types'
 
 export const dynamic = 'force-dynamic'
 // Pipedrive enrichment + Timelines paging can stack to >10s. Default Vercel
@@ -427,10 +427,14 @@ export async function GET(request: NextRequest) {
         pipedrive_contact_id: number | null
         timelines_chat_id: number | null
         is_priority: boolean | null
+        channel_type?: ChannelType | null
+        lane_override?: string | null
       }) => ({
         id: t.id,
         panel: t.panel,
-        channel_type: 'whatsapp' as const,
+        // Pass through the REAL channel_type so SMS / iMessage / Google Voice
+        // threads render under the right band instead of all showing as WhatsApp.
+        channel_type: (t.channel_type ?? 'whatsapp') as ChannelType,
         phone: t.phone,
         contact_name: t.contact_name,
         is_group: t.is_group,
@@ -443,6 +447,9 @@ export async function GET(request: NextRequest) {
         investor_tier: investorTierByThreadId.get(t.id)?.tier ?? null,
         investor_role: investorTierByThreadId.get(t.id)?.role ?? null,
         is_priority: t.is_priority ?? false,
+        // Defensive: .select('*') means this is undefined (not an error) until
+        // the lane_override migration is applied. Drives the Staff lane.
+        lane_override: t.lane_override ?? null,
       })
     )
 

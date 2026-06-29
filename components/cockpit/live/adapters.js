@@ -28,14 +28,33 @@ function detectLanguage(text) {
  *     pipedrive_contact_id, is_investor }
  * @param {Record<string, unknown>} row
  */
+function channelKey(panel, channelType) {
+  // Map (panel, channel_type) -> a colors.js channel key. SMS + Google Voice
+  // render as TEXT; iMessage only exists on 718. Defaults to WhatsApp.
+  const p = panel === '718' ? '718' : '305';
+  switch (channelType) {
+    case 'sms':
+    case 'google_voice':
+      return `${p}-SMS`;
+    case 'imessage':
+      return p === '718' ? '718-iM' : '305-SMS'; // no 305 iMessage lane
+    case 'whatsapp':
+    default:
+      return `${p}-WA`;
+  }
+}
+
 function adaptThreadRow(row) {
   const preview = typeof row.last_message_preview === 'string' ? row.last_message_preview : '';
   const panel = row.panel === '305' ? '305' : row.panel === '718' ? '718' : null;
-  // Only the WhatsApp channel is wired live this pass; map panel -> channel key.
-  const channel = panel === '305' ? '305-WA' : panel === '718' ? '718-WA' : '305-WA';
+  // Map the REAL channel_type (whatsapp/sms/imessage/google_voice) to a channel
+  // key so SMS/iMessage threads render under the correct band, not all as WA.
+  const channel = channelKey(panel, row.channel_type);
   return {
     // phone is the stable key across reloads (the route dedups on panel:phone)
     id: row.phone || row.jid || `${row.panel}:${row.contact_name}`,
+    // DB row id (uuid) — needed for PATCH /api/whatsapp/threads/[id] (move-to-lane).
+    rowId: row.id ?? null,
     channel,
     contactId: row.pipedrive_contact_id ?? null,
     contactName: row.contact_name || 'Unknown',

@@ -67,6 +67,8 @@ export interface DashboardThread {
   is_stub?: boolean
   /** AI-flagged as important (deal interest, urgency, commitment language) */
   is_priority: boolean
+  /** Manual lane assignment (e.g. 'staff'). Null/undefined until the lane_override migration is applied and a thread is moved. */
+  lane_override?: string | null
 }
 
 export interface DashboardMessage {
