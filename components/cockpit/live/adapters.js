@@ -370,11 +370,12 @@ export function adaptEmails(payload) {
     const score = typeof e.score === 'number' ? e.score : 0;
     const height = score >= 12 ? 'tall' : score >= 6 ? 'standard' : 'compact';
     const snippet = typeof e.snippet === 'string' ? e.snippet : '';
-    // Real mailbox this message belongs to. Falls back to the default account
-    // (g@floridastatetrust.com) for legacy rows scored before multi-account.
+    // Real mailbox this message belongs to. The default GOOGLE_REFRESH_TOKEN
+    // authenticates as g@reprime.com (verified 2026-06-24), so that is the
+    // correct fallback for rows missing an account_email.
     const inbox =
       (typeof e.account_email === 'string' && e.account_email) ||
-      'g@floridastatetrust.com';
+      'g@reprime.com';
     return {
       id: e.message_id || `em-live-${i}`,
       height,

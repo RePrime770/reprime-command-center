@@ -28,9 +28,14 @@ export type GmailAccount = {
 }
 
 export const GMAIL_ACCOUNTS: Record<GmailAccountKey, GmailAccount> = {
+  // The default GOOGLE_REFRESH_TOKEN authenticates as g@reprime.com (verified
+  // 2026-06-24 via users.getProfile), so its email is labeled accordingly — the
+  // old 'g@floridastatetrust.com' label caused synced rows to be stamped with
+  // the wrong mailbox. The key name 'fst' is retained only for back-compat with
+  // the type union and DEFAULT_ACCOUNT_KEY; it does not imply the FST mailbox.
   fst: {
     key: 'fst',
-    email: 'g@floridastatetrust.com',
+    email: 'g@reprime.com',
     refreshTokenEnvVar: 'GOOGLE_REFRESH_TOKEN',
   },
   reprime: {

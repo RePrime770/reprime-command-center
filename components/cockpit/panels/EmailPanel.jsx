@@ -67,6 +67,7 @@ export default function EmailPanel({ width }) {
   const INBOXES = buildInboxes(emails);
   const [inbox, setInbox] = useState('all');
   const [openedId, setOpenedId] = useState(null);
+  const [composing, setComposing] = useState(false);
   const [remindIds, setRemindIds] = useState(() => new Set());
   const toggleRemind = (id) =>
     setRemindIds((prev) => {
@@ -115,7 +116,9 @@ export default function EmailPanel({ width }) {
         ))}
       </div>
 
-      {!opened && (
+      {composing && <ComposeEmail onClose={() => setComposing(false)} />}
+
+      {!opened && !composing && (
         <>
           {/* Compose — on TOP (Gideon 2026-06-16: controls go up top, never bottom) */}
           <div
@@ -130,6 +133,7 @@ export default function EmailPanel({ width }) {
           >
             <button
               type="button"
+              onClick={() => setComposing(true)}
               style={{
                 flex: 1,
                 background: CH.email.hex,
@@ -184,8 +188,83 @@ export default function EmailPanel({ width }) {
         </>
       )}
 
-      {opened && <OpenedEmail email={opened} onClose={() => setOpenedId(null)} />}
+      {opened && !composing && <OpenedEmail email={opened} onClose={() => setOpenedId(null)} />}
     </PanelShell>
+  );
+}
+
+/**
+ * ComposeEmail — a real new-message composer (replaces the dead Compose button
+ * that had no onClick and the orphaned, fully-hardcoded EmailComposeDrawer).
+ * Sends via /api/email/send (SendGrid, from g@reprime.com) with the same
+ * confirm-before-send gate as replies. To/Subject/Body are real inputs.
+ */
+function ComposeEmail({ onClose }) {
+  const ib = inboxMeta('g@reprime.com');
+  const [to, setTo] = useState('');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [sendState, setSendState] = useState('idle'); // idle | confirm | sending | sent | error
+  const emailOk = /.+@.+\..+/.test(to.trim());
+  const canSend = emailOk && body.trim().length > 0 && sendState !== 'sending' && sendState !== 'confirm';
+
+  const confirmSend = async () => {
+    setSendState('sending');
+    try {
+      const res = await fetch('/api/email/send', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: to.trim(), subject: subject.trim() || '(no subject)', body: body.trim(), account: 'g@reprime.com' }),
+      });
+      setSendState(res.ok ? 'sent' : 'error');
+      if (res.ok) setTimeout(onClose, 900);
+    } catch {
+      setSendState('error');
+    }
+  };
+
+  const field = {
+    width: '100%', border: `1px solid ${semantic.divider}`, borderRadius: 6,
+    padding: '8px 10px', fontSize: 16, fontFamily: 'inherit', outline: 'none', marginBottom: 6,
+  };
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: ib.faded }}>
+      <div style={{ padding: '8px 10px', background: '#FFFFFF', borderBottom: `1px solid ${semantic.divider}`, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <span style={{ fontSize: 16, fontWeight: 800, color: ink[700] }}>New email</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: ib.color }}>from {ib.label}</span>
+        <span style={{ flex: 1 }} />
+        <button type="button" onClick={onClose} title="Close" style={{ background: 'transparent', border: 'none', color: ink[500], cursor: 'pointer', padding: 4 }}>
+          <X size={16} strokeWidth={2.4} />
+        </button>
+      </div>
+      <div style={{ padding: 10, overflowY: 'auto', flex: 1 }}>
+        <input style={field} type="email" placeholder="To (email address)" value={to} onChange={(e) => { setTo(e.target.value); setSendState('idle'); }} />
+        <input style={field} type="text" placeholder="Subject" value={subject} onChange={(e) => { setSubject(e.target.value); setSendState('idle'); }} />
+        <textarea style={{ ...field, minHeight: 160, resize: 'vertical' }} placeholder="Write your message…" value={body} onChange={(e) => { setBody(e.target.value); setSendState('idle'); }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {sendState === 'confirm' ? (
+            <>
+              <span style={{ fontSize: 14, fontWeight: 700, color: ink[700] }}>Send to <span style={{ color: ib.color }}>{to.trim()}</span>?</span>
+              <button type="button" onClick={confirmSend} style={{ background: '#16A34A', color: '#FFFFFF', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 16, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Send size={12} strokeWidth={2.6} /> Confirm send</button>
+              <button type="button" onClick={() => setSendState('idle')} style={{ background: 'transparent', color: ink[500], border: `1px solid ${semantic.divider}`, borderRadius: 6, padding: '6px 12px', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => { if (canSend) setSendState('confirm'); }}
+              disabled={!canSend && sendState !== 'error'}
+              title={!emailOk ? 'Enter a valid recipient email' : 'Send (asks to confirm)'}
+              style={{ background: sendState === 'sent' ? '#16A34A' : sendState === 'error' ? '#B91C1C' : ib.color, color: '#FFFFFF', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: 17, fontWeight: 800, cursor: canSend || sendState === 'error' ? 'pointer' : 'default', opacity: canSend || sendState === 'sent' || sendState === 'error' ? 1 : 0.5, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+            >
+              <Send size={12} strokeWidth={2.6} /> {sendState === 'sending' ? 'Sending…' : sendState === 'sent' ? 'Sent ✓' : sendState === 'error' ? 'Retry' : 'Send'}
+            </button>
+          )}
+          <DictateButtons onText={(t) => { setBody((prev) => (prev ? `${prev} ${t}` : t)); setSendState('idle'); }} />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -630,11 +709,17 @@ function NoraEmailRead({ email, ib }) {
 }
 
 function EmailReplyZone({ ib, defaultDraft, replyMode, setReplyMode, replyText, setReplyText, isHe, toAddr, subject, account }) {
-  const [sendState, setSendState] = useState('idle'); // idle | sending | sent | error
-  const canSend = Boolean(toAddr) && replyText.trim().length > 0 && sendState !== 'sending';
+  const [sendState, setSendState] = useState('idle'); // idle | confirm | sending | sent | error
+  const canSend = Boolean(toAddr) && replyText.trim().length > 0 && sendState !== 'sending' && sendState !== 'confirm';
 
-  const doSend = async () => {
+  // Confirmation gate (mandated: never send on the user's behalf without an
+  // explicit yes). First click → 'confirm' shows the recipient; Confirm → send.
+  const requestSend = () => {
     if (!canSend) return;
+    setSendState('confirm');
+  };
+  const cancelSend = () => setSendState('idle');
+  const confirmSend = async () => {
     setSendState('sending');
     try {
       const replySubject = subject
@@ -768,30 +853,52 @@ function EmailReplyZone({ ib, defaultDraft, replyMode, setReplyMode, replyText, 
           borderTop: `1px solid ${semantic.divider}`
         }}
       >
-        <button
-          type="button"
-          onClick={doSend}
-          disabled={!canSend}
-          title={!toAddr ? 'No sender address to reply to' : sendState === 'sent' ? 'Sent via g@reprime.com' : 'Send reply'}
-          style={{
-            background: sendState === 'sent' ? '#16A34A' : sendState === 'error' ? '#B91C1C' : ib.color,
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: 6,
-            padding: '6px 14px',
-            fontSize: 18,
-            fontWeight: 800,
-            cursor: canSend ? 'pointer' : 'default',
-            opacity: canSend || sendState === 'sent' || sendState === 'error' ? 1 : 0.5,
-            fontFamily: 'inherit',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5
-          }}
-        >
-          <Send size={12} strokeWidth={2.6} />{' '}
-          {sendState === 'sending' ? 'Sending…' : sendState === 'sent' ? 'Sent ✓' : sendState === 'error' ? 'Retry' : sendLabel}
-        </button>
+        {sendState === 'confirm' ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: ink[700] }}>
+              Send to <span style={{ color: ib.color }}>{toAddr}</span> via {ib.label}?
+            </span>
+            <button
+              type="button"
+              onClick={confirmSend}
+              style={{ background: '#16A34A', color: '#FFFFFF', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 16, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+            >
+              <Send size={12} strokeWidth={2.6} /> Confirm send
+            </button>
+            <button
+              type="button"
+              onClick={cancelSend}
+              style={{ background: 'transparent', color: ink[500], border: `1px solid ${semantic.divider}`, borderRadius: 6, padding: '6px 12px', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              Cancel
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={requestSend}
+            disabled={!canSend && sendState !== 'error'}
+            title={!toAddr ? 'No sender address to reply to' : sendState === 'sent' ? 'Sent via g@reprime.com' : 'Send reply (asks to confirm)'}
+            style={{
+              background: sendState === 'sent' ? '#16A34A' : sendState === 'error' ? '#B91C1C' : ib.color,
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 14px',
+              fontSize: 18,
+              fontWeight: 800,
+              cursor: canSend || sendState === 'error' ? 'pointer' : 'default',
+              opacity: canSend || sendState === 'sent' || sendState === 'error' ? 1 : 0.5,
+              fontFamily: 'inherit',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5
+            }}
+          >
+            <Send size={12} strokeWidth={2.6} />{' '}
+            {sendState === 'sending' ? 'Sending…' : sendState === 'sent' ? 'Sent ✓' : sendState === 'error' ? 'Retry' : sendLabel}
+          </button>
+        )}
         {/* Dictation — two explicit language buttons (Gideon 2026-06-16): transcript fills the reply */}
         <DictateButtons
           onText={(t) => {
