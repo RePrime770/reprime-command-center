@@ -205,6 +205,10 @@ function PttCluster() {
   const cycle = () => {
     const nxt = { idle: 'active', active: 'idle', note: 'idle', mission: 'idle' }[ptt];
     set('pttState', nxt);
+    // Connect the top-bar PTT to the real Nora chat: bump noraFocus so
+    // NoraChat focuses its input (the full record→transcribe→chat→TTS chain
+    // lives there). Previously this button only cycled a color.
+    if (nxt === 'active') set('noraFocus', (state.noraFocus || 0) + 1);
   };
   const active = ptt !== 'idle';
 
@@ -342,8 +346,14 @@ function ApexNowIndicator() {
   return (
     <button
       type="button"
-      onClick={() => set('apexClicked', Date.now())}
-      title="Apex right now"
+      onClick={() => {
+        // Route the apex item to Nora (prefill, not auto-send) so the card is a
+        // real action, not a dead button. NoraChat listens for `nora:prefill`.
+        const q = `What's the latest on "${label || sub || 'the apex item'}", and what's my next move?`;
+        try { window.dispatchEvent(new CustomEvent('nora:prefill', { detail: q })); } catch { /* SSR / no window */ }
+        set('noraFocus', (Date.now()));
+      }}
+      title="Ask Nora about this — prefills the chat (does not auto-send)"
       style={{
         background: '#DC2626',
         color: '#FFFFFF',
