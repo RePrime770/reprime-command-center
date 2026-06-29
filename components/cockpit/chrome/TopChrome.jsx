@@ -483,16 +483,59 @@ function shabbatLabel(now) {
   return `שבת in ${days}d`;
 }
 
+/**
+ * Compute the Shabbat/Yom Tov countdown label from REAL candle-lighting and
+ * havdalah ISO timestamps (from /api/religious-calendar → Hebcal, Postville IA).
+ * Returns 'שבת now' inside the window, else 'שבת in Nd' / 'שבת in Nh' / 'שבת in Nm'.
+ * @param {Date} now
+ * @param {{candleLighting: string|null, havdalah: string|null, isRestNow: boolean}} z
+ * @returns {string}
+ */
+function shabbatLabelFromZmanim(now, z) {
+  if (z.isRestNow) return 'שבת now';
+  if (!z.candleLighting) return shabbatLabel(now); // no data → heuristic
+  const ms = new Date(z.candleLighting).getTime() - now.getTime();
+  if (Number.isNaN(ms)) return shabbatLabel(now);
+  if (ms <= 0) return 'שבת now';
+  if (ms < MS_PER_HOUR) {
+    const mins = Math.max(1, Math.round(ms / 60000));
+    return `שבת in ${mins}m`;
+  }
+  if (ms < MS_PER_DAY) {
+    const hours = Math.max(1, Math.round(ms / MS_PER_HOUR));
+    return `שבת in ${hours}h`;
+  }
+  const days = Math.round(ms / MS_PER_DAY);
+  return `שבת in ${days}d`;
+}
+
 // Lean clock + Shabbat countdown — replaces the old StatusCluster noise
 // (DailyMomentum meter, PWA pill, and fake all-green service dot-row removed).
-// Live: ticks every second off the real local clock. The component mounts in a
-// client tree ('use client' upstream), so the interval is safe.
+// Live: ticks every second off the real local clock. The Shabbat pill now uses
+// REAL candle-lighting/havdalah from /api/religious-calendar (Hebcal, Postville
+// IA), falling back to the local heuristic if the fetch fails. The component
+// mounts in a client tree ('use client' upstream), so the interval is safe.
 function ClockShabbat() {
   const [now, setNow] = useState(() => new Date());
+  const [zmanim, setZmanim] = useState(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
+  }, []);
+
+  // Fetch real zmanim on mount + hourly refresh (times only change daily).
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      fetch('/api/religious-calendar', { credentials: 'same-origin' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (!cancelled && d) setZmanim(d); })
+        .catch(() => { /* keep heuristic fallback */ });
+    };
+    load();
+    const id = setInterval(load, 60 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   const time = now.toLocaleTimeString('en-US', {
@@ -505,7 +548,16 @@ function ClockShabbat() {
   const weekday = now.toLocaleDateString('en-US', { weekday: 'short' });
   const monthDay = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const date = `${weekday} · ${monthDay}`;
-  const shabbat = shabbatLabel(now);
+  const shabbat = zmanim ? shabbatLabelFromZmanim(now, zmanim) : shabbatLabel(now);
+  // Surface the real candle-lighting clock time on hover when we have it.
+  const candleTime = zmanim?.candleLighting && !zmanim?.isRestNow
+    ? new Date(zmanim.candleLighting).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    : null;
+  const shabbatTitle = zmanim?.live
+    ? (zmanim.isRestNow
+        ? `${zmanim.title || 'Shabbat'} — havdalah ${zmanim.havdalah ? new Date(zmanim.havdalah).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}`
+        : `Candle-lighting ${candleTime || ''} · ${zmanim.location}`)
+    : 'Approximate (zmanim offline)';
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
@@ -515,7 +567,7 @@ function ClockShabbat() {
         </div>
         <div style={{ color: brand.goldSoft, fontSize: 9 }}>{date}</div>
       </div>
-      <span style={{ ...pillBtn({ bg: 'rgba(102,187,106,0.18)', fg: '#A5D6A7' }), padding: '3px 9px' }}>
+      <span title={shabbatTitle} style={{ ...pillBtn({ bg: 'rgba(102,187,106,0.18)', fg: '#A5D6A7' }), padding: '3px 9px' }}>
         {shabbat}
       </span>
     </div>

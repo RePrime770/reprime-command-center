@@ -1,16 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { warm, ink, info, success, warning } from '../lib/colors.js';
 import DrawerShell from './DrawerShell.jsx';
 import { useDemo } from '../demo/DemoContext.jsx';
 
 /**
- * Religious calendar drawer. Shows the upcoming Shabbat window. The precise
- * candle-lighting/zmanim time needs a zmanim API we don't have yet, so we show
- * the dynamically-computed upcoming Friday date and a "~sunset" approximation
- * rather than stale fixed dates. The "Tag contact observance" section below is
- * a static helper, not date-bound.
+ * Religious calendar drawer. Shows real candle-lighting / havdalah and upcoming
+ * Yom Tov from /api/religious-calendar (Hebcal, Postville IA). Falls back to a
+ * dynamically-computed upcoming-Friday heuristic if the zmanim fetch fails, so
+ * the drawer is never empty. The "Tag contact observance" section is a separate
+ * static helper, not date-bound.
  */
-function buildUpcoming() {
+function buildHeuristic() {
   const now = new Date();
   const d = new Date(now);
   const day = d.getDay();              // 0 Sun .. 6 Sat
@@ -23,6 +23,37 @@ function buildUpcoming() {
   ];
 }
 
+// Map real Hebcal events → drawer rows with friendly date + time.
+function buildFromZmanim(z) {
+  const fmtDate = (iso) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+  const fmtTime = (iso) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  };
+  const rows = [];
+  if (z.candleLighting) {
+    rows.push({
+      date: fmtDate(z.candleLighting),
+      label: `${z.isRestNow ? 'In ' : ''}${z.title || 'Shabbat'} · candle-lighting ${fmtTime(z.candleLighting)} (${z.location})`,
+      kind: 'shabbat',
+    });
+  }
+  if (z.havdalah) {
+    rows.push({ date: fmtDate(z.havdalah), label: `Havdalah · ${fmtTime(z.havdalah)}`, kind: 'pre-shutdown' });
+  }
+  for (const u of (z.upcoming || [])) {
+    if (u.category === 'holiday') {
+      rows.push({ date: fmtDate(u.date), label: u.title, kind: 'yomtov' });
+    }
+  }
+  return rows.slice(0, 8);
+}
+
 const stripeColor = (k) => {
   if (k === 'shabbat' || k === 'yomtov') return success[500];
   if (k === 'pre-shutdown') return warning[500];
@@ -32,7 +63,19 @@ const stripeColor = (k) => {
 
 export default function ReligiousCalendarDrawer() {
   const { state, set } = useDemo();
-  const upcoming = buildUpcoming();
+  const [zmanim, setZmanim] = useState(null);
+
+  useEffect(() => {
+    if (!state.religiousCalendarOpen) return;
+    let cancelled = false;
+    fetch('/api/religious-calendar', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d) setZmanim(d); })
+      .catch(() => { /* fall back to heuristic */ });
+    return () => { cancelled = true; };
+  }, [state.religiousCalendarOpen]);
+
+  const upcoming = zmanim?.live ? buildFromZmanim(zmanim) : buildHeuristic();
   return (
     <DrawerShell
       open={state.religiousCalendarOpen}

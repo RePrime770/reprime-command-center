@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Video, Phone, Coffee } from 'lucide-react';
 import { ink, tier as TIER, semantic, brand } from '../lib/colors.js';
 import { fmtTime } from '../lib/format.js';
@@ -29,6 +29,29 @@ export default function CalendarPanel({ width }) {
   const { events, today: todayDate } = useLiveData();
   const today = events.filter((e) => e.date === todayDate);
   const [memo, setMemo] = useState('');
+  const [zmanim, setZmanim] = useState(null);
+
+  // Real candle-lighting from /api/religious-calendar (Hebcal, Postville IA);
+  // falls back to the nextFridayLabel() heuristic if the fetch fails.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/religious-calendar', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d?.live) setZmanim(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // Build the religious-calendar pill text from real zmanim when available.
+  let religiousLine = `שבת begins ${nextFridayLabel()} · candle-lighting ~sunset (Postville)`;
+  if (zmanim?.candleLighting) {
+    const cl = new Date(zmanim.candleLighting);
+    const dLabel = cl.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    const tLabel = cl.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    religiousLine = zmanim.isRestNow
+      ? `שבת — havdalah ${zmanim.havdalah ? new Date(zmanim.havdalah).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''} (${zmanim.location})`
+      : `שבת begins ${dLabel} · candle-lighting ${tLabel} (${zmanim.location})`;
+  }
   // Listen reads back the dictated memo if present, else the live agenda.
   const agendaText = today.length
     ? `Today: ${today
@@ -55,7 +78,7 @@ export default function CalendarPanel({ width }) {
           RELIGIOUS CALENDAR
         </div>
         <div style={{ fontSize: 16, color: '#5D4037', marginTop: 2, lineHeight: 1.3 }}>
-          שבת begins {nextFridayLabel()} · candle-lighting ~sunset (Postville)
+          {religiousLine}
         </div>
       </div>
 
