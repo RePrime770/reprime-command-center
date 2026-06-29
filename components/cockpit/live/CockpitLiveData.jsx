@@ -13,6 +13,7 @@ import React, {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useState,
   useCallback,
   useRef,
@@ -160,19 +161,38 @@ export function CockpitLiveDataProvider({ children }) {
 
   useEffect(() => {
     let cancelled = false;
+    // Visibility-gated polling — when the tab is hidden we don't burn API
+    // calls or re-render the tree. On visibilitychange → visible we refresh
+    // immediately so the user lands on fresh data, not 60s-stale data.
     const tick = () => {
-      if (!cancelled) load();
+      if (cancelled) return;
+      if (typeof document !== 'undefined' && document.hidden) return;
+      load();
     };
     tick();
     const interval = setInterval(tick, REFRESH_MS);
+    const onVis = () => {
+      if (typeof document !== 'undefined' && !document.hidden) tick();
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVis);
+    }
     return () => {
       cancelled = true;
       clearInterval(interval);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVis);
+      }
     };
   }, [load]);
 
+  // Stable context value — without this memo, the spread mints a new object
+  // on every render, invalidating every useLiveData() consumer ~60s/tick AND
+  // on every descendant keystroke. See docs/PERFORMANCE_AUDIT.md finding #1.
+  const ctxValue = useMemo(() => ({ ...value, refresh: load }), [value, load]);
+
   return (
-    <CockpitLiveDataContext.Provider value={{ ...value, refresh: load }}>
+    <CockpitLiveDataContext.Provider value={ctxValue}>
       {children}
     </CockpitLiveDataContext.Provider>
   );

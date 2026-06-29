@@ -10,6 +10,12 @@
  * never returned in API responses.
  */
 
+import { checkEnv, type AdapterStatus } from '../adapters/status'
+
+export function getStatus(): AdapterStatus {
+  return checkEnv('slack', ['SLACK_WEBHOOK_URL'])
+}
+
 export interface SlackPostResult {
   sent: boolean
   reason?: string

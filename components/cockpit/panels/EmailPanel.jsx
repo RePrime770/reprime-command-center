@@ -1029,37 +1029,30 @@ function RemindButton({ reminded, onToggle }) {
 }
 
 /**
- * VoiceMessageButton — records & "sends" a voice note (mock).
- * Distinct from RecordButton (dictation): this produces a voice MESSAGE,
- * mirroring WhatsApp's hold-to-record mic. Mock-only — no real send.
+ * VoiceMessageButton — placeholder for an email-side voice-note action.
+ *
+ * Previously this mocked recording + send with setTimeout, which violated
+ * the cockpit's "no fake success" rule. The actual voice-note pipeline
+ * (MediaRecorder → upload → /api/voice/transcribe → attach to draft) isn't
+ * wired here yet, so the button is intentionally disabled with explanation
+ * until it is.
  */
 function VoiceMessageButton() {
-  const [state, setState] = useState('idle'); // idle → recording → sent
-  const click = () => {
-    if (state === 'recording') {
-      setState('sent');
-      setTimeout(() => setState('idle'), 1400);
-    } else if (state === 'idle') {
-      setState('recording');
-    }
-  };
-  const recording = state === 'recording';
-  const sent = state === 'sent';
   return (
     <button
       type="button"
-      onClick={click}
-      title="Send a voice message"
-      aria-label="Send a voice message"
+      disabled
+      title="Email voice notes not wired yet — use the WhatsApp panel for voice messages."
+      aria-label="Voice notes not configured"
       style={{
-        background: recording ? '#E53935' : sent ? '#43A047' : '#F8FAFC',
-        color: recording || sent ? '#FFFFFF' : ink[700],
-        border: `1px solid ${recording ? '#E53935' : sent ? '#43A047' : semantic.border}`,
+        background: '#F1F5F9',
+        color: '#94A3B8',
+        border: `1px solid ${semantic.border}`,
         borderRadius: 6,
         padding: '5px 10px',
         fontSize: 14,
         fontWeight: 700,
-        cursor: 'pointer',
+        cursor: 'not-allowed',
         fontFamily: 'inherit',
         display: 'inline-flex',
         alignItems: 'center',
@@ -1068,7 +1061,7 @@ function VoiceMessageButton() {
       }}
     >
       <Mic size={13} strokeWidth={2.4} />
-      {recording ? 'Recording… tap to send' : sent ? 'Voice note sent' : 'Voice note'}
+      Voice note · not configured
     </button>
   );
 }

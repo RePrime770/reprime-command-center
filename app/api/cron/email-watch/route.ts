@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { listRecent, getMessage, parseFromHeader } from '@/lib/google/gmail'
+import { cronAuthed } from '@/lib/cron/auth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -13,7 +14,10 @@ export const maxDuration = 60
 // WhatsApp issue can't take email down. WhatsApp itself is handled in real time
 // by /api/whatsapp/webhook.
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!cronAuthed(request)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
   const supabase = createServiceClient()
   const nowIso = new Date().toISOString()
 

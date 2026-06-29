@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { processInvite } from '@/lib/center/engine'
+import { cronAuthed } from '@/lib/cron/auth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -9,7 +10,10 @@ export const maxDuration = 300
 // day-spread slots, dedup guards), flip status to 'sent'. One per run keeps us
 // ban-safe under WhatsApp's limits. Failures flip to 'send_failed' (visible in
 // the Command Center) rather than blocking the queue.
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!cronAuthed(request)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
   const supabase = createServiceClient()
   const { data: rows } = await supabase
     .from('invitations')

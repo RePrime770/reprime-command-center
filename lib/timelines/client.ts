@@ -1,7 +1,12 @@
 import { Redis } from '@upstash/redis'
 import type { Panel, TimelinesChat, TimelinesMessage } from './types'
+import { checkEnv, type AdapterStatus } from '../adapters/status'
 
 const BASE_URL = 'https://app.timelines.ai/integrations/api'
+
+export function getStatus(): AdapterStatus {
+  return checkEnv('timelines', ['TIMELINES_API_KEY'])
+}
 
 export const PANEL_ACCOUNT_MAP: Record<Panel, string> = {
   '718': '+17185505500',

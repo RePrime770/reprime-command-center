@@ -298,20 +298,22 @@ function SendBlock({ variant, channel }) {
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         <button
           type="button"
+          disabled
+          title="Draft pipeline not wired here yet — use the /center page to queue Terminal invitations."
           style={{
-            background: brand.gold,
-            color: brand.navy,
+            background: '#E5E7EB',
+            color: '#6B7280',
             border: 'none',
             borderRadius: 6,
             padding: '8px 18px',
             fontSize: 19,
             fontWeight: 800,
-            cursor: 'pointer',
+            cursor: 'not-allowed',
             fontFamily: 'inherit',
             letterSpacing: '0.04em'
           }}
         >
-          Draft → Review
+          Draft → Review · setup required
         </button>
         <ListenButton compact />
       </div>

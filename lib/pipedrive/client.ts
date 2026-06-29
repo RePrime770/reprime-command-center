@@ -1,4 +1,10 @@
+import { checkEnv, type AdapterStatus } from '../adapters/status'
+
 const BASE_URL = 'https://api.pipedrive.com/v1'
+
+export function getStatus(): AdapterStatus {
+  return checkEnv('pipedrive', ['PIPEDRIVE_API_TOKEN'])
+}
 
 export const PIPEDRIVE_FIELD_KEYS = {
   TAG: 'd57ae324f61ddb2b922fb2e212f0723baba92448',

@@ -1,4 +1,10 @@
+import { checkEnv, type AdapterStatus } from '../adapters/status'
+
 const ENQUEUE_URL = 'https://events.pagerduty.com/v2/enqueue'
+
+export function getStatus(): AdapterStatus {
+  return checkEnv('pagerduty', ['PAGERDUTY_ROUTING_KEY'])
+}
 
 export type Severity = 'critical' | 'error' | 'warning' | 'info'
 

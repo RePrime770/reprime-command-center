@@ -1,10 +1,21 @@
-// Simple shared-password gate for the Command Center. Gideon: password sbh770.
-// (Override via CENTER_PASSWORD env in Vercel; rotate later — see source-of-truth doc.)
-export const CENTER_PASS = process.env.CENTER_PASSWORD || 'sbh770'
+// Shared-password gate for Center API routes. The password lives ONLY in the
+// CENTER_PASSWORD env var — no fallback. When unset, the gate refuses every
+// request. Hardcoded defaults are unsafe in a public repo. Set CENTER_PASSWORD
+// on Vercel; see docs/ENVIRONMENT_AUDIT.md.
+import { timingSafeEqual } from 'node:crypto'
 
 export function centerAuthed(req: Request): boolean {
-  const p = req.headers.get('x-center-pass') || ''
-  return p === CENTER_PASS
+  const expected = process.env.CENTER_PASSWORD
+  if (!expected) return false
+
+  const provided = req.headers.get('x-center-pass') || ''
+  const a = Buffer.from(provided)
+  const b = Buffer.from(expected)
+  if (a.length !== b.length) {
+    timingSafeEqual(b, b)
+    return false
+  }
+  return timingSafeEqual(a, b)
 }
 
 // Parse one pasted line into {name, phone, email}. Tolerant of:

@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getChats, getMessages, sendChatMessage } from '@/lib/timelines/client'
 import { listRecent, getMessage, parseFromHeader } from '@/lib/google/gmail'
+import { cronAuthed } from '@/lib/cron/auth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -19,7 +20,10 @@ const ALERT_CHAT_ID = Number(process.env.CENTER_ALERT_CHAT_ID || '56184407') // 
 type Row = { source_row: number; name: string; phone: string | null; email: string | null; last_reply_at: string | null; alerted_at: string | null; awaiting_us: boolean | null }
 type Patch = { awaiting_us: boolean; last_from: string; last_reply_text?: string; last_reply_at?: string | null; verified_at: string }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!cronAuthed(request)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
   const supabase = createServiceClient()
   const nowIso = new Date().toISOString()
 

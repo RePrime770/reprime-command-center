@@ -1,5 +1,11 @@
+import { checkEnv, type AdapterStatus } from '../adapters/status'
+
 const BASE_URL = 'https://api.zoom.us/v2'
 const OAUTH_URL = 'https://zoom.us/oauth/token'
+
+export function getStatus(): AdapterStatus {
+  return checkEnv('zoom', ['ZOOM_ACCOUNT_ID', 'ZOOM_CLIENT_ID', 'ZOOM_CLIENT_SECRET'])
+}
 
 interface CachedToken {
   token: string

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getAllStatuses } from '@/lib/adapters/registry'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -60,6 +61,7 @@ export async function GET() {
   ) as EnvFlags
 
   const db = await pingDb()
+  const integrations = await getAllStatuses()
 
   const missingEnv = REQUIRED_ENVS.some((k) => !env[k])
   const overall: 'ok' | 'degraded' | 'down' =
@@ -72,6 +74,7 @@ export async function GET() {
       env,
       db,
       overall,
+      integrations,
     },
     {
       headers: { 'cache-control': 'no-store, must-revalidate' },

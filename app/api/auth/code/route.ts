@@ -6,7 +6,6 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 const ALLOWED_EMAIL = 'g@reprime.com'
-const DEFAULT_CODE = 'REPRIME'
 
 /**
  * Constant-time string comparison to avoid leaking the access code via timing.
@@ -39,7 +38,16 @@ export async function POST(request: NextRequest) {
     // Malformed/empty body → treated as missing code below.
   }
 
-  const expected = process.env.AUTH_ACCESS_CODE || DEFAULT_CODE
+  const expected = process.env.AUTH_ACCESS_CODE
+  if (!expected) {
+    // Fail closed when the access code isn't configured. No hardcoded
+    // fallback — this repo is public; a default code would be readable
+    // to anyone with `git clone`. Set AUTH_ACCESS_CODE on Vercel.
+    return NextResponse.json(
+      { error: 'setup_required', message: 'AUTH_ACCESS_CODE is not configured' },
+      { status: 503 }
+    )
+  }
   if (!code || !codeMatches(code, expected)) {
     return NextResponse.json({ error: 'invalid_code' }, { status: 401 })
   }
@@ -83,12 +91,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true }, { status: 200 })
   } catch (err: unknown) {
+    // Log full detail server-side; the response stays opaque so we don't
+    // surface Supabase-internal error strings (service-role admin paths)
+    // to an unauthenticated caller.
     const detail = err instanceof Error ? err.message : 'unknown error'
-    // Log server-side; never leak service-role secrets in the response.
     console.error('[auth/code] session mint failed:', detail)
-    return NextResponse.json(
-      { error: 'session_failed', detail },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'session_failed' }, { status: 500 })
   }
 }

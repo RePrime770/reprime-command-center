@@ -1,4 +1,10 @@
+import { checkEnv, type AdapterStatus } from '../adapters/status'
+
 const SEND_URL = 'https://api.sendgrid.com/v3/mail/send'
+
+export function getStatus(): AdapterStatus {
+  return checkEnv('sendgrid', ['SENDGRID_API_KEY', 'SENDGRID_FROM_EMAIL'])
+}
 
 export interface SendEmailAttachment {
   content: string

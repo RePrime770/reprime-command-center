@@ -38,19 +38,21 @@ export default function EmailComposeDrawer() {
           <div style={{ marginTop: 12, display: 'flex', gap: 10, alignItems: 'center' }}>
             <button
               type="button"
+              disabled
+              title="This drawer is a Drafter-Critic-Synthesizer preview. To actually send mail use the Email panel's reply box (wired to /api/email/draft + /api/email/send)."
               style={{
-                background: info[500],
-                color: '#FCF6EA',
+                background: '#E5E7EB',
+                color: '#6B7280',
                 border: 'none',
                 borderRadius: 8,
                 padding: '10px 20px',
                 fontSize: '18.66px',
                 fontWeight: 700,
-                cursor: 'pointer',
+                cursor: 'not-allowed',
                 fontFamily: 'inherit'
               }}
             >
-              Send
+              Send · use Email panel
             </button>
             <button
               type="button"
