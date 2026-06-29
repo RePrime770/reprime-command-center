@@ -202,6 +202,15 @@ export default function CommsPanel({ width }) {
   );
 }
 
+// Per-channel priority for sort + filter chrome. WhatsApp dominates, SMS next, iMessage last.
+const CHANNEL_PRIORITY = { WA: 0, SMS: 1, iM: 2 };
+function channelKind(channel) {
+  if (!channel) return 'SMS';
+  if (channel.endsWith('-WA')) return 'WA';
+  if (channel.endsWith('-iM')) return 'iM';
+  return 'SMS';
+}
+
 function SubPillar({ sp, openId, setOpen, divider, remindIds, toggleRemind, threads, threadsByChannel, findThread }) {
   // Staff lane filters by thread.staffTag === true (mirrors the isInvestor pattern).
   // 305/718 still pull from threadsByChannel; inv pulls the investor cohort.
@@ -211,10 +220,28 @@ function SubPillar({ sp, openId, setOpen, divider, remindIds, toggleRemind, thre
       : threadsByChannel(sp.id === 'inv' ? 'investors' : sp.id);
   // v4 §B31 — Exclusivity: investors AND staff are pulled OUT of 305 / 718 sub-pillars
   // and shown only in their own lane (Staff = teal). inv/staff lanes keep their own cohort as-is.
-  const list =
+  const baseList =
     sp.id === 'inv' || sp.id === 'staff'
       ? allThreads
       : allThreads.filter((t) => !t.isInvestor && !t.staffTag);
+
+  // Intra-lane channel filter: All · WA · SMS · iM (305 has no iM)
+  const [channelFilter, setChannelFilter] = React.useState('All');
+  const availableKinds = React.useMemo(() => {
+    const kinds = new Set(baseList.map((t) => channelKind(t.channel)));
+    const ordered = ['WA', 'SMS', 'iM'].filter((k) => kinds.has(k));
+    return ordered;
+  }, [baseList]);
+  const filtered = channelFilter === 'All'
+    ? baseList
+    : baseList.filter((t) => channelKind(t.channel) === channelFilter);
+  // Sort: WhatsApp first, then SMS, then iM; within each, lastTs descending.
+  const list = [...filtered].sort((a, b) => {
+    const pa = CHANNEL_PRIORITY[channelKind(a.channel)] ?? 9;
+    const pb = CHANNEL_PRIORITY[channelKind(b.channel)] ?? 9;
+    if (pa !== pb) return pa - pb;
+    return new Date(b.lastTs || 0) - new Date(a.lastTs || 0);
+  });
   const open = openId ? findThread(openId) : null;
 
   return (
@@ -284,22 +311,27 @@ function SubPillar({ sp, openId, setOpen, divider, remindIds, toggleRemind, thre
           onToggleRemind={() => toggleRemind?.(open.id)}
         />
       ) : (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {list.length === 0 ? (
-            <div style={{ padding: '20px 12px', textAlign: 'center', color: ink[300], fontSize: 14, fontWeight: 600 }}>
-              No threads.
-            </div>
-          ) : (
-            list.map((t) => (
-              <ThreadRow
-                key={t.id}
-                thread={t}
-                onOpen={() => setOpen(t.id)}
-                reminded={remindIds?.has(t.id)}
-                onToggleRemind={() => toggleRemind?.(t.id)}
-              />
-            ))
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          {availableKinds.length > 1 && (
+            <ChannelFilterPills value={channelFilter} setValue={setChannelFilter} kinds={availableKinds} subId={sp.id} />
           )}
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {list.length === 0 ? (
+              <div style={{ padding: '20px 12px', textAlign: 'center', color: ink[300], fontSize: 14, fontWeight: 600 }}>
+                No threads.
+              </div>
+            ) : (
+              list.map((t) => (
+                <ThreadRow
+                  key={t.id}
+                  thread={t}
+                  onOpen={() => setOpen(t.id)}
+                  reminded={remindIds?.has(t.id)}
+                  onToggleRemind={() => toggleRemind?.(t.id)}
+                />
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -310,6 +342,8 @@ function ThreadRow({ thread, onOpen, reminded = false, onToggleRemind }) {
   const isHe = thread.language === 'he';
   const ch = CH[thread.channel];
   const tierHex = thread.tier ? TIER[thread.tier]?.hex : null;
+  const kind = channelKind(thread.channel); // 'WA' | 'SMS' | 'iM'
+  const isWA = kind === 'WA';
   return (
     <button
       type="button"
@@ -318,10 +352,13 @@ function ThreadRow({ thread, onOpen, reminded = false, onToggleRemind }) {
         position: 'relative',
         display: 'block',
         width: '100%',
-        padding: '8px 12px 8px 18px',
+        // WhatsApp gets ~3-4px more vertical padding to sit visually above SMS/iM rows.
+        padding: isWA ? '12px 12px 12px 18px' : '8px 12px 8px 18px',
         background: '#FFFFFF',
         border: 'none',
         borderBottom: `1px solid ${semantic.divider}`,
+        // Subtle channel-color left edge accent stripe on every row.
+        borderLeft: `3px solid ${ch?.hex || ink[300]}`,
         cursor: 'pointer',
         textAlign: isHe ? 'right' : 'left',
         direction: isHe ? 'rtl' : 'ltr',
@@ -330,16 +367,8 @@ function ThreadRow({ thread, onOpen, reminded = false, onToggleRemind }) {
     >
       {tierHex && <span className="tier-stripe" style={{ background: tierHex, width: 7 }} />}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-        <span
-          style={{
-            width: 10,
-            height: 10,
-            borderRadius: 999,
-            background: ch?.hex || ink[300],
-            flexShrink: 0
-          }}
-        />
-        <span style={{ fontSize: 18, fontWeight: 700, color: ink[700], flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <ChannelBadge kind={kind} ch={ch} />
+        <span style={{ fontSize: 18, fontWeight: isWA ? 800 : 600, color: ink[700], flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {thread.isInvestor && <Star size={10} fill={CH.investor.hex} stroke={CH.investor.hex} style={{ display: 'inline', marginRight: 3 }} />}
           {thread.contactName}
         </span>
@@ -1123,6 +1152,103 @@ function Message({ m, ch, contactName, isHe, highlight }) {
           <Paperclip size={14} strokeWidth={2.4} /> {m.mediaFilename || (m.mediaType ? `${m.mediaType} attachment` : 'Attachment')}
         </a>
       )}
+    </div>
+  );
+}
+
+/**
+ * ChannelBadge — small pill at the start of each thread row showing the channel.
+ * WhatsApp dominates (brighter, bolder); SMS muted; iMessage even more muted.
+ */
+function ChannelBadge({ kind, ch }) {
+  const isWA = kind === 'WA';
+  const isSMS = kind === 'SMS';
+  const isIM = kind === 'iM';
+  const baseHex = ch?.hex || ink[300];
+  const label = isWA ? 'WA' : isSMS ? 'SMS' : 'iM';
+  const bg = isWA ? baseHex : isSMS ? `${baseHex}22` : '#E2E8F0';
+  const fg = isWA ? '#FFFFFF' : isSMS ? baseHex : '#64748B';
+  const border = isWA ? baseHex : isSMS ? `${baseHex}55` : 'rgba(15,23,42,0.12)';
+  return (
+    <span
+      aria-label={`${label} channel`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: bg,
+        color: fg,
+        border: `1px solid ${border}`,
+        borderRadius: 4,
+        padding: isWA ? '2px 7px' : '1px 6px',
+        fontSize: 11,
+        fontWeight: isWA ? 900 : isIM ? 700 : 800,
+        letterSpacing: '0.06em',
+        lineHeight: 1,
+        flexShrink: 0,
+        minWidth: 26,
+        textAlign: 'center'
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+/**
+ * ChannelFilterPills — intra-lane "All · WA · SMS · iM" filter row above the thread list.
+ * Active pill picks up the channel's color so you always know which channel you're filtered to.
+ */
+function ChannelFilterPills({ value, setValue, kinds, subId }) {
+  // Resolve the channel-color for each kind from the lane's family (305 / 718 / staff / inv).
+  const family = subId === '305' || subId === '718' ? subId : null;
+  const colorFor = (kind) => {
+    if (family && kind === 'WA') return CH[`${family}-WA`]?.hex;
+    if (family && kind === 'SMS') return CH[`${family}-SMS`]?.hex;
+    if (family && kind === 'iM') return CH[`${family}-iM`]?.hex;
+    if (kind === 'WA') return CH['305-WA'].hex;
+    if (kind === 'SMS') return CH['305-SMS'].hex;
+    return CH['718-iM'].hex;
+  };
+  const options = ['All', ...kinds];
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: 4,
+        padding: '6px 8px',
+        background: '#FFFFFF',
+        borderBottom: `1px solid ${semantic.divider}`,
+        flexShrink: 0,
+        flexWrap: 'wrap'
+      }}
+    >
+      {options.map((opt) => {
+        const active = value === opt;
+        const c = opt === 'All' ? ink[700] : colorFor(opt);
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => setValue(opt)}
+            style={{
+              background: active ? c : '#FFFFFF',
+              color: active ? '#FFFFFF' : c,
+              border: `1px solid ${active ? c : 'rgba(15,23,42,0.16)'}`,
+              borderRadius: 999,
+              padding: '2px 9px',
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: '0.06em',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              lineHeight: 1.4
+            }}
+          >
+            {opt}
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -82,6 +82,7 @@ const EMPTY_VALUE = {
   morningBrief: { date: '', greeting: 'Boker tov, Gideon.', apex: null, sections: [], degraded: false, unreadTotal: 0 },
   noraDesk: { noraToYou: [], youToNora: [] },
   emails: [],
+  emailSecondary: null,
   loading: true,
   error: null,
   lastUpdated: null,
@@ -141,6 +142,12 @@ export function CockpitLiveDataProvider({ children }) {
 
     // Email triage: live scored inbox, empty when empty — never mock.
     const emails = emailPayload ? adaptEmails(emailPayload) : [];
+    // Secondary-account setup status (e.g. GOOGLE_REFRESH_TOKEN_2 unset →
+    // EmailPanel renders a "Setup required" tab). null if the route omits it.
+    const emailSecondary =
+      emailPayload && typeof emailPayload === 'object' && 'secondary' in emailPayload
+        ? emailPayload.secondary
+        : null;
 
     hasLiveRef.current = true;
     setValue({
@@ -152,6 +159,7 @@ export function CockpitLiveDataProvider({ children }) {
       morningBrief,
       noraDesk,
       emails,
+      emailSecondary,
       loading: false,
       error: null,
       lastUpdated: new Date().toISOString(),

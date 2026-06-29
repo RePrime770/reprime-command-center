@@ -7,6 +7,7 @@ import {
   isInsufficientScopeError,
   listRecent,
   parseFromHeader,
+  secondaryAccountStatus,
   type GmailAccount,
 } from '@/lib/google/gmail'
 import {
@@ -304,6 +305,11 @@ async function runSync(request: Request) {
     { scanned: 0, skipped: 0, scored: 0, surfaced: 0 },
   )
 
+  // Surface secondary-account setup_required when GOOGLE_REFRESH_TOKEN_2 is
+  // unset, so the EmailPanel can render a "Setup required" tab instead of
+  // silently hiding the second mailbox.
+  const secondary = secondaryAccountStatus()
+
   return NextResponse.json({
     ...totals,
     accounts: perAccount.map((r) => ({
@@ -315,6 +321,7 @@ async function runSync(request: Request) {
       consent_required: r.consentRequired ?? false,
       failures: r.failures.slice(0, 10),
     })),
+    secondary,
   })
 }
 

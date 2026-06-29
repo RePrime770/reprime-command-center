@@ -80,13 +80,16 @@ function stopSharedAudio() {
 
 /**
  * Speak text via ElevenLabs TTS through the shared (unlocked) audio element.
- * Best-effort: a failed TTS or blocked play never throws.
+ * Best-effort but now reports failure (used to drive button error/disabled state).
+ * Returns { ok: true } on play, or { ok: false, reason } when TTS fails.
+ * Common reasons: 'empty' | 'not-configured' | 'upstream' | 'network' | 'no-audio'.
  * @param {string} text
  * @param {'en'|'he'} [language]
+ * @returns {Promise<{ok:boolean, reason?:string}>}
  */
 export async function speak(text, language) {
   const clean = (text || '').trim();
-  if (!clean) return;
+  if (!clean) return { ok: false, reason: 'empty' };
   const lang = language || detectLanguage(clean);
   try {
     const res = await fetch('/api/voice/speak', {
@@ -95,17 +98,28 @@ export async function speak(text, language) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: clean, language: lang }),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      // 500 + 'TTS not configured' bubbles up so the button can disable itself.
+      let reason = 'upstream';
+      try {
+        const j = await res.json();
+        if (typeof j?.error === 'string' && j.error.toLowerCase().includes('not configured')) {
+          reason = 'not-configured';
+        }
+      } catch { /* ignore parse errors */ }
+      return { ok: false, reason };
+    }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = getSharedAudio();
-    if (!a) return;
+    if (!a) return { ok: false, reason: 'no-audio' };
     stopSharedAudio();
     a.src = url;
     a.onended = () => URL.revokeObjectURL(url);
     await a.play().catch(() => {});
+    return { ok: true };
   } catch {
-    /* best-effort */
+    return { ok: false, reason: 'network' };
   }
 }
 
@@ -123,10 +137,14 @@ export function stopSpeaking() {
  */
 export function useSpeech(textOrGetter, opts = {}) {
   const [playing, setPlaying] = useState(false);
+  // 'idle' | 'busy' | 'error' | 'disabled'. We expose this so callers can
+  // give the user real feedback instead of silently failing.
+  const [status, setStatus] = useState('idle');
 
   const stop = useCallback(() => {
     stopSharedAudio();
     setPlaying(false);
+    setStatus('idle');
   }, []);
 
   const toggle = useCallback(async () => {
@@ -138,22 +156,28 @@ export function useSpeech(textOrGetter, opts = {}) {
     if (!text.trim()) return;
 
     const a = getSharedAudio();
+    setStatus('busy');
     setPlaying(true);
     if (a) {
       const done = () => {
         setPlaying(false);
+        setStatus((s) => (s === 'busy' ? 'idle' : s));
         a.removeEventListener('ended', done);
         a.removeEventListener('pause', done);
       };
       a.addEventListener('ended', done);
       a.addEventListener('pause', done);
     }
-    await speak(text, opts.language);
-    // If playback never started (blocked / failed), don't get stuck "Playing".
+    const result = await speak(text, opts.language);
+    if (!result.ok) {
+      setPlaying(false);
+      setStatus(result.reason === 'not-configured' ? 'disabled' : 'error');
+      return;
+    }
     if (a && a.paused) setPlaying(false);
   }, [playing, stop, textOrGetter, opts.language]);
 
-  return { playing, toggle, stop };
+  return { playing, toggle, stop, status };
 }
 
 // ── Dictation (Whisper) ────────────────────────────────────────────────────
@@ -168,6 +192,8 @@ export function useDictation(opts = {}) {
   const { language = 'en', onText } = opts;
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState(null);
+  // 'idle' | 'recording' | 'transcribing' | 'done' | 'error'
+  const [status, setStatus] = useState('idle');
   const mediaRecorderRef = useRef();
   const chunksRef = useRef([]);
   const langRef = useRef(language);
@@ -179,6 +205,7 @@ export function useDictation(opts = {}) {
       if (langOverride === 'he' || langOverride === 'en') langRef.current = langOverride;
       if (!navigator.mediaDevices?.getUserMedia) {
         setError('Microphone not available.');
+        setStatus('error');
         return;
       }
       try {
@@ -191,7 +218,8 @@ export function useDictation(opts = {}) {
         mr.addEventListener('stop', async () => {
           stream.getTracks().forEach((t) => t.stop());
           const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
-          if (blob.size === 0) return;
+          if (blob.size === 0) { setStatus('idle'); return; }
+          setStatus('transcribing');
           try {
             const form = new FormData();
             form.append('audio', blob, 'dictation.webm');
@@ -206,18 +234,24 @@ export function useDictation(opts = {}) {
               const data = await res.json();
               const text = typeof data?.text === 'string' ? data.text.trim() : '';
               if (text) onText?.(text);
+              setStatus('done');
+              setTimeout(() => setStatus((s) => (s === 'done' ? 'idle' : s)), 1200);
             } else {
               setError('Could not transcribe.');
+              setStatus('error');
             }
           } catch {
             setError('Transcription failed.');
+            setStatus('error');
           }
         });
         mediaRecorderRef.current = mr;
         mr.start();
         setRecording(true);
+        setStatus('recording');
       } catch {
         setError('Microphone permission denied.');
+        setStatus('error');
       }
     },
     [onText, langRef, mediaRecorderRef, chunksRef]
@@ -231,5 +265,5 @@ export function useDictation(opts = {}) {
 
   const toggle = useCallback(() => (recording ? stop() : start()), [recording, start, stop]);
 
-  return { recording, start, stop, toggle, error };
+  return { recording, start, stop, toggle, error, status };
 }

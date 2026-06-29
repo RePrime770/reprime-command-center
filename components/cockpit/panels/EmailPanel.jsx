@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PenSquare, X, Send, Reply, Star, Paperclip, Mic, Clock, Video } from 'lucide-react';
+import { PenSquare, X, Send, Reply, Star, Paperclip, Mic, Clock, Video, ArrowLeft } from 'lucide-react';
 import { ink, channel as CH, tier as TIER, semantic, emailInbox as EI } from '../lib/colors.js';
 import { useLiveData } from '../live/CockpitLiveData.jsx';
 import { useDemo } from '../demo/DemoContext.jsx';
@@ -43,13 +43,21 @@ function inboxMetaFor(email) {
 
 // Derive the tab list from the emails present: 'All' + one tab per distinct
 // account_email, in first-seen order. Single-account → ['All', that account].
-function buildInboxes(emails) {
+// When `secondary` is { ok:false, email, ... } AND that mailbox has no rows
+// yet, append a "Setup required" tab carrying its real email — the panel
+// renders setup instructions instead of an inbox list.
+function buildInboxes(emails, secondary) {
   const seen = [];
   for (const e of emails) {
     const inbox = e.inbox || '';
     if (inbox && !seen.includes(inbox)) seen.push(inbox);
   }
-  return [ALL_INBOX, ...seen.map(inboxMetaFor)];
+  const tabs = [ALL_INBOX, ...seen.map(inboxMetaFor)];
+  if (secondary && secondary.ok === false && secondary.email && !seen.includes(secondary.email)) {
+    const meta = inboxMetaFor(secondary.email);
+    tabs.push({ ...meta, setupRequired: true, missingEnv: secondary.missingEnv || [] });
+  }
+  return tabs;
 }
 
 // Per-email meta resolver (used by row + opened views). 'all' or an unknown
@@ -62,16 +70,19 @@ function inboxMeta(key) {
 export default function EmailPanel({ width }) {
   // Live triaged inbox from the cockpit provider (GET /api/email/triage).
   // Falls back to static while the first fetch is in flight or on error.
-  const { emails: liveEmails } = useLiveData();
+  const { emails: liveEmails, emailSecondary } = useLiveData();
   const emails = Array.isArray(liveEmails) ? liveEmails : [];
-  // Tabs reflect the mailboxes that actually have triaged email this render.
-  const INBOXES = buildInboxes(emails);
+  // Tabs reflect the mailboxes that actually have triaged email this render,
+  // plus a "Setup required" tab for the secondary mailbox when its token is
+  // unset (so the second account never silently disappears).
+  const INBOXES = buildInboxes(emails, emailSecondary);
   const { state, set } = useDemo();
   const [inbox, setInbox] = useState('all');
   const [openedId, setOpenedId] = useState(null);
   const [composing, setComposing] = useState(false);
   const [remindIds, setRemindIds] = useState(() => new Set());
   const [search, setSearch] = useState('');
+  const activeTab = INBOXES.find((t) => t.k === inbox) || ALL_INBOX;
 
   // Unread (fallback: total) count per inbox tab — feeds the tab pill badges.
   const unreadCountFor = (key) => {
@@ -165,7 +176,11 @@ export default function EmailPanel({ width }) {
 
       {composing && <ComposeEmail onClose={() => setComposing(false)} />}
 
-      {!opened && !composing && (
+      {!opened && !composing && activeTab.setupRequired && (
+        <SetupRequiredPane meta={activeTab} />
+      )}
+
+      {!opened && !composing && !activeTab.setupRequired && (
         <>
           {/* Inbox search — filters by sender / subject / preview, client-side */}
           <div style={{ padding: '6px 8px', background: '#FFFFFF', borderBottom: `1px solid ${semantic.divider}`, flexShrink: 0, position: 'relative' }}>
@@ -552,6 +567,30 @@ function OpenedEmail({ email, onClose }) {
           flexShrink: 0
         }}
       >
+        {/* Back pill — left-edge return-to-inbox affordance (mirrors WhatsApp panel) */}
+        <button
+          type="button"
+          onClick={onClose}
+          title="Back to inbox"
+          aria-label="Back to inbox"
+          style={{
+            background: '#F1F5F9',
+            color: ink[700],
+            border: `1px solid ${semantic.border}`,
+            borderRadius: 999,
+            padding: '4px 10px',
+            fontSize: 13,
+            fontWeight: 800,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            letterSpacing: '0.04em',
+          }}
+        >
+          <ArrowLeft size={12} strokeWidth={2.6} /> Back
+        </button>
         <span
           style={{
             background: ib.color,
@@ -1119,6 +1158,53 @@ function VoiceMessageButton() {
       <Mic size={13} strokeWidth={2.4} />
       Voice note · not configured
     </button>
+  );
+}
+
+/**
+ * SetupRequiredPane — shown when a mailbox tab is rendered for an account whose
+ * refresh token isn't set in the deployment environment. Tells Gideon exactly
+ * which env var to set and where the runbook lives. No real token values
+ * appear here — only the env var NAME (e.g. GOOGLE_REFRESH_TOKEN_2).
+ */
+function SetupRequiredPane({ meta }) {
+  const envList = Array.isArray(meta.missingEnv) && meta.missingEnv.length
+    ? meta.missingEnv
+    : ['GOOGLE_REFRESH_TOKEN_2'];
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: 16, background: meta.faded }}>
+      <div
+        style={{
+          background: '#FFFFFF',
+          border: `1px solid ${meta.color}55`,
+          borderLeft: `5px solid ${meta.color}`,
+          borderRadius: 8,
+          padding: 16,
+          maxWidth: 520,
+        }}
+      >
+        <div style={{ fontSize: 13, fontWeight: 800, color: meta.textOnFaded, letterSpacing: '0.12em', marginBottom: 6 }}>
+          SETUP REQUIRED
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: ink[700], marginBottom: 8 }}>
+          {meta.label} not configured
+        </div>
+        <div style={{ fontSize: 15, lineHeight: 1.5, color: ink[700], marginBottom: 10 }}>
+          The second Gmail account is not connected yet. Set the following
+          environment variable on Vercel to enable this inbox:
+        </div>
+        <ul style={{ margin: '0 0 10px 18px', padding: 0, fontSize: 15, color: ink[700] }}>
+          {envList.map((v) => (
+            <li key={v} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontWeight: 700 }}>{v}</li>
+          ))}
+        </ul>
+        <div style={{ fontSize: 13, color: ink[500], lineHeight: 1.5 }}>
+          See <code style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>docs/ENVIRONMENT_AUDIT.md</code>{' '}
+          for the OAuth steps. Once the token is set, this tab automatically
+          replaces this notice with the live inbox on the next refresh.
+        </div>
+      </div>
+    </div>
   );
 }
 

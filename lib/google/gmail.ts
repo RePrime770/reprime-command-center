@@ -12,14 +12,18 @@ import { google, type gmail_v1 } from 'googleapis'
 /**
  * Multi-account registry. Each mailbox maps to its real email and the env var
  * holding its refresh token. NEVER hardcode a token value — only the env var
- * NAME lives here. NOTE (verified 2026-06-24 via users.getProfile): the default
- * GOOGLE_REFRESH_TOKEN actually authenticates as **g@reprime.com** — the mailbox
- * that sent the 209 invitations — NOT g@floridastatetrust.com. The 'fst' key name
- * + email below are legacy/misleading; the token is reprime. GOOGLE_REFRESH_TOKEN_2
- * is currently UNSET, so the 'reprime' key resolves to an empty token — never use
- * the email-keyed lookup for reprime; use the default client (no account arg).
+ * NAME lives here.
+ *
+ * Verified 2026-06-24 via users.getProfile:
+ *   - GOOGLE_REFRESH_TOKEN   → g@reprime.com (primary, key 'primary')
+ *   - GOOGLE_REFRESH_TOKEN_2 → g@floridastatetrust.com (secondary, key 'fst'),
+ *     currently UNSET in Vercel — see SECONDARY_ACCOUNT_PLACEHOLDER below.
+ *
+ * The 'primary' key is also reachable via the legacy alias 'fst' through
+ * resolveAccount(); this keeps any caller that hard-coded the old key name
+ * working until the next code sweep.
  */
-export type GmailAccountKey = 'fst' | 'reprime'
+export type GmailAccountKey = 'primary' | 'fst'
 
 export type GmailAccount = {
   key: GmailAccountKey
@@ -27,30 +31,34 @@ export type GmailAccount = {
   refreshTokenEnvVar: string
 }
 
+/**
+ * Email reported for the secondary mailbox before its token is configured.
+ * The EmailPanel renders a "Setup required" tab when configuredAccounts()
+ * returns only the primary; this address is the *expected* second mailbox.
+ */
+export const SECONDARY_ACCOUNT_PLACEHOLDER = 'g@floridastatetrust.com'
+
 export const GMAIL_ACCOUNTS: Record<GmailAccountKey, GmailAccount> = {
-  // The default GOOGLE_REFRESH_TOKEN authenticates as g@reprime.com (verified
-  // 2026-06-24 via users.getProfile), so its email is labeled accordingly — the
-  // old 'g@floridastatetrust.com' label caused synced rows to be stamped with
-  // the wrong mailbox. The key name 'fst' is retained only for back-compat with
-  // the type union and DEFAULT_ACCOUNT_KEY; it does not imply the FST mailbox.
-  fst: {
-    key: 'fst',
+  primary: {
+    key: 'primary',
     email: 'g@reprime.com',
     refreshTokenEnvVar: 'GOOGLE_REFRESH_TOKEN',
   },
-  reprime: {
-    key: 'reprime',
-    email: 'g@reprime.com',
+  fst: {
+    key: 'fst',
+    email: SECONDARY_ACCOUNT_PLACEHOLDER,
     refreshTokenEnvVar: 'GOOGLE_REFRESH_TOKEN_2',
   },
 }
 
 // Backward-compatible default: the original single mailbox.
-const DEFAULT_ACCOUNT_KEY: GmailAccountKey = 'fst'
+const DEFAULT_ACCOUNT_KEY: GmailAccountKey = 'primary'
 
 /** Resolve an account from a key, an email, or undefined (→ default). */
 function resolveAccount(account?: GmailAccountKey | string): GmailAccount {
   if (!account) return GMAIL_ACCOUNTS[DEFAULT_ACCOUNT_KEY]
+  // Legacy alias: pre-2026-06-30 callers used 'reprime' for the primary mailbox.
+  if (account === 'reprime') return GMAIL_ACCOUNTS.primary
   const byKey = GMAIL_ACCOUNTS[account as GmailAccountKey]
   if (byKey) return byKey
   const lower = account.toLowerCase()
@@ -58,6 +66,28 @@ function resolveAccount(account?: GmailAccountKey | string): GmailAccount {
     if (acc.email.toLowerCase() === lower) return acc
   }
   return GMAIL_ACCOUNTS[DEFAULT_ACCOUNT_KEY]
+}
+
+/**
+ * Setup status for the secondary mailbox. Used by the EmailPanel + sync route
+ * to surface a "Setup required" tab when GOOGLE_REFRESH_TOKEN_2 isn't set.
+ */
+export type SecondaryAccountStatus =
+  | { ok: true; email: string }
+  | { ok: false; reason: 'setup_required'; email: string; missingEnv: string[] }
+
+export function secondaryAccountStatus(): SecondaryAccountStatus {
+  const acc = GMAIL_ACCOUNTS.fst
+  const token = process.env[acc.refreshTokenEnvVar]
+  if (typeof token === 'string' && token.trim().length > 0) {
+    return { ok: true, email: acc.email }
+  }
+  return {
+    ok: false,
+    reason: 'setup_required',
+    email: acc.email,
+    missingEnv: [acc.refreshTokenEnvVar],
+  }
 }
 
 /**

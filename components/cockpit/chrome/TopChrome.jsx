@@ -3,7 +3,7 @@ import {
   MessageSquarePlus, StickyNote, Mail, Sun,
   Mic, Volume2,
   Headphones, MessagesSquare, AlertCircle, Search,
-  HelpCircle, LogOut
+  HelpCircle, LogOut, ExternalLink
 } from 'lucide-react';
 import { brand, slate, tier as TIER, ink } from '../lib/colors.js';
 import { useDemo } from '../demo/DemoContext.jsx';
@@ -169,10 +169,49 @@ function Row1({ onOpenShortcuts }) {
         <ClockShabbat />
         <ClusterDivider />
         <IntegrationStatusPill />
+        <TerminalButton />
         <HelpButton onOpen={onOpenShortcuts} />
         <UserPill />
       </div>
     </div>
+  );
+}
+
+// Opens the external RePrime Terminal portal in a new tab. Public URL — safe
+// to hardcode (user-provided portal entrypoint).
+function TerminalButton() {
+  const openTerminal = () => {
+    try {
+      window.open('https://portal.reprimeterminal.com/dashboard', '_blank', 'noopener,noreferrer');
+    } catch { /* no window (SSR) */ }
+  };
+  return (
+    <button
+      type="button"
+      onClick={openTerminal}
+      title="Open RePrime Terminal portal (new tab)"
+      aria-label="Open Terminal portal"
+      style={{
+        background: 'rgba(255,255,255,0.06)',
+        color: brand.goldSoft,
+        border: `1px solid rgba(255,204,51,0.22)`,
+        borderRadius: 999,
+        padding: '0 10px',
+        height: 30,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: 13,
+        fontWeight: 700,
+        letterSpacing: '0.04em',
+        flexShrink: 0,
+      }}
+    >
+      <ExternalLink size={12} strokeWidth={2.4} />
+      Terminal
+    </button>
   );
 }
 
@@ -396,27 +435,131 @@ function Row3Tier1() {
 // ============================================================
 function PttCluster() {
   const { state, set } = useDemo();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const ptt = state.pttState || 'idle';
   const mode = state.noraMode || 'listen'; // 'listen' | 'participate'
   const liveStatus = state.noraLiveStatus || 'idle'; // 'idle' | 'listening' | 'drafting' | 'researching' | 'speaking' | 'on-call'
 
-  const cfg = {
+  // Local UX-only states layered on top of the shared `pttState` (which only
+  // distinguishes idle vs. active/listening). We do NOT extend pttState to
+  // avoid breaking other consumers (NoteCapture, etc.).
+  // 'idle' | 'recording' | 'transcribing' | 'sent' | 'mic-blocked' | 'transcribe-failed' | 'send-failed'
+  const [pttPhase, setPttPhase] = useState('idle');
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const streamRef = useRef(null);
+
+  // Reset transient error/sent states after a brief moment.
+  useEffect(() => {
+    if (['sent', 'transcribe-failed', 'send-failed', 'mic-blocked'].includes(pttPhase)) {
+      const ms = pttPhase === 'mic-blocked' ? 3500 : 2000;
+      const id = setTimeout(() => setPttPhase('idle'), ms);
+      return () => clearTimeout(id);
+    }
+    return undefined;
+  }, [pttPhase]);
+
+  // Cleanup any open stream on unmount.
+  useEffect(() => () => {
+    try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch { /* noop */ }
+  }, []);
+
+  // Visual cfg — recording/transcribing layer takes precedence over the
+  // shared pttState (notes/missions). Falls back to the existing pttState map.
+  const phaseCfg = {
+    recording:           { bg: '#FFCDD2', fg: '#B71C1C', label: 'Recording…',       sub: 'tap to stop',     ring: '#E53935' },
+    transcribing:        { bg: '#FFE082', fg: brand.navy, label: 'Transcribing…',   sub: 'one moment',      ring: '#1E88E5' },
+    sent:                { bg: '#C8E6C9', fg: '#1B5E20', label: 'Sent ✓',           sub: 'message sent',    ring: '#43A047' },
+    'mic-blocked':       { bg: '#FFCCBC', fg: '#BF360C', label: 'Mic blocked',      sub: 'allow mic in browser', ring: '#E64A19' },
+    'transcribe-failed': { bg: '#FFCCBC', fg: '#BF360C', label: 'Transcribe failed', sub: 'try again',       ring: '#E64A19' },
+    'send-failed':       { bg: '#FFCCBC', fg: '#BF360C', label: 'Send failed',      sub: 'try again',       ring: '#E64A19' },
+  };
+  const baseCfg = {
     idle:    { bg: brand.gold,   fg: brand.navy, label: 'Talk to Nora', sub: '', ring: brand.gold },
     active:  { bg: '#FFE082',    fg: brand.navy, label: 'Listening',    sub: 'tap to stop', ring: '#1E88E5' },
     note:    { bg: '#F3E5F5',    fg: '#4A148C',  label: 'Note mode',    sub: 'recording memo', ring: '#7B1FA2' },
     mission: { bg: '#E3F2FD',    fg: '#0D47A1',  label: 'Mission',      sub: 'capturing', ring: '#1E3A8A' }
   }[ptt];
+  const cfg = phaseCfg[pttPhase] || baseCfg;
+
+  const stopStream = () => {
+    try { streamRef.current?.getTracks().forEach((tr) => tr.stop()); } catch { /* noop */ }
+    streamRef.current = null;
+  };
+
+  const transcribeAndSend = async (blob) => {
+    setPttPhase('transcribing');
+    try {
+      const endpoint = locale === 'he' ? '/api/voice/transcribe-he' : '/api/voice/transcribe-en';
+      const fd = new FormData();
+      fd.append('audio', blob, 'ptt.webm');
+      const res = await fetch(endpoint, { method: 'POST', body: fd, credentials: 'same-origin' });
+      if (!res.ok) { setPttPhase('transcribe-failed'); return; }
+      const data = await res.json().catch(() => null);
+      const text = typeof data?.text === 'string' ? data.text.trim()
+                  : typeof data?.transcript === 'string' ? data.transcript.trim()
+                  : '';
+      if (!text) { setPttPhase('transcribe-failed'); return; }
+      try {
+        window.dispatchEvent(new CustomEvent('nora:sendMessage', { detail: { text } }));
+        setPttPhase('sent');
+      } catch {
+        setPttPhase('send-failed');
+      }
+    } catch {
+      setPttPhase('transcribe-failed');
+    }
+  };
+
+  const startRecording = async () => {
+    if (typeof window === 'undefined' || !navigator?.mediaDevices?.getUserMedia || typeof window.MediaRecorder === 'undefined') {
+      setPttPhase('mic-blocked');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mr = new MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
+      chunksRef.current = [];
+      mr.addEventListener('dataavailable', (ev) => {
+        if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data);
+      });
+      mr.addEventListener('stop', () => {
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
+        chunksRef.current = [];
+        stopStream();
+        if (blob.size === 0) { setPttPhase('transcribe-failed'); return; }
+        transcribeAndSend(blob);
+      });
+      mr.start();
+      setPttPhase('recording');
+      set('pttState', 'active');
+      set('noraFocus', (state.noraFocus || 0) + 1);
+    } catch {
+      stopStream();
+      setPttPhase('mic-blocked');
+    }
+  };
+
+  const stopRecording = () => {
+    const mr = mediaRecorderRef.current;
+    set('pttState', 'idle');
+    if (mr && mr.state !== 'inactive') {
+      try { mr.stop(); } catch { stopStream(); setPttPhase('transcribe-failed'); }
+    } else {
+      stopStream();
+      setPttPhase('idle');
+    }
+  };
 
   const cycle = () => {
-    const nxt = { idle: 'active', active: 'idle', note: 'idle', mission: 'idle' }[ptt];
-    set('pttState', nxt);
-    // Connect the top-bar PTT to the real Nora chat: bump noraFocus so
-    // NoraChat focuses its input (the full record→transcribe→chat→TTS chain
-    // lives there). Previously this button only cycled a color.
-    if (nxt === 'active') set('noraFocus', (state.noraFocus || 0) + 1);
+    if (pttPhase === 'recording') { stopRecording(); return; }
+    // Don't restart mid-transcribe or while a terminal status is still showing.
+    if (pttPhase === 'transcribing') return;
+    startRecording();
   };
-  const active = ptt !== 'idle';
+  const active = pttPhase === 'recording' || (pttPhase === 'idle' && ptt !== 'idle');
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>

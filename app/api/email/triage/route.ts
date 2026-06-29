@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { findPersonByEmail } from '@/lib/pipedrive/client'
+import { secondaryAccountStatus } from '@/lib/google/gmail'
 
 export const dynamic = 'force-dynamic'
 
@@ -161,5 +162,8 @@ export async function GET(request: Request) {
     min_score: minScore,
     count: filtered.length,
     items: filtered,
+    // Lets the cockpit show a "Setup required" tab for the second mailbox
+    // when GOOGLE_REFRESH_TOKEN_2 isn't set yet.
+    secondary: secondaryAccountStatus(),
   })
 }

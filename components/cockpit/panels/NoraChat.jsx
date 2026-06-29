@@ -92,6 +92,21 @@ export default function NoraChat({ focusSignal }) {
     return () => window.removeEventListener('nora:prefill', handler);
   }, []);
 
+  // Programmatic "send a message to Nora" — used by the top-bar PTT after it
+  // transcribes voice. Unlike `nora:prefill`, this auto-sends.
+  useEffect(() => {
+    const handler = (e) => {
+      const text = typeof e.detail?.text === 'string' ? e.detail.text.trim() : '';
+      if (!text) return;
+      // Defer to the next tick so any in-flight render settles before send.
+      Promise.resolve().then(() => { try { send(text); } catch { /* swallowed */ } });
+    };
+    window.addEventListener('nora:sendMessage', handler);
+    return () => window.removeEventListener('nora:sendMessage', handler);
+    // `send` is a stable useCallback; including it would re-bind on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Hydrate the transcript from persisted history on mount so the conversation
   // survives a reload. Best-effort: if the fetch fails (or the table isn't
   // migrated yet → { messages: [] }), we just start empty.
