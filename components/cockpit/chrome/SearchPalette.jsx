@@ -1,0 +1,169 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Search, X, MessageSquare, Calendar, Mail, Star } from 'lucide-react';
+import { ink, semantic, channel as CH, brand } from '../lib/colors.js';
+import { useDemo } from '../demo/DemoContext.jsx';
+import { useLiveData } from '../live/CockpitLiveData.jsx';
+
+/**
+ * Global command / search palette — the "find anyone, any message, any meeting"
+ * line. Opened by the Concierge "Search" button (state.searchOpen) or Ctrl/Cmd+K.
+ * Searches LIVE data (threads, calendar events, triaged emails) from useLiveData.
+ * Clicking a contact opens that conversation in the Comms hub (set openChat).
+ * No fabrication: empty until there's live data; matches only what exists.
+ */
+export default function SearchPalette() {
+  const { state, set } = useDemo();
+  const { threads, events, emails } = useLiveData();
+  const [q, setQ] = useState('');
+  const inputRef = useRef(null);
+  const open = !!state.searchOpen;
+
+  // Ctrl/Cmd+K toggles the palette from anywhere.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        set('searchOpen', !state.searchOpen);
+      } else if (e.key === 'Escape' && state.searchOpen) {
+        set('searchOpen', false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [state.searchOpen, set]);
+
+  useEffect(() => {
+    if (open) { setQ(''); setTimeout(() => inputRef.current?.focus(), 30); }
+  }, [open]);
+
+  if (!open) return null;
+
+  const query = q.trim().toLowerCase();
+  const threadList = Array.isArray(threads) ? threads : [];
+  const eventList = Array.isArray(events) ? events : [];
+  const emailList = Array.isArray(emails) ? emails : [];
+
+  const matchThreads = !query ? threadList.slice(0, 8) : threadList.filter((t) =>
+    `${t.contactName || ''} ${t.preview || ''} ${t.id || ''}`.toLowerCase().includes(query)
+  ).slice(0, 12);
+  const matchEvents = !query ? [] : eventList.filter((e) =>
+    `${e.title || ''}`.toLowerCase().includes(query)
+  ).slice(0, 8);
+  const matchEmails = !query ? [] : emailList.filter((e) =>
+    `${e.from || ''} ${e.subject || ''} ${e.preview || ''}`.toLowerCase().includes(query)
+  ).slice(0, 8);
+
+  const openThread = (t) => {
+    set('openChat', t.id);
+    set('searchOpen', false);
+  };
+
+  return (
+    <div
+      onClick={() => set('searchOpen', false)}
+      style={{
+        position: 'absolute', inset: 0, zIndex: 60,
+        background: 'rgba(2,6,23,0.55)',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 120,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: 720, maxWidth: '92%', background: '#FFFFFF', borderRadius: 12, boxShadow: '0 24px 64px rgba(2,6,23,0.45)', overflow: 'hidden', maxHeight: '70%', display: 'flex', flexDirection: 'column' }}
+      >
+        {/* Input */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', borderBottom: `1px solid ${semantic.divider}` }}>
+          <Search size={20} strokeWidth={2.4} color={ink[300]} />
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search people, messages, meetings, email…"
+            style={{ flex: 1, border: 'none', outline: 'none', fontSize: 20, fontFamily: 'inherit', color: ink[700], background: 'transparent' }}
+          />
+          <kbd style={{ fontSize: 12, color: ink[300], border: `1px solid ${semantic.border}`, borderRadius: 4, padding: '1px 6px' }}>esc</kbd>
+          <button type="button" onClick={() => set('searchOpen', false)} style={{ background: 'transparent', border: 'none', color: ink[300], cursor: 'pointer', padding: 2 }}>
+            <X size={18} strokeWidth={2.4} />
+          </button>
+        </div>
+
+        {/* Results */}
+        <div style={{ overflowY: 'auto', padding: 8 }}>
+          <Group icon={MessageSquare} label={query ? 'Conversations' : 'Recent conversations'} count={matchThreads.length}>
+            {matchThreads.map((t) => {
+              const ch = CH[t.channel];
+              return (
+                <button key={t.id} type="button" onClick={() => openThread(t)} style={rowStyle}>
+                  <span style={{ width: 8, height: 8, borderRadius: 999, background: ch?.hex || ink[300], flexShrink: 0 }} />
+                  <span style={{ fontSize: 16, fontWeight: 700, color: ink[700], display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    {t.isInvestor && <Star size={11} fill={CH.investor.hex} stroke={CH.investor.hex} />}
+                    {t.contactName || t.id}
+                  </span>
+                  <span style={{ fontSize: 13, color: ch?.hex || ink[300] }}>{ch?.label || t.channel}</span>
+                  {t.preview && <span style={{ fontSize: 13, color: ink[300], flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {t.preview}</span>}
+                </button>
+              );
+            })}
+            {matchThreads.length === 0 && <Empty>No matching conversations.</Empty>}
+          </Group>
+
+          {matchEvents.length > 0 && (
+            <Group icon={Calendar} label="Today's meetings" count={matchEvents.length}>
+              {matchEvents.map((e) => (
+                <div key={e.id} style={{ ...rowStyle, cursor: 'default' }}>
+                  <span style={{ fontSize: 16, fontWeight: 700, color: ink[700] }}>{e.time} — {e.title}</span>
+                  {e.joinUrl && <a href={e.joinUrl} target="_blank" rel="noopener noreferrer" onClick={(ev) => ev.stopPropagation()} style={{ fontSize: 13, color: '#2D8CFF', fontWeight: 700 }}>Join ↗</a>}
+                </div>
+              ))}
+            </Group>
+          )}
+
+          {matchEmails.length > 0 && (
+            <Group icon={Mail} label="Email" count={matchEmails.length}>
+              {matchEmails.map((e) => (
+                <div key={e.id} style={{ ...rowStyle, cursor: 'default' }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: ink[700] }}>{e.from}</span>
+                  <span style={{ fontSize: 14, color: ink[500], flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {e.subject || e.preview}</span>
+                </div>
+              ))}
+            </Group>
+          )}
+
+          {query && matchThreads.length === 0 && matchEvents.length === 0 && matchEmails.length === 0 && (
+            <div style={{ padding: '24px', textAlign: 'center', color: ink[300], fontSize: 15 }}>
+              Nothing matches “{q}”.
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: '8px 18px', borderTop: `1px solid ${semantic.divider}`, fontSize: 12, color: ink[300], display: 'flex', gap: 14 }}>
+          <span><kbd style={kbdStyle}>⌘K</kbd> open/close</span>
+          <span style={{ flex: 1 }} />
+          <span style={{ color: brand.navy, fontWeight: 700 }}>Click a person to open the conversation</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const rowStyle = {
+  display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+  background: 'transparent', border: 'none', borderRadius: 8,
+  padding: '8px 10px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+};
+const kbdStyle = { border: '1px solid rgba(0,0,0,0.15)', borderRadius: 4, padding: '0 5px' };
+
+function Group({ icon: Icon, label, count, children }) {
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', fontSize: 12, fontWeight: 800, color: ink[300], letterSpacing: '0.10em' }}>
+        <Icon size={13} strokeWidth={2.4} /> {label.toUpperCase()} <span style={{ color: ink[100] }}>· {count}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Empty({ children }) {
+  return <div style={{ padding: '6px 14px', fontSize: 14, color: ink[300], fontStyle: 'italic' }}>{children}</div>;
+}

@@ -25,6 +25,7 @@ import ZoomWindow from './windows/ZoomWindow.jsx';
 import InviteComposerDrawer from './drawers/InviteComposerDrawer.jsx';
 import BriefingDrawer from './drawers/BriefingDrawer.jsx';
 import ReligiousCalendarDrawer from './drawers/ReligiousCalendarDrawer.jsx';
+import SearchPalette from './chrome/SearchPalette.jsx';
 
 // Toasts
 import ToastStack from './toasts/ToastStack.jsx';
@@ -125,6 +126,8 @@ function Cockpit() {
       <InviteComposerDrawer />
       <BriefingDrawer />
       <ReligiousCalendarDrawer />
+      {/* Global command/search palette — Concierge "Search" button or ⌘K */}
+      <SearchPalette />
 
       {/* TOASTS */}
       <ToastStack />

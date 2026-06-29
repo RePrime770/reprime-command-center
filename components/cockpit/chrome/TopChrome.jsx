@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   MessageSquarePlus, StickyNote, Mail, Sun,
   Mic, Volume2,
-  Headphones, MessagesSquare, AlertCircle
+  Headphones, MessagesSquare, AlertCircle, Search
 } from 'lucide-react';
 import { brand, slate, tier as TIER, ink } from '../lib/colors.js';
 import { useDemo } from '../demo/DemoContext.jsx';
@@ -26,6 +26,7 @@ import { useLiveData } from '../live/CockpitLiveData.jsx';
 // ============================================================
 
 const CONCIERGE = [
+  { k: 'Search',     icon: Search,              color: '#0891B2' },
   { k: 'Note',       icon: StickyNote,          color: '#7B1FA2' },
   { k: 'Email',      icon: Mail,                color: '#5C6BC0' },
   { k: 'Briefing',   icon: Sun,                 color: '#F9A825' },
