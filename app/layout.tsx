@@ -48,9 +48,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${lexend.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      {/* suppressHydrationWarning on <html>/<body> only: browser extensions
+          (Grammarly, password managers, the Chrome agent) inject attributes/text
+          into these elements before React hydrates, which surfaced as a residual
+          React #418 text-content mismatch. This suppresses ONLY these two
+          elements' own attributes/text — never their children — so real content
+          mismatches are still reported. */}
+      <body suppressHydrationWarning className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
       </body>
     </html>
