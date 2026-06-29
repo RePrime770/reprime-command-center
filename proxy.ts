@@ -47,9 +47,23 @@ const PUBLIC_PATHS = [
   '/api/cron/gmail-watch-arm',
 ]
 
+// Sensitive sub-paths that must NOT inherit a broader public prefix. The
+// extension mint endpoint `/api/invitations` is public (it self-checks the
+// X-Captain-Token), but a naive `startsWith` would also expose its siblings.
+// `/api/invitations/by-contact` enumerates invitation status by Pipedrive id
+// with the service-role client — it must require the dashboard session. Its
+// only caller is the authenticated sidebar (PipedriveCard), which sends the
+// session cookie, so gating it does not break any real flow. Recipient-facing
+// token routes (`/api/invitations/[token]/...`, `/api/invitations/add-attendee`)
+// stay public via their own allowlist entries / token capability.
+const PROTECTED_OVERRIDES = ['/api/invitations/by-contact']
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return NextResponse.next()
+  const isProtectedOverride = PROTECTED_OVERRIDES.some((p) => pathname.startsWith(p))
+  if (!isProtectedOverride && PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next()
+  }
 
   const response = NextResponse.next()
   const supabase = _createServerClient(

@@ -43,3 +43,7 @@ next-env.d.ts
 .vercel
 .env*.local
 bulk-import.log
+
+# Internal security/fix audit — kept local only (this is a PUBLIC repo; the
+# audit enumerates auth internals + unfixed findings and must not be published).
+docs/FIX_AUDIT.md
