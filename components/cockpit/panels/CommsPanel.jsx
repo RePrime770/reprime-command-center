@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Send, X, Star, Mic, Calendar, Paperclip, Clock, Video, Home } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Send, X, Star, Mic, Calendar, Paperclip, Clock, Video, Home, ArrowLeft } from 'lucide-react';
 import { brand, ink, channel as CH, tier as TIER, semantic } from '../lib/colors.js';
 import { fmtRelative } from '../lib/format.js';
 import { ListenButton, DictateButtons } from '../lib/voice.jsx';
@@ -405,12 +405,23 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
   const baseMessages =
     liveMessages !== null ? liveMessages : (thread.messages || []);
 
-  // Newest first sort
+  // Ascending sort (oldest → newest) so the chat reads top-down like every
+  // mainstream messaging app. We auto-scroll the message list to the bottom
+  // whenever it changes, so the user lands on the LATEST message — fixes the
+  // "loading old old messages / can't see the new one" complaint.
   const sortedMessages = [...baseMessages].sort(
-    (a, b) => new Date(b.ts || 0) - new Date(a.ts || 0)
+    (a, b) => new Date(a.ts || 0) - new Date(b.ts || 0)
   );
-  const newestMessage = sortedMessages[0];
-  const olderMessages = sortedMessages.slice(1);
+  const newestMessage = sortedMessages[sortedMessages.length - 1];
+
+  const messagesRef = useRef(null);
+  useEffect(() => {
+    const el = messagesRef.current;
+    if (!el) return;
+    // Scroll the message list to the bottom on open + whenever a new message
+    // arrives (e.g. live refresh, send completion).
+    el.scrollTop = el.scrollHeight;
+  }, [sortedMessages.length, thread.id]);
 
   // Nora drafts AUTOMATICALLY — her suggested reply pre-fills the box on open (mode 'draft').
   const defaultDraft = thread.noraDraft
@@ -484,7 +495,8 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: fadedBg }}>
-      {/* Header */}
+      {/* Header — left-edge ← Back is the primary nav out (fixes the
+          "I can't go back" complaint; the lone × icon read as Close, not Back). */}
       <div
         style={{
           padding: '8px 10px',
@@ -497,6 +509,29 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
           flexShrink: 0
         }}
       >
+        <button
+          type="button"
+          onClick={onClose}
+          title="Back to thread list"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '4px 8px',
+            marginRight: 4,
+            background: '#F1F5F9',
+            color: ink[700],
+            border: `1px solid ${semantic.border}`,
+            borderRadius: 6,
+            fontSize: 13,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            cursor: 'pointer',
+            fontFamily: 'inherit'
+          }}
+        >
+          <ArrowLeft size={13} strokeWidth={2.6} /> Back
+        </button>
         <span style={{ width: 10, height: 10, borderRadius: 999, background: ch?.hex || ink[300] }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: ink[700] }}>{thread.contactName}</div>
@@ -532,14 +567,6 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
         </button>
         <ListenButton compact />
         <ReminderPicker />
-        <button
-          type="button"
-          onClick={onClose}
-          style={{ background: 'transparent', border: 'none', color: ink[500], cursor: 'pointer', padding: 4 }}
-          title="Close thread (this sub-pillar restores; other sub-pillars reflow)"
-        >
-          <X size={14} strokeWidth={2.4} />
-        </button>
       </div>
 
       {/* Nora's elevated read — but Family is private (Nora stays out) */}
@@ -557,29 +584,12 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
           />}
 
       {/* Combined reply zone — NORA DRAFT + Send / Edit / Clear & write my own (handoff §3.10 #3) */}
-      <ReplyZone
-        ch={ch}
-        defaultDraft={defaultDraft}
-        replyMode={replyMode}
-        setReplyMode={setReplyMode}
-        replyText={replyText}
-        setReplyText={setReplyText}
-        isHe={isHe}
-        phone={thread.id}
-        panel={panelFromChannel(thread.channel)}
-        channelKey={thread.channel}
-        contactName={thread.contactName}
-      />
-
-      {/* Newest message (the one being replied to) — handoff §3.10 #4 */}
-      {newestMessage && (
-        <div style={{ padding: '6px 8px 0', flexShrink: 0 }} dir={isHe ? 'rtl' : 'ltr'}>
-          <Message m={newestMessage} ch={ch} contactName={thread.contactName} isHe={isHe} highlight />
-        </div>
-      )}
-
-      {/* Older messages push down — handoff §3.10 #5 */}
+      {/* Messages — oldest → newest, scrollable, auto-scrolled to the bottom
+          on open and on every new message. Standard chat UX so the latest
+          message is what you land on. The newest message gets a highlight
+          ring so you can spot it immediately. */}
       <div
+        ref={messagesRef}
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -599,11 +609,36 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
             No messages in this conversation yet.
           </div>
         ) : (
-          olderMessages.map((m) => (
-            <Message key={m.id} m={m} ch={ch} contactName={thread.contactName} isHe={isHe} />
+          sortedMessages.map((m) => (
+            <Message
+              key={m.id}
+              m={m}
+              ch={ch}
+              contactName={thread.contactName}
+              isHe={isHe}
+              highlight={m.id === newestMessage?.id}
+            />
           ))
         )}
       </div>
+
+      {/* ReplyZone — sticky at the BOTTOM (standard messaging UX). Nora's
+          draft pre-fills the box on open; Send dispatches through the
+          channel-aware path (WhatsApp → /api/whatsapp/messages, SMS →
+          /api/phone/quo-send). Family lane opens empty (Nora stays out). */}
+      <ReplyZone
+        ch={ch}
+        defaultDraft={defaultDraft}
+        replyMode={replyMode}
+        setReplyMode={setReplyMode}
+        replyText={replyText}
+        setReplyText={setReplyText}
+        isHe={isHe}
+        phone={thread.id}
+        panel={panelFromChannel(thread.channel)}
+        channelKey={thread.channel}
+        contactName={thread.contactName}
+      />
     </div>
   );
 }
