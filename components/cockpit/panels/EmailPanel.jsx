@@ -663,8 +663,43 @@ function OpenedEmail({ email, onClose }) {
 
 function NoraEmailRead({ email, ib }) {
   const tierHex = email.tier ? TIER[email.tier]?.hex : '#FFCC33';
-  const noraContent = email.noraBlock?.content
+  const fallback = email.noraBlock?.content
     || `Read: ${email.from?.split(/[ <]/)[0] || 'sender'} on ${email.subject}. Tier ${email.tier || 'L4'}. Suggested move below.`;
+  // Real AI read of THIS email (was a hardcoded template). Fetched once per
+  // opened email; falls back to the template string on any failure.
+  const [summary, setSummary] = useState('');
+  const [reading, setReading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    setReading(true);
+    (async () => {
+      try {
+        const res = await fetch('/api/ai/summarize', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kind: 'email',
+            from: email.from,
+            subject: email.subject,
+            text: email.preview || email.subject || '',
+            language: email.language === 'he' ? 'he' : 'en',
+          }),
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled && typeof data?.summary === 'string' && data.summary.trim()) {
+          setSummary(data.summary.trim());
+        }
+      } catch {
+        /* keep fallback */
+      } finally {
+        if (!cancelled) setReading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [email.id, email.from, email.subject, email.preview, email.language]);
+  const noraContent = summary || fallback;
   const actions = email.noraBlock?.actions || ['Send Nora draft', 'Open thread', 'Snooze 2h'];
   return (
     <div
@@ -690,10 +725,10 @@ function NoraEmailRead({ email, ib }) {
             </span>
           )}
         </div>
-        <ListenButton compact />
+        <ListenButton compact getText={() => noraContent} language={email.language === 'he' ? 'he' : 'en'} />
       </div>
-      <div style={{ fontSize: 18, lineHeight: 1.55, color: ink[700], marginBottom: 8 }}>
-        {noraContent}
+      <div style={{ fontSize: 18, lineHeight: 1.55, color: reading && !summary ? ink[300] : ink[700], marginBottom: 8, fontStyle: reading && !summary ? 'italic' : 'normal' }}>
+        {reading && !summary ? 'Nora is reading this…' : noraContent}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
         {actions.map((a) => (

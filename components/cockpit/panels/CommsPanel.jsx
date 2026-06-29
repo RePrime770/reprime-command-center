@@ -539,7 +539,16 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
       {/* Nora's elevated read — but Family is private (Nora stays out) */}
       {isFamily
         ? <FamilyPrivateNote />
-        : <NoraElevatedRead block={thread.noraBlock} channel={ch} />}
+        : <NoraElevatedRead
+            thread={thread}
+            block={thread.noraBlock}
+            channel={ch}
+            contextText={
+              sortedMessages.slice(0, 8).reverse()
+                .map((m) => `${m.from === 'me' ? 'Me' : (thread.contactName || 'Them')}: ${m.body || ''}`)
+                .join('\n') || thread.preview || ''
+            }
+          />}
 
       {/* Combined reply zone — NORA DRAFT + Send / Edit / Clear & write my own (handoff §3.10 #3) */}
       <ReplyZone
@@ -592,8 +601,49 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
   );
 }
 
-function NoraElevatedRead({ block, channel: ch }) {
-  if (!block) {
+function NoraElevatedRead({ thread, block, channel: ch, contextText }) {
+  // Real AI read of the thread (was always a null-block placeholder). Fetches a
+  // short plain-English summary from the loaded messages; falls back to a quiet
+  // state if there's nothing to read or the call fails.
+  const [summary, setSummary] = React.useState('');
+  const [reading, setReading] = React.useState(true);
+  const text = (contextText || '').trim();
+  React.useEffect(() => {
+    let cancelled = false;
+    setSummary('');
+    if (!text) { setReading(false); return; }
+    setReading(true);
+    (async () => {
+      try {
+        const res = await fetch('/api/ai/summarize', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kind: 'thread',
+            contactName: thread?.contactName,
+            text,
+            language: thread?.language === 'he' ? 'he' : 'en',
+          }),
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled && typeof data?.summary === 'string' && data.summary.trim()) {
+          setSummary(data.summary.trim());
+        }
+      } catch {
+        /* keep quiet state */
+      } finally {
+        if (!cancelled) setReading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [thread?.id, text, thread?.contactName, thread?.language]);
+
+  const content = block?.content || summary;
+
+  // Quiet state while reading or when there's nothing to summarize.
+  if (!content) {
     return (
       <div
         style={{
@@ -608,11 +658,11 @@ function NoraElevatedRead({ block, channel: ch }) {
           flexShrink: 0
         }}
       >
-        Nora's read landing as the thread loads…
+        {reading && text ? 'Nora is reading this thread…' : 'No read yet — send or receive a message.'}
       </div>
     );
   }
-  const tierHex = TIER[block.tier]?.hex || '#FFCC33';
+  const tierHex = TIER[block?.tier]?.hex || '#FFCC33';
   return (
     <div
       style={{
@@ -638,26 +688,28 @@ function NoraElevatedRead({ block, channel: ch }) {
           <span style={{ fontSize: 14, fontWeight: 800, color: ink[500], letterSpacing: '0.12em' }}>
             NORA · ELEVATED READ
           </span>
-          <span
-            style={{
-              background: tierHex,
-              color: '#FFFFFF',
-              borderRadius: 999,
-              padding: '1px 7px',
-              fontSize: 13,
-              fontWeight: 800,
-              letterSpacing: '0.06em'
-            }}
-          >
-            {TIER[block.tier]?.label}
-          </span>
+          {block?.tier && (
+            <span
+              style={{
+                background: tierHex,
+                color: '#FFFFFF',
+                borderRadius: 999,
+                padding: '1px 7px',
+                fontSize: 13,
+                fontWeight: 800,
+                letterSpacing: '0.06em'
+              }}
+            >
+              {TIER[block.tier]?.label}
+            </span>
+          )}
         </div>
-        <ListenButton compact getText={() => block.content} />
+        <ListenButton compact getText={() => content} language={thread?.language === 'he' ? 'he' : 'en'} />
       </div>
-      <div style={{ fontSize: 18, lineHeight: 1.55, color: ink[700], marginBottom: 8 }}>
-        {block.content}
+      <div className={thread?.language === 'he' ? 'hebrew' : ''} style={{ fontSize: 18, lineHeight: 1.55, color: ink[700], marginBottom: 8, direction: thread?.language === 'he' ? 'rtl' : 'ltr' }}>
+        {content}
       </div>
-      {block.actions && block.actions.length > 0 && (
+      {block?.actions && block.actions.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {block.actions.map((a) => (
             <button
