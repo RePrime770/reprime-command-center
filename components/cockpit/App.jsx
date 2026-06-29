@@ -57,7 +57,7 @@ function Cockpit() {
 
   // TopChrome: Row1 80 (Row2 Active-Deals sub-strip removed)
   // Row 3 Tier-1 banner (conditional) = +50
-  const tier1Active = state.meetingNow !== null || state.topBarState === 'counter-loi-incoming' || state.tier1Alert;
+  const tier1Active = !!state.liveMeeting || state.meetingNow !== null || state.topBarState === 'counter-loi-incoming' || state.tier1Alert;
   const topChromeH = 80 + (tier1Active ? 50 : 0);
   const recentlyStripH = 60; // v4 §B4 — doubled from 30→60, split 1/3 investors + 2/3 minimized tabs
   const taskbarH = 0; // BottomTaskbar removed in lean layout — main area reclaims this height

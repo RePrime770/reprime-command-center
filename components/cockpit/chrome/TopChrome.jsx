@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   MessageSquarePlus, StickyNote, Mail, Sun,
   Mic, Volume2,
@@ -49,10 +49,57 @@ export default function TopChrome() {
         fontFamily: 'inherit'
       }}
     >
+      <LiveMeetingAlertSync />
       <Row1 />
       <Row3Tier1 />
     </header>
   );
+}
+
+// Watches live calendar events and raises a real Tier-1 alert when a meeting is
+// imminent (≤20 min out) or in progress — replacing the hardcoded "Doron Zoom"
+// demo content. Sets state.liveMeeting (read by Row3Tier1 + App.jsx height calc).
+// Renders nothing. Ref-guarded so it only writes state when the alert changes.
+function LiveMeetingAlertSync() {
+  const { events } = useLiveData();
+  const { set } = useDemo();
+  const [now, setNow] = useState(() => new Date());
+  const lastSigRef = useRef('__init__');
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const list = Array.isArray(events) ? events : [];
+    let best = null;
+    for (const e of list) {
+      if (!e || !e.time || e.time === 'all-day' || !e.date) continue;
+      const start = new Date(`${e.date}T${e.time}:00`);
+      if (Number.isNaN(start.getTime())) continue;
+      const mins = Math.round((start.getTime() - now.getTime()) / 60000);
+      const dur = typeof e.duration === 'number' ? e.duration : 30;
+      const inProgress = mins <= 0 && mins > -dur;
+      const upcoming = mins > 0 && mins <= 20;
+      if (!inProgress && !upcoming) continue;
+      const cand = {
+        id: e.id,
+        title: e.title || 'Meeting',
+        joinUrl: e.joinUrl || null,
+        minutesToStart: mins,
+        inProgress,
+      };
+      if (!best || Math.abs(cand.minutesToStart) < Math.abs(best.minutesToStart)) best = cand;
+    }
+    const sig = best ? `${best.id}|${best.inProgress ? 'now' : best.minutesToStart}` : '';
+    if (sig !== lastSigRef.current) {
+      lastSigRef.current = sig;
+      set('liveMeeting', best);
+    }
+  }, [events, now, set]);
+
+  return null;
 }
 
 // ============================================================
@@ -102,16 +149,30 @@ function Row1() {
 // ============================================================
 function Row3Tier1() {
   const { state, set } = useDemo();
-  // Active when meetingNow set, or counter-LOI incoming, or tier1Alert toggled
+  // Live meeting alert (real calendar) takes top priority, then the demo-state
+  // triggers (meetingNow / counter-LOI / custom) used by DemoStatesPanel.
+  const live = state.liveMeeting;
   const meetingNow = state.meetingNow;
   const counterLoi = state.topBarState === 'counter-loi-incoming';
   const tier1Custom = state.tier1Alert;
-  const active = meetingNow !== null || counterLoi || tier1Custom;
+  const active = live || meetingNow !== null || counterLoi || tier1Custom;
   if (!active) return null;
 
-  // Build content based on what's firing — meetingNow takes priority then counter-LOI then custom
+  // Build content based on what's firing — live meeting first.
   let cfg;
-  if (meetingNow !== null) {
+  if (live) {
+    const soon = live.minutesToStart <= 5 || live.inProgress;
+    cfg = {
+      text: live.inProgress
+        ? `In progress · ${live.title}`
+        : `${live.minutesToStart} min to ${live.title}`,
+      bg: soon ? '#E53935' : '#FB8C00',
+      pulse: live.minutesToStart <= 10 || live.inProgress,
+      cta: live.joinUrl ? 'Join now' : null,
+      joinUrl: live.joinUrl,
+      isLive: true,
+    };
+  } else if (meetingNow !== null) {
     const labels = {
       30: { text: '30 min to Doron Zoom · prep window open', bg: '#5C6BC0', pulse: false, cta: 'Open prep' },
       15: { text: '15 min to Doron Zoom · drafting prep notes', bg: '#FF9800', pulse: true, cta: 'Review prep' },
@@ -144,25 +205,35 @@ function Row3Tier1() {
       <span style={{ fontSize: 21, fontWeight: 700, letterSpacing: '0.04em', flex: 1 }}>
         {cfg.text}
       </span>
-      <button
-        type="button"
-        style={{
-          background: brand.gold,
-          color: ink[900],
-          border: 'none',
-          borderRadius: 6,
-          padding: '5px 16px',
-          fontSize: 18,
-          fontWeight: 800,
-          cursor: 'pointer',
-          fontFamily: 'inherit'
-        }}
-      >
-        {cfg.cta}
-      </button>
+      {cfg.cta && (
+        <button
+          type="button"
+          onClick={() => {
+            // Live meeting → open the real join URL. Demo triggers keep the old
+            // no-op behavior (they're for DemoStatesPanel previews).
+            if (cfg.isLive && cfg.joinUrl) {
+              try { window.open(cfg.joinUrl, '_blank', 'noopener'); } catch { /* no window */ }
+            }
+          }}
+          style={{
+            background: brand.gold,
+            color: ink[900],
+            border: 'none',
+            borderRadius: 6,
+            padding: '5px 16px',
+            fontSize: 18,
+            fontWeight: 800,
+            cursor: 'pointer',
+            fontFamily: 'inherit'
+          }}
+        >
+          {cfg.cta}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => {
+          if (live) set('liveMeeting', null);
           set('meetingNow', null);
           if (counterLoi) set('topBarState', 'standard');
           set('tier1Alert', false);
