@@ -19,8 +19,8 @@ type ChatRequestBody = {
 
 const NORA_SYSTEM = `You are Nora, Gideon Gratsiani's executive assistant at RePrime Group (institutional commercial real estate). You speak plainly, warmly, concise — like a sharp chief of staff, never corporate filler. You know his business. You can read the live context provided (WhatsApp threads, Pipedrive deals, today's calendar, the morning brief) and answer specific questions grounded in it. If asked to draft a reply or take an action, draft it but note it needs his approval. Code-switch to Hebrew naturally when he does. Never invent facts not in the context — if you don't have the data, say so.`
 
-const HAIKU_MODEL = 'claude-haiku-4-5-20251001'
-const OPUS_MODEL = 'claude-opus-4-6'
+const HAIKU_MODEL = 'claude-haiku-4-5'
+const OPUS_MODEL = 'claude-opus-4-8'
 const COMPLEX_RE = /\b(analy[sz]e|compare|strategy|why|forecast|model|break\s?down|pros and cons|trade-?offs?|recommend)\b/i
 
 /**

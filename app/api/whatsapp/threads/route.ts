@@ -55,7 +55,7 @@ function chatToThreadRow(chat: TimelinesChat, _panel: Panel) {
     is_group: false,
     jid: chat.jid || null,
     last_message_at: lastAt,
-    last_message_preview: null,
+    last_message_preview: (chat as TimelinesChat & { last_message_text?: string }).last_message_text || null,
     unread_count: chat.read === false ? 1 : 0,
     pipedrive_contact_id: null,
     is_investor: false,
@@ -82,9 +82,6 @@ export async function GET(request: NextRequest) {
     let timelinesSkipped = false
     try {
       allChats = await getAllChats(panel)
-      if (allChats.length > 0) {
-        console.log('[threads] sample chat keys', Object.keys(allChats[0] as unknown as Record<string, unknown>))
-      }
     } catch (timelinesErr: unknown) {
       const msg = (timelinesErr as Error).message ?? ''
       // 403 = quota exhausted; 429 = rate limited; timeout = upstream slow.
@@ -414,13 +411,6 @@ export async function GET(request: NextRequest) {
       }
     } catch (err) {
       console.warn('[/api/whatsapp/threads] Pipedrive investor list failed — keeping thread_tags-only', { message: (err as Error).message })
-    }
-
-    const previewByChatId = new Map<number, string>()
-    for (const c of allChats) {
-      if (c.last_message_uid && (c as TimelinesChat & { last_message_text?: string }).last_message_text) {
-        previewByChatId.set(c.id, (c as TimelinesChat & { last_message_text?: string }).last_message_text || '')
-      }
     }
 
     const result: DashboardThread[] = (threads || []).map(

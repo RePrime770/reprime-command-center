@@ -218,17 +218,13 @@ export default function TodayPanel() {
         if (!r.sent10 && diffMin >= 9.5 && diffMin <= 10.5) {
           updated[id] = { ...r, sent10: true }
           dirty = true
-          void sendReminderMessage(r, 10).then((ok) => {
-            console.log(`[reminder] 10-min sent for ${id}:`, ok)
-          })
+          void sendReminderMessage(r, 10)
         }
         // 1-minute window: between 1.5 and 0.5 min before
         if (!r.sent1 && diffMin >= 0.5 && diffMin <= 1.5) {
           updated[id] = { ...r, sent1: true }
           dirty = true
-          void sendReminderMessage(r, 1).then((ok) => {
-            console.log(`[reminder] 1-min sent for ${id}:`, ok)
-          })
+          void sendReminderMessage(r, 1)
         }
       }
 
@@ -376,9 +372,9 @@ export default function TodayPanel() {
         return (
           <div key={ev.id} style={cardStyle} title={ev.title}>
             {/* Time */}
-            <span style={{ color: 'var(--rp-gold-lite)', fontSize: 13 }}>
+            <span suppressHydrationWarning style={{ color: 'var(--rp-gold-lite)', fontSize: 13 }}>
               {timeAbs}
-              {timeRel && <span style={{ opacity: 0.75 }}> · {timeRel}</span>}
+              {timeRel && <span suppressHydrationWarning style={{ opacity: 0.75 }}> · {timeRel}</span>}
             </span>
 
             {/* Title */}

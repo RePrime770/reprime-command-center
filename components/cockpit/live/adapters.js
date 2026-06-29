@@ -41,6 +41,7 @@ function adaptThreadRow(row) {
     contactName: row.contact_name || 'Unknown',
     language: detectLanguage(preview || row.contact_name),
     isInvestor: row.is_investor === true,
+    staffTag: row.lane_override === 'staff',
     lastTs: row.last_message_at || null,
     unread: typeof row.unread_count === 'number' ? row.unread_count : 0,
     preview,

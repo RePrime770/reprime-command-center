@@ -73,10 +73,8 @@ function firstPhone(v: unknown): string {
 function getSigningSecrets(): string[] {
   const multi = process.env.QUO_WEBHOOK_SECRETS
   if (multi) {
-    return multi
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
+    const keys = multi.split(',').map((s) => s.trim()).filter(Boolean)
+    if (keys.length > 0) return keys
   }
   const single = process.env.QUO_WEBHOOK_SECRET
   return single ? [single] : []
