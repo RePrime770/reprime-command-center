@@ -30,6 +30,24 @@ const TYPE_META = {
   reminder: { icon: Bell,       color: '#FFCC33', label: 'REMINDER' }
 };
 
+const OVERDUE_COLOR = '#DC2626';
+const DESK_FILTERS = ['All', 'Overdue', 'Today', 'Upcoming'];
+
+function isSameLocalDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function computeDueState(item, now) {
+  if (!item?.due_at) return { isOverdue: false, isToday: false, isUpcoming: false };
+  const due = new Date(item.due_at);
+  if (Number.isNaN(due.getTime())) return { isOverdue: false, isToday: false, isUpcoming: false };
+  return {
+    isOverdue: due < now,
+    isToday: isSameLocalDay(due, now),
+    isUpcoming: due >= now && !isSameLocalDay(due, now),
+  };
+}
+
 export default function NorasDesk({ width }) {
   // Live Nora's Desk from the cockpit provider (bucket + secretary asks).
   // Falls back to static while the first fetch is in flight or on error.
@@ -37,14 +55,24 @@ export default function NorasDesk({ width }) {
   const { state } = useDemo();
   const noraToYou = Array.isArray(noraDesk?.noraToYou) ? noraDesk.noraToYou : [];
   const needsYou = noraToYou.length;
+  const [filter, setFilter] = useState('All');
+  const now = new Date();
+  const itemsWithDue = noraToYou.map((it) => ({ ...it, ...computeDueState(it, now) }));
+  const overdueCount = itemsWithDue.filter((it) => it.isOverdue).length;
+  const visible = itemsWithDue.filter((it) => {
+    if (filter === 'Overdue') return it.isOverdue;
+    if (filter === 'Today') return it.isToday;
+    if (filter === 'Upcoming') return it.isUpcoming;
+    return true;
+  });
   return (
     <PanelShell
       width={width}
       accent={NORA}
       title="NORA’S DESK"
       subtitle="she ↔ you"
-      badge={`${needsYou} need you`}
-      badgeColor="rgba(255,255,255,0.22)"
+      badge={overdueCount > 0 ? `${overdueCount} overdue · ${needsYou} need you` : `${needsYou} need you`}
+      badgeColor={overdueCount > 0 ? 'rgba(220,38,38,0.45)' : 'rgba(255,255,255,0.22)'}
     >
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         {/* TOP — YOU → NORA (you talk to her up here, per Gideon 2026-06-16) */}
@@ -65,13 +93,41 @@ export default function NorasDesk({ width }) {
           left="NORA → YOU"
           right="every call & message becomes a card"
         />
+        <div style={{ display: 'flex', gap: 6, padding: '6px 10px 0', flexWrap: 'wrap', flexShrink: 0 }}>
+          {DESK_FILTERS.map((f) => {
+            const active = filter === f;
+            const isOverdueChip = f === 'Overdue';
+            const count = f === 'Overdue' ? overdueCount : null;
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                style={{
+                  background: active ? (isOverdueChip ? OVERDUE_COLOR : NORA) : '#FFFFFF',
+                  color: active ? '#FFFFFF' : (isOverdueChip && count ? OVERDUE_COLOR : ink[500]),
+                  border: `1px solid ${active ? (isOverdueChip ? OVERDUE_COLOR : NORA) : semantic.border}`,
+                  borderRadius: 999,
+                  padding: '2px 10px',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  letterSpacing: '0.06em',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {f}{count ? ` · ${count}` : ''}
+              </button>
+            );
+          })}
+        </div>
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '8px 8px 4px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {noraToYou.length === 0 ? (
+          {visible.length === 0 ? (
             <div style={{ padding: '18px 12px', fontSize: 15, fontWeight: 600, color: ink[300], textAlign: 'center' }}>
-              No items need you right now.
+              {noraToYou.length === 0 ? 'No items need you right now.' : `No ${filter.toLowerCase()} items.`}
             </div>
           ) : (
-            noraToYou.map((item) => (
+            visible.map((item) => (
               <NoraCard key={item.id} item={item} onMutated={refresh} />
             ))
           )}
@@ -154,7 +210,7 @@ function mutationFor(item, action) {
 function NoraCard({ item, onMutated }) {
   const meta = TYPE_META[item.type] || TYPE_META.question;
   const Icon = meta.icon;
-  const stripe = item.urgent ? '#E53935' : meta.color;
+  const stripe = item.isOverdue ? OVERDUE_COLOR : (item.urgent ? '#E53935' : meta.color);
   const [busy, setBusy] = useState(false);
   const [doneLabel, setDoneLabel] = useState(null);
 
@@ -229,6 +285,21 @@ function NoraCard({ item, onMutated }) {
           </span>
         )}
         <span style={{ fontSize: 13, color: ink[300], fontWeight: 600 }}>{item.when}</span>
+        {item.isOverdue && (
+          <span
+            style={{
+              background: OVERDUE_COLOR,
+              color: '#FFFFFF',
+              borderRadius: 999,
+              padding: '1px 8px',
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+            }}
+          >
+            OVERDUE
+          </span>
+        )}
       </div>
 
       {/* summary */}

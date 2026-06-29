@@ -21,6 +21,41 @@ const NORA = '#7C3AED';
 const NORA_FADED = '#F3E8FF';
 const HEBREW_RE = /[א-ת]/;
 
+// Slash-command vocabulary — keep tight, surfaced via /help and the autocomplete hint.
+const SLASH_COMMANDS = ['/draft', '/summarize', '/schedule', '/help'];
+const SLASH_HELP_TEXT =
+  'Commands: /draft <text> · /summarize · /schedule <text> · /help';
+
+/**
+ * Parse a slash command. Returns:
+ *   { kind: 'send', message }       — translate to a normal chat message
+ *   { kind: 'inline', content }     — show inline (no API call), assistant bubble
+ *   { kind: 'error', content }      — show inline error
+ *   null                            — not a slash command
+ */
+function parseSlashCommand(raw) {
+  const text = raw.trim();
+  if (!text.startsWith('/')) return null;
+  const space = text.indexOf(' ');
+  const cmd = (space === -1 ? text : text.slice(0, space)).toLowerCase();
+  const args = space === -1 ? '' : text.slice(space + 1).trim();
+  if (cmd === '/draft') {
+    if (!args) return { kind: 'error', content: '/draft needs some text. Try: /draft reply to David about pricing.' };
+    return { kind: 'send', message: `Draft a reply for me: ${args}` };
+  }
+  if (cmd === '/summarize') {
+    return { kind: 'send', message: 'Summarize what’s on my desk right now.' };
+  }
+  if (cmd === '/schedule') {
+    if (!args) return { kind: 'error', content: '/schedule needs some text. Try: /schedule a 30-min call with Mira next week.' };
+    return { kind: 'send', message: `Help me schedule: ${args}` };
+  }
+  if (cmd === '/help') {
+    return { kind: 'inline', content: SLASH_HELP_TEXT };
+  }
+  return { kind: 'error', content: 'Unknown command. Type /help to see available.' };
+}
+
 export default function NoraChat({ focusSignal }) {
   const live = useLiveData();
   const [turns, setTurns] = useState([]); // { role:'user'|'assistant', content, language }
@@ -154,8 +189,25 @@ export default function NoraChat({ focusSignal }) {
 
   const onSubmit = (e) => {
     e.preventDefault();
+    const slash = parseSlashCommand(input);
+    if (slash) {
+      if (slash.kind === 'send') {
+        setInput('');
+        send(slash.message);
+        return;
+      }
+      // inline/error — render a local assistant-style bubble, no API call.
+      const language = HEBREW_RE.test(slash.content) ? 'he' : 'en';
+      setTurns((prev) => [...prev, { role: 'assistant', content: slash.content, language }]);
+      setInput('');
+      setError(null);
+      return;
+    }
     send(input);
   };
+
+  // Autocomplete hint: visible only while the user is typing a bare `/` token.
+  const showSlashHint = input.startsWith('/') && !input.includes(' ');
 
   // Voice IN — record a short clip, send to Whisper (EN), fill the input.
   const startRecording = useCallback(async () => {
@@ -246,6 +298,30 @@ export default function NoraChat({ focusSignal }) {
           </div>
         )}
       </div>
+
+      {/* Slash-command autocomplete hint */}
+      {showSlashHint && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            flexWrap: 'wrap',
+            padding: '4px 8px',
+            marginBottom: 4,
+            background: NORA_FADED,
+            border: `1px solid ${NORA}33`,
+            borderRadius: 6,
+            fontSize: 12,
+            fontWeight: 700,
+            color: '#6B21A8',
+            letterSpacing: '0.04em',
+          }}
+        >
+          {SLASH_COMMANDS.map((c) => (
+            <span key={c}>{c}</span>
+          ))}
+        </div>
+      )}
 
       {/* Input */}
       <form onSubmit={onSubmit} style={{ display: 'flex', alignItems: 'center', gap: 6, border: `2px solid ${NORA}`, borderRadius: 8, padding: '4px 6px 4px 10px', background: '#FFFFFF' }}>

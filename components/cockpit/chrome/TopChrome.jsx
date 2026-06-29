@@ -2,12 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   MessageSquarePlus, StickyNote, Mail, Sun,
   Mic, Volume2,
-  Headphones, MessagesSquare, AlertCircle, Search
+  Headphones, MessagesSquare, AlertCircle, Search,
+  HelpCircle, LogOut
 } from 'lucide-react';
 import { brand, slate, tier as TIER, ink } from '../lib/colors.js';
 import { useDemo } from '../demo/DemoContext.jsx';
 import { useLiveData } from '../live/CockpitLiveData.jsx';
 import { useLocale } from '../lib/i18n.jsx';
+import IntegrationStatusPill from './IntegrationStatusPill.jsx';
+import KeyboardShortcutsModal from '../modals/KeyboardShortcutsModal.jsx';
 
 // ============================================================
 // TopChrome v5 — LEAN COMMS-ONLY top bar
@@ -37,6 +40,28 @@ const CONCIERGE = [
 const SPEEDS = ['1.2', '1.4', '1.6', '1.8', '2.0'];
 
 export default function TopChrome() {
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  // Global "?" listener — opens the keyboard shortcuts modal. Skips when the
+  // user is typing in an input/textarea/contenteditable so it doesn't hijack
+  // the chat composer.
+  useEffect(() => {
+    const onKey = (e) => {
+      const tgt = e.target;
+      const tag = tgt?.tagName;
+      const editable = tgt?.isContentEditable;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || editable) return;
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setShortcutsOpen((v) => !v);
+      } else if (e.key === 'Escape' && shortcutsOpen) {
+        setShortcutsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [shortcutsOpen]);
+
   return (
     <header
       style={{
@@ -52,8 +77,9 @@ export default function TopChrome() {
       }}
     >
       <LiveMeetingAlertSync />
-      <Row1 />
+      <Row1 onOpenShortcuts={() => setShortcutsOpen(true)} />
       <Row3Tier1 />
+      <KeyboardShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </header>
   );
 }
@@ -107,7 +133,7 @@ function LiveMeetingAlertSync() {
 // ============================================================
 // ROW 1 — All clusters in single row, PTT centered as anchor
 // ============================================================
-function Row1() {
+function Row1({ onOpenShortcuts }) {
   return (
     <div
       style={{
@@ -135,13 +161,118 @@ function Row1() {
       {/* CENTER spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* RIGHT — Concierge (comms actions) + language + clock/Shabbat */}
+      {/* RIGHT — Concierge (comms actions) + language + clock/Shabbat + status + help + user */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <ConciergeCluster />
         <ClusterDivider />
         <LangToggle />
         <ClockShabbat />
+        <ClusterDivider />
+        <IntegrationStatusPill />
+        <HelpButton onOpen={onOpenShortcuts} />
+        <UserPill />
       </div>
+    </div>
+  );
+}
+
+function HelpButton({ onOpen }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      title="Keyboard shortcuts (?)"
+      aria-label="Show keyboard shortcuts"
+      style={{
+        background: 'rgba(255,255,255,0.06)',
+        color: brand.goldSoft,
+        border: `1px solid rgba(255,204,51,0.22)`,
+        borderRadius: 999,
+        width: 30,
+        height: 30,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        flexShrink: 0,
+      }}
+    >
+      <HelpCircle size={16} strokeWidth={2.2} />
+    </button>
+  );
+}
+
+function UserPill() {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const rootRef = useRef(null);
+  const email = 'g@reprime.com';
+  const initial = email.charAt(0).toUpperCase();
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDocClick = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
+  const signOut = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await fetch('/api/auth/signout', { method: 'POST', credentials: 'same-origin' });
+    } catch { /* fall through to redirect regardless */ }
+    window.location.href = '/login';
+  };
+
+  return (
+    <div ref={rootRef} style={{ position: 'relative', flexShrink: 0 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title={email}
+        aria-label="User menu"
+        style={{
+          background: brand.gold,
+          color: brand.navy,
+          border: 'none',
+          borderRadius: 999,
+          width: 30,
+          height: 30,
+          fontSize: 14,
+          fontWeight: 800,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {initial}
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', right: 0, minWidth: 220,
+          background: '#0F172A', color: '#FFFFFF', border: `1px solid ${brand.goldSoft}`,
+          borderRadius: 8, padding: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 60,
+        }}>
+          <div style={{ fontSize: 13, opacity: 0.85, padding: '4px 6px 8px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            {email}
+          </div>
+          <button type="button" onClick={signOut} disabled={busy} style={{
+            marginTop: 6, width: '100%', background: 'transparent', color: '#FFFFFF',
+            border: 'none', borderRadius: 6, padding: '8px 6px', fontSize: 14, fontWeight: 700,
+            cursor: busy ? 'wait' : 'pointer', fontFamily: 'inherit',
+            display: 'inline-flex', alignItems: 'center', gap: 8, textAlign: 'left',
+          }}>
+            <LogOut size={14} strokeWidth={2.2} />
+            {busy ? 'Signing out…' : 'Sign out'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

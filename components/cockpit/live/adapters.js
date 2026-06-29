@@ -44,12 +44,27 @@ function channelKey(panel, channelType) {
   }
 }
 
+// Pure JS port of the staff-roster regex from lib/cockpit/staff-roster.ts.
+// Kept in-file so this .js adapter has no .ts import (Next/Babel can transpile
+// either, but keeping the runtime dependency-free is simpler).
+const STAFF_NAME_REGEX = /\b(Shirel|Kazi|Steve|Adir|Chaim)\b/i;
+
 function adaptThreadRow(row) {
   const preview = typeof row.last_message_preview === 'string' ? row.last_message_preview : '';
   const panel = row.panel === '305' ? '305' : row.panel === '718' ? '718' : null;
   // Map the REAL channel_type (whatsapp/sms/imessage/google_voice) to a channel
   // key so SMS/iMessage threads render under the correct band, not all as WA.
   const channel = channelKey(panel, row.channel_type);
+  const contactName = row.contact_name || 'Unknown';
+  // Staff classification — explicit DB lane_override wins; otherwise auto-detect
+  // by name match against the staff roster (Shirel / Kazi / Steve / Adir /
+  // Chaim). Threads named for any of these go to the Staff sub-pillar.
+  const explicitLane = row.lane_override;
+  const isStaffByName = explicitLane !== 'general' && STAFF_NAME_REGEX.test(contactName);
+  const staffTag = explicitLane === 'staff' || isStaffByName;
+  // Staff outranks investor — Adir is on both registries; the user's standing
+  // rule is "show him under Staff." Lane override 'general' opts back out.
+  const isInvestor = staffTag ? false : row.is_investor === true;
   return {
     // phone is the stable key across reloads (the route dedups on panel:phone)
     id: row.phone || row.jid || `${row.panel}:${row.contact_name}`,
@@ -57,10 +72,11 @@ function adaptThreadRow(row) {
     rowId: row.id ?? null,
     channel,
     contactId: row.pipedrive_contact_id ?? null,
-    contactName: row.contact_name || 'Unknown',
-    language: detectLanguage(preview || row.contact_name),
-    isInvestor: row.is_investor === true,
-    staffTag: row.lane_override === 'staff',
+    contactName,
+    language: detectLanguage(preview || contactName),
+    isInvestor,
+    staffTag,
+    isGroup: row.is_group === true,
     lastTs: row.last_message_at || null,
     unread: typeof row.unread_count === 'number' ? row.unread_count : 0,
     preview,

@@ -28,8 +28,36 @@ const SORT_OPTIONS = [
   { id: 'deal',       label: 'By deal' }
 ];
 
+const CADENCE_OVERDUE_DAYS = 14;
+const MS_PER_DAY = 86400000;
+
+function getLastContactAt(inv) {
+  return inv.lastContactAt || inv.lastContact || inv.last_message_at || inv.last_email_at || null;
+}
+
+function daysSinceLastContact(inv, now = Date.now()) {
+  const ts = getLastContactAt(inv);
+  if (!ts) return null;
+  const t = new Date(ts).getTime();
+  if (Number.isNaN(t)) return null;
+  return Math.floor((now - t) / MS_PER_DAY);
+}
+
+// Sort key: overdue rows (no contact OR > threshold) bubble up; otherwise oldest contact first.
+function overdueSortKey(inv) {
+  const days = daysSinceLastContact(inv);
+  if (days === null) return -Infinity; // no contact → very top
+  if (days > CADENCE_OVERDUE_DAYS) return -days; // older overdue → higher
+  return 1; // not overdue → bottom group
+}
+
 const sortFn = {
-  hot: (a, b) => ({ HOT: 0, WARM: 1, COLD: 2 }[a.status] ?? 9) - ({ HOT: 0, WARM: 1, COLD: 2 }[b.status] ?? 9),
+  hot: (a, b) => {
+    const sa = overdueSortKey(a);
+    const sb = overdueSortKey(b);
+    if (sa !== sb) return sa - sb;
+    return ({ HOT: 0, WARM: 1, COLD: 2 }[a.status] ?? 9) - ({ HOT: 0, WARM: 1, COLD: 2 }[b.status] ?? 9);
+  },
   cadence: (a, b) => new Date(b.lastContact) - new Date(a.lastContact),
   observance: (a, b) => (b.observance ? 1 : 0) - (a.observance ? 1 : 0),
   deal: (a, b) => b.deals.length - a.deals.length
@@ -86,6 +114,49 @@ export default function InvestorsPanel({ width }) {
   );
 }
 
+function CadenceBadge({ inv }) {
+  const days = daysSinceLastContact(inv);
+  if (days === null) {
+    return (
+      <span
+        title="No last-contact timestamp on record"
+        style={{
+          background: '#FFF3E0',
+          color: '#E65100',
+          borderRadius: 999,
+          padding: '0 6px',
+          fontSize: 12,
+          fontWeight: 800,
+          letterSpacing: '0.04em',
+          flexShrink: 0
+        }}
+      >
+        No contact on record
+      </span>
+    );
+  }
+  if (days > CADENCE_OVERDUE_DAYS) {
+    return (
+      <span
+        title={`Overdue cadence: ${days} days since last contact (threshold ${CADENCE_OVERDUE_DAYS}d)`}
+        style={{
+          background: '#FFEBEE',
+          color: '#C62828',
+          borderRadius: 999,
+          padding: '0 6px',
+          fontSize: 12,
+          fontWeight: 800,
+          letterSpacing: '0.04em',
+          flexShrink: 0
+        }}
+      >
+        Overdue · {days} days
+      </span>
+    );
+  }
+  return null;
+}
+
 function Row({ inv }) {
   const { set } = useDemo();
   const isHe = inv.language === 'he';
@@ -111,6 +182,37 @@ function Row({ inv }) {
     e.stopPropagation();
     set('investorOpenId', inv.id);
     set('investorState', 'profile-conversation');
+  };
+
+  // Quick-action handlers — wire stubs to real flows.
+  const openWhatsApp = (e) => {
+    e.stopPropagation();
+    const thread = threads.find((t) => t.contactId === inv.id);
+    if (thread) {
+      set('openInvestorChat', thread.id);
+    } else {
+      // Fall back to comms-by-contact event so the Comms hub can spin a new thread.
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(
+          new CustomEvent('comms:openByContact', {
+            detail: { contactName: inv.name, phone: inv.phone, channel: 'whatsapp' }
+          })
+        );
+      }
+    }
+  };
+
+  const openEmail = (e) => {
+    e.stopPropagation();
+    // Use existing EmailPanel compose trigger (state.emailComposeOpen) for reliable wiring.
+    set('emailComposeTo', inv.email || '');
+    set('emailComposeOpen', true);
+    // Also dispatch a custom event for any external listener that wants the full payload.
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(
+        new CustomEvent('email:compose', { detail: { to: inv.email, subject: '' } })
+      );
+    }
   };
 
   return (
@@ -199,6 +301,8 @@ function Row({ inv }) {
         >
           {inv.status}
         </span>
+
+        <CadenceBadge inv={inv} />
       </div>
 
       <div style={{ fontSize: 14, color: ink[500] }}>
@@ -217,9 +321,17 @@ function Row({ inv }) {
 
       {/* Action chips */}
       <div style={{ marginTop: 6, display: 'flex', gap: 3 }}>
-        <ActionChip color="#1E88E5" icon={Phone} onClick={(e) => { e.stopPropagation(); }}>Call</ActionChip>
-        <ActionChip color={CH['305-WA'].hex} icon={MessageCircle} onClick={(e) => { e.stopPropagation(); }}>WA</ActionChip>
-        <ActionChip color={CH.email.hex} icon={Mail} onClick={(e) => { e.stopPropagation(); }}>Email</ActionChip>
+        <ActionChip
+          color="#1E88E5"
+          icon={Phone}
+          disabled
+          title="Call dispatch coming next pass"
+          onClick={(e) => { e.stopPropagation(); }}
+        >
+          Call
+        </ActionChip>
+        <ActionChip color={CH['305-WA'].hex} icon={MessageCircle} onClick={openWhatsApp}>WA</ActionChip>
+        <ActionChip color={CH.email.hex} icon={Mail} onClick={openEmail}>Email</ActionChip>
         <button
           type="button"
           onClick={openProfile}
@@ -248,11 +360,14 @@ function Row({ inv }) {
   );
 }
 
-function ActionChip({ color, icon: Icon, onClick, children }) {
+function ActionChip({ color, icon: Icon, onClick, children, disabled = false, title }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={disabled ? (e) => e.stopPropagation() : onClick}
+      disabled={disabled}
+      title={title}
+      aria-disabled={disabled || undefined}
       style={{
         flex: 1,
         background: '#FFFFFF',
@@ -262,7 +377,8 @@ function ActionChip({ color, icon: Icon, onClick, children }) {
         padding: '3px 6px',
         fontSize: 14,
         fontWeight: 700,
-        cursor: 'pointer',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
         fontFamily: 'inherit',
         display: 'inline-flex',
         alignItems: 'center',

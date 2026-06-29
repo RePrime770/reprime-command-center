@@ -102,6 +102,12 @@ export async function GET(request: NextRequest) {
       kept: chatsForThisPanel.length,
     })
 
+    // Staff-roster names — groups whose title contains any of these are KEPT.
+    // Personal (1:1) threads are always kept regardless. Source of truth lives
+    // in lib/cockpit/staff-roster.ts; mirrored here to keep this route
+    // dependency-light (it's a service-role server path).
+    const STAFF_NAME_REGEX = /\b(Shirel|Kazi|Steve|Adir|Chaim)\b/i
+
     const kept: TimelinesChat[] = []
     let discardedCount = 0
     for (const c of chatsForThisPanel) {
@@ -110,9 +116,24 @@ export async function GET(request: NextRequest) {
       const normalized = isInvalidRaw ? null : normalizePhone(raw)
       const isGroupJid =
         typeof c.whatsapp_account_id === 'string' && c.whatsapp_account_id.endsWith('@g.us')
+      const isGroup = c.is_group === true || isGroupJid
+      const groupTitle = typeof c.name === 'string' ? c.name : ''
+      const isStaffGroup = isGroup && STAFF_NAME_REGEX.test(groupTitle)
       // Skip if the contact phone matches the account phone (self-chat — sends would 403)
       const isSelfPhone = normalized === '+17185505500' || normalized === '+13057784861'
-      if (isInvalidRaw || !normalized || c.is_group === true || isGroupJid || isSelfPhone) {
+      if (isInvalidRaw || isSelfPhone) {
+        discardedCount++
+        continue
+      }
+      // Personal threads need a normalized phone; staff-group threads ride on
+      // the group JID instead.
+      if (!normalized && !isStaffGroup) {
+        discardedCount++
+        continue
+      }
+      // Non-staff groups still get dropped — keeps the cockpit quiet from
+      // generic noise. Personal threads and staff-group threads pass through.
+      if (isGroup && !isStaffGroup) {
         discardedCount++
         continue
       }

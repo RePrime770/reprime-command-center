@@ -71,6 +71,14 @@ export default function EmailPanel({ width }) {
   const [openedId, setOpenedId] = useState(null);
   const [composing, setComposing] = useState(false);
   const [remindIds, setRemindIds] = useState(() => new Set());
+  const [search, setSearch] = useState('');
+
+  // Unread (fallback: total) count per inbox tab — feeds the tab pill badges.
+  const unreadCountFor = (key) => {
+    const scope = key === 'all' ? emails : emails.filter((e) => e.inbox === key);
+    const unread = scope.filter((e) => e.unread === true || e.read === false).length;
+    return unread > 0 ? unread : scope.length;
+  };
 
   // The top-bar Concierge "Email" button sets emailComposeOpen; open the
   // composer here and clear the flag so it's a real action, not a dead key.
@@ -87,7 +95,15 @@ export default function EmailPanel({ width }) {
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  const filtered = inbox === 'all' ? emails : emails.filter((e) => e.inbox === inbox);
+  const byInbox = inbox === 'all' ? emails : emails.filter((e) => e.inbox === inbox);
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? byInbox.filter((e) =>
+        [e.from, e.subject, e.preview]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(q))
+      )
+    : byInbox;
   const opened = openedId ? emails.find((e) => e.id === openedId) : null;
 
   return (
@@ -103,35 +119,75 @@ export default function EmailPanel({ width }) {
           flexShrink: 0
         }}
       >
-        {INBOXES.map((ib) => (
-          <button
-            key={ib.k}
-            type="button"
-            onClick={() => { setInbox(ib.k); setOpenedId(null); }}
-            style={{
-              flex: 1,
-              padding: '4px 6px',
-              background: inbox === ib.k ? ib.color : '#FFFFFF',
-              color: inbox === ib.k ? '#FFFFFF' : ib.color,
-              border: `1px solid ${ib.color}55`,
-              borderTop: `2px solid ${ib.color}`,
-              borderRadius: 6,
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              letterSpacing: '0.04em'
-            }}
-          >
-            {ib.label}
-          </button>
-        ))}
+        {INBOXES.map((ib) => {
+          const count = unreadCountFor(ib.k);
+          const active = inbox === ib.k;
+          return (
+            <button
+              key={ib.k}
+              type="button"
+              onClick={() => { setInbox(ib.k); setOpenedId(null); }}
+              style={{
+                flex: 1,
+                padding: '4px 6px',
+                background: active ? ib.color : '#FFFFFF',
+                color: active ? '#FFFFFF' : ib.color,
+                border: `1px solid ${ib.color}55`,
+                borderTop: `2px solid ${ib.color}`,
+                borderRadius: 6,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                letterSpacing: '0.04em',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5
+              }}
+            >
+              {ib.label}
+              <span style={{
+                background: count > 0 ? (active ? '#FFFFFF' : ib.color) : '#E2E8F0',
+                color: count > 0 ? (active ? ib.color : '#FFFFFF') : ink[500],
+                borderRadius: 999,
+                padding: '0 6px',
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: '0.02em',
+                minWidth: 16,
+                textAlign: 'center'
+              }}>{count}</span>
+            </button>
+          );
+        })}
       </div>
 
       {composing && <ComposeEmail onClose={() => setComposing(false)} />}
 
       {!opened && !composing && (
         <>
+          {/* Inbox search — filters by sender / subject / preview, client-side */}
+          <div style={{ padding: '6px 8px', background: '#FFFFFF', borderBottom: `1px solid ${semantic.divider}`, flexShrink: 0, position: 'relative' }}>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search inbox (sender, subject, preview)…"
+              style={{ width: '100%', border: `1px solid ${semantic.divider}`, borderRadius: 6, padding: '6px 28px 6px 10px', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                title="Clear search"
+                aria-label="Clear search"
+                style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: ink[500], cursor: 'pointer', padding: 2, display: 'inline-flex' }}
+              >
+                <X size={14} strokeWidth={2.4} />
+              </button>
+            )}
+          </div>
           {/* Compose — on TOP (Gideon 2026-06-16: controls go up top, never bottom) */}
           <div
             style={{

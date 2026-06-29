@@ -15,7 +15,9 @@ export default function SearchPalette() {
   const { state, set } = useDemo();
   const { threads, events, emails } = useLiveData();
   const [q, setQ] = useState('');
+  const [cursor, setCursor] = useState(0);
   const inputRef = useRef(null);
+  const listRef = useRef(null);
   const open = !!state.searchOpen;
 
   // Ctrl/Cmd+K toggles the palette from anywhere.
@@ -33,10 +35,11 @@ export default function SearchPalette() {
   }, [state.searchOpen, set]);
 
   useEffect(() => {
-    if (open) { setQ(''); setTimeout(() => inputRef.current?.focus(), 30); }
+    if (open) { setQ(''); setCursor(0); setTimeout(() => inputRef.current?.focus(), 30); }
   }, [open]);
 
-  if (!open) return null;
+  // Reset cursor when search text changes.
+  useEffect(() => { setCursor(0); }, [q]);
 
   const query = q.trim().toLowerCase();
   const threadList = Array.isArray(threads) ? threads : [];
@@ -57,6 +60,41 @@ export default function SearchPalette() {
     set('openChat', t.id);
     set('searchOpen', false);
   };
+
+  // Flat list of selectable rows (only conversations are openable).
+  const items = matchThreads.map((t) => ({ key: `t:${t.id}`, onOpen: () => openThread(t) }));
+
+  // Keyboard navigation (registered only while open).
+  useEffect(() => {
+    if (!open) return undefined;
+    const onNav = (e) => {
+      const max = items.length - 1;
+      if (max < 0) return;
+      if (e.key === 'ArrowDown' || e.key === 'Tab') {
+        e.preventDefault();
+        setCursor((c) => Math.min(max, c + 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setCursor((c) => Math.max(0, c - 1));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        items[Math.min(cursor, max)]?.onOpen?.();
+      }
+    };
+    window.addEventListener('keydown', onNav);
+    return () => window.removeEventListener('keydown', onNav);
+  }, [open, items.length, cursor]);
+
+  // Auto-scroll highlighted row into view.
+  useEffect(() => {
+    if (!open) return;
+    const el = listRef.current?.querySelector(`[data-row-idx="${cursor}"]`);
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'nearest' });
+    }
+  }, [cursor, open]);
+
+  if (!open) return null;
 
   return (
     <div
@@ -88,12 +126,25 @@ export default function SearchPalette() {
         </div>
 
         {/* Results */}
-        <div style={{ overflowY: 'auto', padding: 8 }}>
+        <div ref={listRef} style={{ overflowY: 'auto', padding: 8 }}>
           <Group icon={MessageSquare} label={query ? 'Conversations' : 'Recent conversations'} count={matchThreads.length}>
-            {matchThreads.map((t) => {
+            {matchThreads.map((t, idx) => {
               const ch = CH[t.channel];
+              const active = idx === cursor;
               return (
-                <button key={t.id} type="button" onClick={() => openThread(t)} style={rowStyle}>
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => openThread(t)}
+                  onMouseEnter={() => setCursor(idx)}
+                  data-row-idx={idx}
+                  style={{
+                    ...rowStyle,
+                    background: active ? ink[100] : 'transparent',
+                    borderLeft: `3px solid ${active ? brand.navy : 'transparent'}`,
+                    paddingLeft: 7,
+                  }}
+                >
                   <span style={{ width: 8, height: 8, borderRadius: 999, background: ch?.hex || ink[300], flexShrink: 0 }} />
                   <span style={{ fontSize: 16, fontWeight: 700, color: ink[700], display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     {t.isInvestor && <Star size={11} fill={CH.investor.hex} stroke={CH.investor.hex} />}
