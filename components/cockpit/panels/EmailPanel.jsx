@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { PenSquare, X, Send, Reply, Star, Paperclip, Mic, Clock, Video } from 'lucide-react';
 import { ink, channel as CH, tier as TIER, semantic, emailInbox as EI } from '../lib/colors.js';
 import { useLiveData } from '../live/CockpitLiveData.jsx';
+import { useDemo } from '../demo/DemoContext.jsx';
 import { fmtRelative } from '../lib/format.js';
 import { ListenButton, RecordButton, DictateButtons } from '../lib/voice.jsx';
 import PanelShell from './PanelShell.jsx';
@@ -65,10 +66,21 @@ export default function EmailPanel({ width }) {
   const emails = Array.isArray(liveEmails) ? liveEmails : [];
   // Tabs reflect the mailboxes that actually have triaged email this render.
   const INBOXES = buildInboxes(emails);
+  const { state, set } = useDemo();
   const [inbox, setInbox] = useState('all');
   const [openedId, setOpenedId] = useState(null);
   const [composing, setComposing] = useState(false);
   const [remindIds, setRemindIds] = useState(() => new Set());
+
+  // The top-bar Concierge "Email" button sets emailComposeOpen; open the
+  // composer here and clear the flag so it's a real action, not a dead key.
+  useEffect(() => {
+    if (state.emailComposeOpen) {
+      setComposing(true);
+      setOpenedId(null);
+      set('emailComposeOpen', false);
+    }
+  }, [state.emailComposeOpen, set]);
   const toggleRemind = (id) =>
     setRemindIds((prev) => {
       const next = new Set(prev);

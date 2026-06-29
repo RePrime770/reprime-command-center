@@ -4,6 +4,7 @@ import { ink, tier as TIER, semantic, brand } from '../lib/colors.js';
 import { fmtTime } from '../lib/format.js';
 import { ListenButton, DictateButtons } from '../lib/voice.jsx';
 import { useLiveData } from '../live/CockpitLiveData.jsx';
+import { useDemo } from '../demo/DemoContext.jsx';
 import PanelShell from './PanelShell.jsx';
 
 const ICON_BY_TYPE = {
@@ -27,6 +28,7 @@ function nextFridayLabel() {
 
 export default function CalendarPanel({ width }) {
   const { events, today: todayDate } = useLiveData();
+  const { set } = useDemo();
   const today = events.filter((e) => e.date === todayDate);
   const [memo, setMemo] = useState('');
   const [zmanim, setZmanim] = useState(null);
@@ -65,12 +67,21 @@ export default function CalendarPanel({ width }) {
     : `${_d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()} · ${_d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} ${_d.getDate()}`;
   return (
     <PanelShell width={width} accent="#00897B" title="CALENDAR" subtitle={calSubtitle}>
-      {/* Religious calendar pill */}
-      <div
+      {/* Religious calendar pill — click to open the full zmanim drawer */}
+      <button
+        type="button"
+        onClick={() => set('religiousCalendarOpen', true)}
+        title="Open religious calendar (candle-lighting, havdalah, upcoming Yom Tov)"
         style={{
+          display: 'block',
+          width: '100%',
+          textAlign: 'left',
           padding: '8px 12px',
           background: '#FFF3E0',
+          border: 'none',
           borderBottom: `1px solid #FFCC80`,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
           flexShrink: 0
         }}
       >
@@ -80,7 +91,7 @@ export default function CalendarPanel({ width }) {
         <div style={{ fontSize: 16, color: '#5D4037', marginTop: 2, lineHeight: 1.3 }}>
           {religiousLine}
         </div>
-      </div>
+      </button>
 
       {/* Voice memo — controls on TOP (Gideon 2026-06-16) */}
       <div

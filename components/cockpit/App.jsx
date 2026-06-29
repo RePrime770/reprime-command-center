@@ -18,6 +18,14 @@ import NotesPanel from './panels/NotesPanel.jsx';
 // Slot windows — Zoom only (lean center keeps only the meeting window)
 import ZoomWindow from './windows/ZoomWindow.jsx';
 
+// Drawers driven by the top-bar Concierge buttons (these read demo-state flags
+// the buttons set — previously several were never mounted, making the buttons
+// dead). InviteComposerDrawer ← inviteComposerOpen, BriefingDrawer ←
+// briefingOpen, ReligiousCalendarDrawer ← religiousCalendarOpen.
+import InviteComposerDrawer from './drawers/InviteComposerDrawer.jsx';
+import BriefingDrawer from './drawers/BriefingDrawer.jsx';
+import ReligiousCalendarDrawer from './drawers/ReligiousCalendarDrawer.jsx';
+
 // Toasts
 import ToastStack from './toasts/ToastStack.jsx';
 // Live reminder toasts — Supabase Realtime on `reminders` (fired by the cron).
@@ -112,6 +120,11 @@ function Cockpit() {
 
       {/* WINDOWS — Zoom only — z 50 */}
       {state.meetingState === 'zoom-with-susan' && <Windows />}
+
+      {/* DRAWERS — gated on demo-state flags set by the Concierge buttons */}
+      <InviteComposerDrawer />
+      <BriefingDrawer />
+      <ReligiousCalendarDrawer />
 
       {/* TOASTS */}
       <ToastStack />
