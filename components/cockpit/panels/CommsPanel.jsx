@@ -561,6 +561,7 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
         isHe={isHe}
         phone={thread.id}
         panel={panelFromChannel(thread.channel)}
+        channelKey={thread.channel}
         contactName={thread.contactName}
       />
 
@@ -736,7 +737,7 @@ function NoraElevatedRead({ thread, block, channel: ch, contextText }) {
   );
 }
 
-function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setReplyText, isHe, phone, panel, contactName }) {
+function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setReplyText, isHe, phone, panel, channelKey, contactName }) {
   const channelColor = ch?.hex || '#1E88E5';
   const labelText = {
     draft:   'NORA DRAFT · tap to edit',
@@ -744,8 +745,13 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
     cleared: 'WRITE YOUR OWN'
   }[replyMode];
 
+  // SMS (Quo/OpenPhone) is the 305 TEXT line. WhatsApp lanes use `panel`
+  // (305/718) via Timelines; SMS routes to /api/phone/quo-send instead.
+  const isSms = channelKey === '305-SMS';
+  const sendKind = panel ? 'whatsapp' : isSms ? 'sms' : null; // null → no send path
+
   const [sendState, setSendState] = React.useState('idle'); // idle | sending | sent | error
-  const canSend = Boolean(phone && panel) && replyText.trim().length > 0 && sendState !== 'sending';
+  const canSend = Boolean(phone && sendKind) && replyText.trim().length > 0 && sendState !== 'sending';
 
   // Attach a file: pick → upload to Supabase → send as WhatsApp media (with confirm).
   const fileInputRef = React.useRef(null);
@@ -779,24 +785,34 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
     }
   };
 
-  // Real WhatsApp send via the live API (POST /api/whatsapp/messages with
-  // phone+panel). Guarded by an explicit confirm naming the recipient + channel
-  // so a wrong-thread misfire can't happen silently (spec: "send confirm by name").
+  // Real send via the live API. WhatsApp → /api/whatsapp/messages (Timelines);
+  // SMS → /api/phone/quo-send (OpenPhone, 305). Guarded by an explicit confirm
+  // naming the recipient + channel so a wrong-thread misfire can't happen
+  // silently (spec: "send confirm by name").
   const doSend = async () => {
     if (!canSend) return;
     const who = contactName || phone;
+    const label = sendKind === 'sms' ? 'SMS' : 'WhatsApp';
+    const onLine = sendKind === 'sms' ? '305' : panel;
     const okToSend = typeof window === 'undefined'
       ? true
-      : window.confirm(`Send this WhatsApp to ${who} on ${panel}?\n\n“${replyText.trim().slice(0, 140)}”`);
+      : window.confirm(`Send this ${label} to ${who} on ${onLine}?\n\n“${replyText.trim().slice(0, 140)}”`);
     if (!okToSend) return;
     setSendState('sending');
     try {
-      const res = await fetch('/api/whatsapp/messages', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, panel, body: replyText.trim() }),
-      });
+      const res = sendKind === 'sms'
+        ? await fetch('/api/phone/quo-send', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: phone, body: replyText.trim() }),
+          })
+        : await fetch('/api/whatsapp/messages', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, panel, body: replyText.trim() }),
+          });
       setSendState(res.ok ? 'sent' : 'error');
     } catch {
       setSendState('error');
