@@ -413,13 +413,33 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
   const [replyMode, setReplyMode] = React.useState(isFamily ? 'cleared' : 'draft');
   const [replyText, setReplyText] = React.useState(isFamily ? '' : defaultDraft);
 
-  // Invite-to-Zoom — drop a realistic fake zoom.us/j/<11 digits> link into the reply box for review.
-  // Never auto-sends: it switches the box into editing so Gideon sees + can tweak the link before Send.
-  const dropZoomLink = () => {
-    const digits = Array.from({ length: 11 }, () => Math.floor(Math.random() * 10)).join('');
-    const link = `https://zoom.us/j/${digits}`;
-    setReplyText((prev) => (prev && prev.trim() ? `${prev}\n${link}` : link));
-    setReplyMode('editing');
+  // Invite-to-Zoom — creates a REAL Zoom meeting via /api/zoom/create-meeting
+  // and drops its join_url into the reply box for review. Never auto-sends: it
+  // switches the box into editing so Gideon sees + can tweak before Send.
+  // Never fabricates a link: on failure it shows an inline error instead.
+  const [zoomBusy, setZoomBusy] = React.useState(false);
+  const [zoomErr, setZoomErr] = React.useState(false);
+  const dropZoomLink = async () => {
+    if (zoomBusy) return;
+    setZoomBusy(true);
+    setZoomErr(false);
+    try {
+      const res = await fetch('/api/zoom/create-meeting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ contactName: thread.contactName }),
+      });
+      const data = res.ok ? await res.json() : null;
+      const link = data?.joinUrl;
+      if (!link) { setZoomErr(true); return; }
+      setReplyText((prev) => (prev && prev.trim() ? `${prev}\n${link}` : link));
+      setReplyMode('editing');
+    } catch {
+      setZoomErr(true);
+    } finally {
+      setZoomBusy(false);
+    }
   };
 
   return (
@@ -455,10 +475,11 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
         <button
           type="button"
           onClick={dropZoomLink}
-          style={headerActionStyle('#2D8CFF')}
-          title="Invite to Zoom — drops a meeting link into the reply box for review (does not auto-send)"
+          disabled={zoomBusy}
+          style={{ ...headerActionStyle(zoomErr ? '#E53935' : '#2D8CFF'), opacity: zoomBusy ? 0.6 : 1, cursor: zoomBusy ? 'wait' : 'pointer' }}
+          title={zoomErr ? 'Zoom unavailable — try again' : 'Invite to Zoom — creates a real meeting and drops the link into the reply box for review (does not auto-send)'}
         >
-          <Video size={11} strokeWidth={2.4} /> Zoom
+          <Video size={11} strokeWidth={2.4} /> {zoomBusy ? '…' : zoomErr ? 'Zoom ✗' : 'Zoom'}
         </button>
         <ListenButton compact />
         <ReminderPicker />

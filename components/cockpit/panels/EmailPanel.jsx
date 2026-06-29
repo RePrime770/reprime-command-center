@@ -355,11 +355,32 @@ function OpenedEmail({ email, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email.id]);
 
-  const inviteToZoom = () => {
-    const digits = String(Math.floor(10000000000 + Math.random() * 89999999999)); // 11 digits
-    const link = `https://zoom.us/j/${digits}`;
-    setReplyText((t) => (t && t.trim() ? `${t}\n\nJoin Zoom: ${link}` : `Join Zoom: ${link}`));
-    setReplyMode((m) => (m === 'draft' ? 'editing' : m));
+  // Creates a REAL Zoom meeting via /api/zoom/create-meeting and drops the
+  // join_url into the reply (was a random fake zoom.us/j/<digits> link). Never
+  // fabricates a link — shows an inline error on failure.
+  const [zoomBusy, setZoomBusy] = useState(false);
+  const [zoomErr, setZoomErr] = useState(false);
+  const inviteToZoom = async () => {
+    if (zoomBusy) return;
+    setZoomBusy(true);
+    setZoomErr(false);
+    try {
+      const res = await fetch('/api/zoom/create-meeting', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactName: email.fromShort || email.from }),
+      });
+      const data = res.ok ? await res.json() : null;
+      const link = data?.joinUrl;
+      if (!link) { setZoomErr(true); return; }
+      setReplyText((t) => (t && t.trim() ? `${t}\n\nJoin Zoom: ${link}` : `Join Zoom: ${link}`));
+      setReplyMode((m) => (m === 'draft' ? 'editing' : m));
+    } catch {
+      setZoomErr(true);
+    } finally {
+      setZoomBusy(false);
+    }
   };
 
   return (
@@ -408,16 +429,18 @@ function OpenedEmail({ email, onClose }) {
         <button
           type="button"
           onClick={inviteToZoom}
-          title="Invite to Zoom — drops a link into the reply"
+          disabled={zoomBusy}
+          title={zoomErr ? 'Zoom unavailable — try again' : 'Invite to Zoom — creates a real meeting and drops the link into the reply'}
           style={{
-            background: '#2D8CFF',
+            background: zoomErr ? '#E53935' : '#2D8CFF',
             color: '#FFFFFF',
             border: 'none',
             borderRadius: 999,
             padding: '4px 10px',
             fontSize: 14,
             fontWeight: 800,
-            cursor: 'pointer',
+            cursor: zoomBusy ? 'wait' : 'pointer',
+            opacity: zoomBusy ? 0.6 : 1,
             fontFamily: 'inherit',
             display: 'inline-flex',
             alignItems: 'center',
@@ -425,7 +448,7 @@ function OpenedEmail({ email, onClose }) {
             letterSpacing: '0.04em'
           }}
         >
-          <Video size={12} strokeWidth={2.6} /> Zoom
+          <Video size={12} strokeWidth={2.6} /> {zoomBusy ? '…' : zoomErr ? 'Zoom ✗' : 'Zoom'}
         </button>
         <ListenButton
           compact
