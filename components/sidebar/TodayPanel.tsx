@@ -187,14 +187,15 @@ function findNextUpId(events: CalendarEvent[], now: Date): string | null {
 }
 
 export default function TodayPanel() {
-  const [now, setNow] = useState(() => new Date())
+  const [now, setNow] = useState<Date | null>(null)
   const [reminders, setReminders] = useState<ReminderMap>(() => loadReminders())
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const reminderRef = useRef(reminders)
   reminderRef.current = reminders
 
-  // Clock tick
+  // Clock tick — initialized in effect to avoid SSR/client hydration mismatch
   useEffect(() => {
+    setNow(new Date())
     const interval = setInterval(() => setNow(new Date()), 30_000)
     return () => clearInterval(interval)
   }, [])
@@ -290,7 +291,8 @@ export default function TodayPanel() {
   })
 
   const events = data?.events ?? []
-  const nextUpId = findNextUpId(events, now)
+  const effectiveNow = now ?? new Date()
+  const nextUpId = findNextUpId(events, effectiveNow)
 
   const containerStyle: React.CSSProperties = {
     background: 'var(--rp-navy)',
@@ -367,7 +369,7 @@ export default function TodayPanel() {
         }
 
         const timeAbs = formatAbsolute(ev.startTime)
-        const timeRel = formatRelative(ev.startTime, now)
+        const timeRel = now ? formatRelative(ev.startTime, now) : ''
 
         return (
           <div key={ev.id} style={cardStyle} title={ev.title}>
