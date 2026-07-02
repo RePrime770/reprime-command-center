@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { createServiceClient } from '@/lib/supabase/server'
 import { postSlack } from '@/lib/slack/client'
+import { cronAuthed } from '@/lib/cron/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -211,7 +212,9 @@ function formatDigest(parts: {
   return { text, blocks }
 }
 
-export async function POST(request: NextRequest) {
+// Vercel cron issues GET; POST kept for manual triggering. A POST-only export
+// here meant the scheduled 13:00 digest 405'd and never posted to Slack.
+async function runDigest(request: NextRequest) {
   const expected = process.env.CRON_SECRET
   if (!expected) {
     return NextResponse.json(
@@ -219,8 +222,7 @@ export async function POST(request: NextRequest) {
       { status: 503 },
     )
   }
-  const header = request.headers.get('authorization') || ''
-  if (header !== `Bearer ${expected}`) {
+  if (!cronAuthed(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
@@ -322,3 +324,6 @@ export async function POST(request: NextRequest) {
     counts,
   })
 }
+
+export const GET = runDigest
+export const POST = runDigest

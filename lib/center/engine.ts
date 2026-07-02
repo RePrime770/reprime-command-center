@@ -155,7 +155,22 @@ export async function processInvite(inv: { id: string; contact_name: string | nu
   // Pre-render the OG card to static storage BEFORE sending so WhatsApp's first
   // crawl is an instant CDN fetch → big navy card (a cold dynamic render gets
   // skipped → small thumbnail). Best-effort; the dynamic route still works.
-  try { await fetch(`${APP()}/api/center/warm-card`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: inv.id }) }) } catch { /* card still renders dynamically */ }
+  // warm-card now requires auth (centerAuthed/cronAuthed); this is a server-side
+  // self-call, so send BOTH credentials — CENTER_PASSWORD may be unset in prod
+  // while CRON_SECRET is set, and either one satisfies the gate. Log non-OK so
+  // a silent 401 can't quietly kill OG-card pre-warming again.
+  try {
+    const res = await fetch(`${APP()}/api/center/warm-card`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-center-pass': process.env.CENTER_PASSWORD || '',
+        authorization: `Bearer ${process.env.CRON_SECRET || ''}`,
+      },
+      body: JSON.stringify({ id: inv.id }),
+    })
+    if (!res.ok) console.error('[engine] warm-card self-call failed', res.status)
+  } catch { /* card still renders dynamically */ }
   const parts: string[] = []
   // WhatsApp
   if (inv.contact_phone) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getPastMeetingAttendance } from '@/lib/zoom/client'
 import { notifyGroup } from '@/lib/center/notify'
+import { cronAuthed } from '@/lib/cron/auth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -19,15 +20,6 @@ export const maxDuration = 60
 //   meeting_status is null            (not already verified)
 //   slot ended ≥45 min ago AND ≤24h ago (long enough to be real, recent enough)
 
-// Reuse the exact cron-auth pattern from /api/cron/dispatch-alerts:
-// no CRON_SECRET set → allow; set → require Bearer.
-function authorized(request: Request): boolean {
-  const expected = process.env.CRON_SECRET
-  if (!expected) return true
-  const header = request.headers.get('authorization') || ''
-  return header === `Bearer ${expected}`
-}
-
 interface VerifyRow {
   id: string
   contact_first_name: string | null
@@ -37,7 +29,7 @@ interface VerifyRow {
 }
 
 export async function GET(request: Request) {
-  if (!authorized(request)) {
+  if (!cronAuthed(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 

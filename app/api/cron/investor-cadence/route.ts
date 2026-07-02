@@ -12,6 +12,7 @@ import {
   type CadenceStatus,
   type InvestorTier,
 } from '@/lib/scoring/investor-cadence'
+import { cronAuthed } from '@/lib/cron/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -98,16 +99,14 @@ function resolveTier(t: InvestorTagTier | null): InvestorTier {
   return (t ?? 'C') as InvestorTier
 }
 
-export async function POST(request: NextRequest) {
-  const expected = process.env.CRON_SECRET
-  if (!expected) {
+async function runCadence(request: NextRequest) {
+  if (!process.env.CRON_SECRET) {
     return NextResponse.json(
       { error: 'cron_secret_not_configured' },
       { status: 503 },
     )
   }
-  const header = request.headers.get('authorization') || ''
-  if (header !== `Bearer ${expected}`) {
+  if (!cronAuthed(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
@@ -223,3 +222,9 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ items: top, cached: false })
 }
+
+// Not currently scheduled in vercel.json — slack-digest's newly-cold fetch
+// POSTs here daily. GET is exported so a cron entry can be added later
+// without another code change; POST stays for the existing internal caller.
+export const GET = runCadence
+export const POST = runCadence

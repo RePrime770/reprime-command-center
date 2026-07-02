@@ -99,12 +99,15 @@ export async function POST(request: NextRequest) {
   const rawBody = await request.text()
   const sig = request.headers.get('openphone-signature') ?? ''
 
-  if (sig) {
-    const valid = verifyAgainstAny(rawBody, sig, secrets)
-    if (!valid) {
-      console.warn('[quo-webhook] signature mismatch (tried', secrets.length, 'secret(s))')
-      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
-    }
+  // Signature is MANDATORY. The old `if (sig)` skip meant any anonymous POST
+  // that simply omitted the header wrote straight into phone_calls/SMS state.
+  if (!sig) {
+    console.warn('[quo-webhook] missing openphone-signature header — rejected')
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  if (!verifyAgainstAny(rawBody, sig, secrets)) {
+    console.warn('[quo-webhook] signature mismatch (tried', secrets.length, 'secret(s))')
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
 
   let payload: Record<string, unknown>

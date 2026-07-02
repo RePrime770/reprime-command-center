@@ -1,17 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { triggerEvent } from '@/lib/pagerduty/events'
+import { cronAuthed } from '@/lib/cron/auth'
 
 export const dynamic = 'force-dynamic'
 
 const PAGE_LIMIT = 100
-
-function authorized(request: Request): boolean {
-  const expected = process.env.CRON_SECRET
-  if (!expected) return true
-  const header = request.headers.get('authorization') || ''
-  return header === `Bearer ${expected}`
-}
 
 /**
  * Hourly cron — flips reminded_at on every open ask whose expected_reply_by
@@ -21,7 +15,7 @@ function authorized(request: Request): boolean {
  * Vercel cron schedule (registered in vercel.json): "0 * * * *".
  */
 export async function GET(request: Request) {
-  if (!authorized(request)) {
+  if (!cronAuthed(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 

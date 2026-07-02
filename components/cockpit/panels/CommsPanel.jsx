@@ -80,19 +80,32 @@ function panelFromChannel(channel) {
 function useThreadMessages(thread) {
   const [messages, setMessages] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
+  const [refreshTick, setRefreshTick] = React.useState(0);
   const phone = thread?.id;
   const panel = panelFromChannel(thread?.channel);
   const contactId = thread?.contactId;
+  const lastKeyRef = React.useRef('');
 
   React.useEffect(() => {
     if (!phone || !panel) {
       setMessages(null);
       setLoading(false);
+      // Reset so returning to a live thread after a non-live one is treated
+      // as a fresh open (spinner + blank), not a silent refetch.
+      lastKeyRef.current = '';
       return;
     }
     let cancelled = false;
-    setLoading(true);
-    setMessages(null);
+    // Blank + spinner only when SWITCHING threads. A refetch() of the same
+    // thread (post-send refresh) replaces the list silently so the open
+    // conversation doesn't flash away.
+    const key = `${phone}|${panel}`;
+    const isRefetch = lastKeyRef.current === key;
+    lastKeyRef.current = key;
+    if (!isRefetch) {
+      setLoading(true);
+      setMessages(null);
+    }
     const url = `/api/whatsapp/messages?phone=${encodeURIComponent(phone)}&panel=${panel}`;
     fetch(url, { credentials: 'same-origin' })
       .then((res) => (res.ok ? res.json() : null))
@@ -114,7 +127,8 @@ function useThreadMessages(thread) {
         setMessages(adapted);
       })
       .catch(() => {
-        if (!cancelled) setMessages([]);
+        // Keep whatever is on screen when a background refetch fails.
+        if (!cancelled && !isRefetch) setMessages([]);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -122,9 +136,11 @@ function useThreadMessages(thread) {
     return () => {
       cancelled = true;
     };
-  }, [phone, panel, contactId]);
+  }, [phone, panel, contactId, refreshTick]);
 
-  return { messages, loading };
+  const refetch = React.useCallback(() => setRefreshTick((t) => t + 1), []);
+
+  return { messages, loading, refetch };
 }
 
 export default function CommsPanel({ width }) {
@@ -429,16 +445,60 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
 
   // Live message bodies — cockpit thread.id is the phone, so fetch by phone+panel.
   // Only WhatsApp lanes have a live source this pass ('305-WA' / '718-WA').
-  const { messages: liveMessages, loading: liveLoading } = useThreadMessages(thread);
+  const { messages: liveMessages, loading: liveLoading, refetch } = useThreadMessages(thread);
   // Prefer live messages once they arrive; fall back to any static thread.messages.
   const baseMessages =
     liveMessages !== null ? liveMessages : (thread.messages || []);
+
+  // Optimistic echo of just-sent messages. Before this, a successful send only
+  // flipped the button to "Sent ✓" — the message never appeared in the open
+  // thread until you closed and reopened it.
+  const [localEcho, setLocalEcho] = React.useState([]);
+  React.useEffect(() => {
+    setLocalEcho([]);
+  }, [thread.id]);
+  const refetchTimersRef = React.useRef([]);
+  React.useEffect(() => () => refetchTimersRef.current.forEach(clearTimeout), []);
+  const handleSent = React.useCallback((text) => {
+    const body = (text || '').trim();
+    if (body) {
+      setLocalEcho((prev) => [
+        ...prev,
+        { id: `local-${prev.length}-${Date.now()}`, from: 'me', ts: new Date().toISOString(), body },
+      ]);
+    }
+    // Provider ingest lags a beat behind the send API — pull the real record
+    // shortly after, then once more for slow bridges (Timelines).
+    refetchTimersRef.current.forEach(clearTimeout);
+    refetchTimersRef.current = [setTimeout(refetch, 1500), setTimeout(refetch, 5000)];
+  }, [refetch]);
+  // Drop echoes once the server copy shows up so nothing renders twice.
+  // Time-windowed AND count-aware: each recent server outbound consumes at
+  // most ONE echo. Plain body-equality against the whole history made a send
+  // whose text matched ANY old outbound (e.g. "Ok") vanish instantly — box
+  // cleared, no bubble — which read as a failed send and invited a double-send.
+  const ECHO_MATCH_WINDOW_MS = 2 * 60 * 1000;
+  const echoMessages = (() => {
+    if (localEcho.length === 0) return [];
+    const remaining = [...localEcho];
+    for (const m of baseMessages) {
+      if (m.from !== 'me') continue;
+      const serverTs = new Date(m.ts || 0).getTime();
+      const idx = remaining.findIndex(
+        (e) =>
+          e.body === (m.body || '') &&
+          Math.abs(new Date(e.ts).getTime() - serverTs) < ECHO_MATCH_WINDOW_MS
+      );
+      if (idx !== -1) remaining.splice(idx, 1);
+    }
+    return remaining;
+  })();
 
   // Ascending sort (oldest → newest) so the chat reads top-down like every
   // mainstream messaging app. We auto-scroll the message list to the bottom
   // whenever it changes, so the user lands on the LATEST message — fixes the
   // "loading old old messages / can't see the new one" complaint.
-  const sortedMessages = [...baseMessages].sort(
+  const sortedMessages = [...baseMessages, ...echoMessages].sort(
     (a, b) => new Date(a.ts || 0) - new Date(b.ts || 0)
   );
   const newestMessage = sortedMessages[sortedMessages.length - 1];
@@ -668,6 +728,7 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
         panel={panelFromChannel(thread.channel)}
         channelKey={thread.channel}
         contactName={thread.contactName}
+        onSent={handleSent}
       />
     </div>
   );
@@ -809,7 +870,7 @@ function NoraElevatedRead({ thread, block, channel: ch, contextText }) {
   );
 }
 
-function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setReplyText, isHe, phone, panel, channelKey, contactName }) {
+function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setReplyText, isHe, phone, panel, channelKey, contactName, onSent }) {
   const channelColor = ch?.hex || '#1E88E5';
   const labelText = {
     draft:   'NORA DRAFT · tap to edit',
@@ -824,6 +885,8 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
 
   const [sendState, setSendState] = React.useState('idle'); // idle | sending | sent | error
   const canSend = Boolean(phone && sendKind) && replyText.trim().length > 0 && sendState !== 'sending';
+  const sentResetRef = React.useRef(null);
+  React.useEffect(() => () => { if (sentResetRef.current) clearTimeout(sentResetRef.current); }, []);
 
   // Attach a file: pick → upload to Supabase → send as WhatsApp media (with confirm).
   const fileInputRef = React.useRef(null);
@@ -850,6 +913,9 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
           attachment_type: up.type,
         }),
       });
+      // No text echo for media — the scheduled refetch pulls the real record
+      // (with its media URL) into the open thread.
+      onSent?.('');
     } catch {
       /* upload/send failed — button re-enables */
     } finally {
@@ -871,21 +937,33 @@ function ReplyZone({ ch, defaultDraft, replyMode, setReplyMode, replyText, setRe
       : window.confirm(`Send this ${label} to ${who} on ${onLine}?\n\n“${replyText.trim().slice(0, 140)}”`);
     if (!okToSend) return;
     setSendState('sending');
+    const outgoing = replyText.trim();
     try {
       const res = sendKind === 'sms'
         ? await fetch('/api/phone/quo-send', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ to: phone, body: replyText.trim() }),
+            body: JSON.stringify({ to: phone, body: outgoing }),
           })
         : await fetch('/api/whatsapp/messages', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone, panel, body: replyText.trim() }),
+            body: JSON.stringify({ phone, panel, body: outgoing }),
           });
-      setSendState(res.ok ? 'sent' : 'error');
+      if (res.ok) {
+        setSendState('sent');
+        // Echo into the open thread + clear the box so the message is SEEN
+        // and can't be double-sent. "Sent ✓" relaxes back to idle shortly.
+        onSent?.(outgoing);
+        setReplyText('');
+        setReplyMode('cleared');
+        if (sentResetRef.current) clearTimeout(sentResetRef.current);
+        sentResetRef.current = setTimeout(() => setSendState('idle'), 2500);
+      } else {
+        setSendState('error');
+      }
     } catch {
       setSendState('error');
     }

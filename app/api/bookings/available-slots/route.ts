@@ -298,7 +298,9 @@ export async function GET() {
 
     return NextResponse.json({ slots })
   } catch (err) {
+    // Public, unauthenticated route — never echo internals (err.message can
+    // carry Google API detail); the full error stays in the server log.
     console.error('[available-slots] error', err)
-    return NextResponse.json({ error: 'internal_error', message: (err as Error).message }, { status: 500 })
+    return NextResponse.json({ error: 'internal_error' }, { status: 500 })
   }
 }

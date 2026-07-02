@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { centerAuthed } from '@/lib/center/auth'
+import { cronAuthed } from '@/lib/cron/auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getMessages, resolveChatId, PANEL_ACCOUNT_MAP } from '@/lib/timelines/client'
 
@@ -143,7 +144,13 @@ export async function POST(request: Request) {
 
 // Cron entry (no session) — keeps active conversations mirrored in the background.
 // Small rolling batch so it never trips the Timelines rate limit.
-export async function GET() {
+// Auth: cronAuthed (Vercel cron header / Bearer CRON_SECRET) or the board's
+// x-center-pass. This GET was previously wide open — anyone could burn our
+// Timelines rate limit and force roster/message rewrites on demand.
+export async function GET(request: Request) {
+  if (!cronAuthed(request) && !centerAuthed(request)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
   const service = createServiceClient()
   return runBatch(service, 12, 'active')
 }

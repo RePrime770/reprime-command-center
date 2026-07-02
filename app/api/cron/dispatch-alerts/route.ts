@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { triggerEvent, type Severity } from '@/lib/pagerduty/events'
+import { cronAuthed } from '@/lib/cron/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,15 +25,8 @@ function getRedis(): Redis | null {
   return new Redis({ url, token })
 }
 
-function authorized(request: Request): boolean {
-  const expected = process.env.CRON_SECRET
-  if (!expected) return true
-  const header = request.headers.get('authorization') || ''
-  return header === `Bearer ${expected}`
-}
-
 export async function GET(request: Request) {
-  if (!authorized(request)) {
+  if (!cronAuthed(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
   const redis = getRedis()

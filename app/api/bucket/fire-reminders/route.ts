@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { createServiceClient } from '@/lib/supabase/server'
+import { cronAuthed } from '@/lib/cron/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,28 +9,28 @@ const BATCH_LIMIT = 100
 const DEDUPE_TTL_SECONDS = 300
 
 /**
- * POST /api/bucket/fire-reminders — Vercel cron worker (every minute).
+ * GET|POST /api/bucket/fire-reminders — Vercel cron worker (every minute).
+ * Vercel cron issues GET; POST kept for manual triggering. A POST-only export
+ * here meant every scheduled invocation 405'd and reminders never fired.
  *
  * Selects up to 100 reminders where fire_at <= now() and fired_at is null,
  * stamps fired_at = now() on each, and lets Supabase Realtime deliver the
  * UPDATE to the toast subscriber on the kiosk.
  *
- * Auth: Authorization: Bearer ${CRON_SECRET}. If CRON_SECRET is unset the
- * endpoint refuses to run rather than silently fanning out reminders.
+ * Auth: cronAuthed() — Bearer CRON_SECRET or Vercel's x-vercel-cron header;
+ * fail-closed when CRON_SECRET is unset (503 for diagnosability).
  *
  * Dedupe: per-row Upstash key `reminder:fired:${id}` TTL 300s. Guards
  * against the cron being double-invoked within a minute.
  */
-export async function POST(request: NextRequest) {
-  const expected = process.env.CRON_SECRET
-  if (!expected) {
+async function runFireReminders(request: NextRequest) {
+  if (!process.env.CRON_SECRET) {
     return NextResponse.json(
       { error: 'cron_secret_not_configured' },
       { status: 503 }
     )
   }
-  const header = request.headers.get('authorization') || ''
-  if (header !== `Bearer ${expected}`) {
+  if (!cronAuthed(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
@@ -85,6 +86,9 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ fired, failures })
 }
+
+export const GET = runFireReminders
+export const POST = runFireReminders
 
 function getRedis(): Redis | null {
   const url = process.env.UPSTASH_REDIS_REST_URL

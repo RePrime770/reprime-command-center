@@ -28,16 +28,24 @@ const PUBLIC_PATHS = [
   // header. Endpoint itself enforces the token check; middleware just lets it through.
   '/api/invitations',
   // Vercel cron hits these without user cookies; CRON_SECRET bearer is the
-  // real auth gate inside each route handler.
+  // real auth gate inside each route handler (cronAuthed, fail-closed).
+  // Every path scheduled in vercel.json crons MUST be listed here — otherwise
+  // the proxy 307s the cron request to /login and the job silently never runs
+  // (this killed dispatch-alerts, poll-overdue and meeting-verify for weeks).
   '/api/bucket/fire-reminders',
   '/api/email/sync',
   '/api/cron/inforuptcy-poll',
   '/api/cron/slack-digest',
+  '/api/cron/dispatch-alerts',
+  '/api/cron/meeting-verify',
+  '/api/cron/investor-cadence',
+  '/api/secretary/poll-overdue',
   // Public health endpoint — read-only env presence + DB ping. No secrets in
   // response. Used by extension4 / extension6 to verify deploys without auth.
   '/api/health',
-  // Command Center outreach tool — password-gated by sbh770 inside each route
-  // (x-center-pass header), so it must bypass the dashboard Supabase login.
+  // Command Center outreach tool — password-gated inside each route via the
+  // x-center-pass header (compared against the CENTER_PASSWORD env var), so it
+  // must bypass the dashboard Supabase login.
   '/outreach',
   '/center.html',
   '/api/center',

@@ -31,7 +31,7 @@ export const SETUP_LINKS: Readonly<Record<string, SetupLink>> = {
   },
   google_secondary: { kind: 'route', href: '/api/google/connect-secondary' },
   timelines: { kind: 'env', envVars: ['TIMELINES_API_KEY'], docPath: ENV_DOC },
-  quo: { kind: 'env', envVars: ['OPENPHONE_API_KEY'], docPath: ENV_DOC },
+  quo: { kind: 'env', envVars: ['QUO_API_KEY'], docPath: ENV_DOC },
   zoom: {
     kind: 'env',
     envVars: ['ZOOM_ACCOUNT_ID', 'ZOOM_CLIENT_ID', 'ZOOM_CLIENT_SECRET'],
@@ -50,7 +50,7 @@ export const SETUP_LINKS: Readonly<Record<string, SetupLink>> = {
   },
   openai: { kind: 'env', envVars: ['OPENAI_API_KEY'], docPath: ENV_DOC },
   groq: { kind: 'env', envVars: ['GROQ_API_KEY'], docPath: ENV_DOC },
-  elevenlabs: { kind: 'env', envVars: ['ELEVENLABS_API_KEY'], docPath: ENV_DOC },
+  elevenlabs: { kind: 'env', envVars: ['ELEVENLABS_API_KEY', 'ELEVENLABS_VOICE_ID'], docPath: ENV_DOC },
   slack: { kind: 'env', envVars: ['SLACK_WEBHOOK_URL'], docPath: ENV_DOC },
   pagerduty: { kind: 'env', envVars: ['PAGERDUTY_ROUTING_KEY'], docPath: ENV_DOC },
   apollo: { kind: 'env', envVars: ['APOLLO_API_KEY'], docPath: ENV_DOC },

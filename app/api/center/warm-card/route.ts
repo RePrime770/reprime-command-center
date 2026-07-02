@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { centerAuthed } from '@/lib/center/auth'
+import { cronAuthed } from '@/lib/cron/auth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -24,6 +26,12 @@ function appUrl(): string {
 }
 
 export async function POST(request: Request) {
+  // Board password or cron secret — this endpoint fetches + uploads to public
+  // storage with the service role, so anonymous POSTs could burn render/storage
+  // quota against arbitrary invite ids.
+  if (!centerAuthed(request) && !cronAuthed(request)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
   let id = ''
   try {
     const body = await request.json()
@@ -62,5 +70,9 @@ export async function POST(request: Request) {
 // GET helper for manual warming / verification: /api/center/warm-card?id=<uuid>
 export async function GET(request: Request) {
   const id = new URL(request.url).searchParams.get('id') || ''
-  return POST(new Request(request.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }))
+  // Forward the caller's headers — POST reads x-center-pass / Authorization
+  // for auth; a synthesized header set here would 401 every GET.
+  const headers = new Headers(request.headers)
+  headers.set('Content-Type', 'application/json')
+  return POST(new Request(request.url, { method: 'POST', headers, body: JSON.stringify({ id }) }))
 }
