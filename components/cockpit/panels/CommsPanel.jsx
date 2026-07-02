@@ -143,21 +143,140 @@ function useThreadMessages(thread) {
   return { messages, loading, refetch };
 }
 
+// Reminder option → hours offset ('Tomorrow' handled separately as 09:00 local).
+const REMIND_HOURS = { '1h': 1, '2h': 2, '3h': 3, '6h': 6 };
+// How long a failed reminder stays red before resetting to idle.
+const REMIND_ERROR_RESET_MS = 4000;
+
 export default function CommsPanel({ width }) {
   const { state, set } = useDemo();
   const { threads, threadsByChannel, findThread } = useLiveData();
   const [openThread, setOpenThread] = useState({ '305': null, '718': null, inv: null, staff: null });
 
-  // Per-message 1-hour reminders — lifted into the panel so the gold "set" state
-  // survives thread open/close and lane reflow. Mock-only: fixed 1h, no picker.
-  const [remindIds, setRemindIds] = useState(() => new Set());
-  const toggleRemind = (threadId) => {
-    setRemindIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(threadId)) next.delete(threadId);
-      else next.add(threadId);
+  // Per-thread reminders — lifted into the panel so the gold "set" state
+  // survives thread open/close and lane reflow. Real flow: create a hidden
+  // bucket_item carrier (POST /api/bucket with due_at = fire_at so it stays out
+  // of BucketPanel/NorasDesk until due), then POST /api/bucket/<id>/remind.
+  // The fire-reminders cron stamps fired_at and the mounted <ReminderToast/>
+  // surfaces it live. Keyed by thread.id (the phone — stable across reloads).
+  // Entry: { status: 'saving'|'set'|'error', label: '1h'|'2h'|'3h'|'6h'|'Tomorrow',
+  //          bucketItemId: string|null, fireAt: string }
+  const [reminders, setReminders] = useState(() => new Map());
+  const errorTimersRef = React.useRef(new Map());
+  useEffect(() => () => {
+    errorTimersRef.current.forEach((t) => clearTimeout(t));
+  }, []);
+
+  const updateReminder = (threadId, entry) => {
+    setReminders((prev) => {
+      const next = new Map(prev);
+      if (entry === null) next.delete(threadId);
+      else next.set(threadId, entry);
       return next;
     });
+  };
+
+  // Mirrors RemindPicker.fireFor in NorasDesk.jsx — 'Tomorrow' = tomorrow 09:00 local.
+  const fireAtFor = (key) => {
+    const now = Date.now();
+    const hours = REMIND_HOURS[key];
+    if (hours) return new Date(now + hours * 60 * 60 * 1000);
+    const d = new Date(now + 24 * 60 * 60 * 1000);
+    d.setHours(9, 0, 0, 0);
+    return d;
+  };
+
+  // Failed sets auto-clear back to idle after a beat so the row doesn't stay red
+  // forever; tapping again before that retries immediately.
+  const flagRemindError = (threadId, label, fireAt) => {
+    updateReminder(threadId, { status: 'error', label, bucketItemId: null, fireAt });
+    const prevTimer = errorTimersRef.current.get(threadId);
+    if (prevTimer) clearTimeout(prevTimer);
+    errorTimersRef.current.set(
+      threadId,
+      setTimeout(() => {
+        errorTimersRef.current.delete(threadId);
+        setReminders((prev) => {
+          const cur = prev.get(threadId);
+          if (!cur || cur.status !== 'error') return prev;
+          const next = new Map(prev);
+          next.delete(threadId);
+          return next;
+        });
+      }, REMIND_ERROR_RESET_MS)
+    );
+  };
+
+  const setRemind = async (thread, key) => {
+    const threadId = thread.id;
+    const prevEntry = reminders.get(threadId);
+    if (prevEntry?.status === 'saving') return;
+    const fireAt = fireAtFor(key).toISOString();
+    const title = `Reply to ${thread.contactName || threadId}`;
+    // Optimistic — gold renders immediately.
+    updateReminder(threadId, { status: 'saving', label: key, bucketItemId: null, fireAt });
+    try {
+      // Re-pick: drop the previous carrier first (its reminder cascade-deletes).
+      // Ignore failure — worst case a duplicate toast.
+      if (prevEntry?.bucketItemId) {
+        await fetch(`/api/bucket/${prevEntry.bucketItemId}`, {
+          method: 'DELETE',
+          credentials: 'same-origin',
+        }).catch(() => {});
+      }
+      const createRes = await fetch('/api/bucket', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          body: thread.preview || null,
+          source_type: 'comms',
+          due_at: fireAt,
+        }),
+      });
+      if (!createRes.ok) throw new Error(`bucket create failed (${createRes.status})`);
+      const row = await createRes.json();
+      if (!row?.id) throw new Error('bucket create returned no id');
+      const remindRes = await fetch(`/api/bucket/${row.id}/remind`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fire_at: fireAt,
+          payload: { title, body: thread.preview || '' },
+        }),
+      });
+      if (!remindRes.ok) {
+        // Don't orphan the carrier item — best-effort cleanup.
+        fetch(`/api/bucket/${row.id}`, { method: 'DELETE', credentials: 'same-origin' }).catch(() => {});
+        throw new Error(`remind failed (${remindRes.status})`);
+      }
+      updateReminder(threadId, { status: 'set', label: key, bucketItemId: row.id, fireAt });
+    } catch {
+      flagRemindError(threadId, key, fireAt);
+    }
+  };
+
+  const clearRemind = async (threadId) => {
+    const entry = reminders.get(threadId);
+    if (!entry || entry.status === 'saving') return;
+    if (!entry.bucketItemId) {
+      // Error entries have no server row — just drop locally.
+      updateReminder(threadId, null);
+      return;
+    }
+    // Optimistic clear; restore on failure (reminder is still live server-side).
+    updateReminder(threadId, null);
+    try {
+      const res = await fetch(`/api/bucket/${entry.bucketItemId}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+      if (!res.ok) updateReminder(threadId, { ...entry, status: 'set' });
+    } catch {
+      updateReminder(threadId, { ...entry, status: 'set' });
+    }
   };
 
   const setOpen = (sub, id) => {
@@ -206,8 +325,9 @@ export default function CommsPanel({ width }) {
             openId={openThread[sp.id]}
             setOpen={(id) => setOpen(sp.id, id)}
             divider={i < SUB_PILLARS.length - 1}
-            remindIds={remindIds}
-            toggleRemind={toggleRemind}
+            reminders={reminders}
+            onSetRemind={setRemind}
+            onClearRemind={clearRemind}
             threads={threads}
             threadsByChannel={threadsByChannel}
             findThread={findThread}
@@ -227,7 +347,7 @@ function channelKind(channel) {
   return 'SMS';
 }
 
-function SubPillar({ sp, openId, setOpen, divider, remindIds, toggleRemind, threads, threadsByChannel, findThread }) {
+function SubPillar({ sp, openId, setOpen, divider, reminders, onSetRemind, onClearRemind, threads, threadsByChannel, findThread }) {
   // Staff lane filters by thread.staffTag === true (mirrors the isInvestor pattern).
   // 305/718 still pull from threadsByChannel; inv pulls the investor cohort.
   const allThreads =
@@ -323,8 +443,9 @@ function SubPillar({ sp, openId, setOpen, divider, remindIds, toggleRemind, thre
         <ThreadView
           thread={open}
           onClose={() => setOpen(null)}
-          reminded={remindIds?.has(open.id)}
-          onToggleRemind={() => toggleRemind?.(open.id)}
+          remindEntry={reminders?.get(open.id)}
+          onSetRemind={(key) => onSetRemind?.(open, key)}
+          onClearRemind={() => onClearRemind?.(open.id)}
         />
       ) : (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -342,8 +463,9 @@ function SubPillar({ sp, openId, setOpen, divider, remindIds, toggleRemind, thre
                   key={t.id}
                   thread={t}
                   onOpen={() => setOpen(t.id)}
-                  reminded={remindIds?.has(t.id)}
-                  onToggleRemind={() => toggleRemind?.(t.id)}
+                  remindEntry={reminders?.get(t.id)}
+                  onSetRemind={(key) => onSetRemind?.(t, key)}
+                  onClearRemind={() => onClearRemind?.(t.id)}
                 />
               ))
             )}
@@ -354,7 +476,7 @@ function SubPillar({ sp, openId, setOpen, divider, remindIds, toggleRemind, thre
   );
 }
 
-function ThreadRow({ thread, onOpen, reminded = false, onToggleRemind }) {
+function ThreadRow({ thread, onOpen, remindEntry, onSetRemind, onClearRemind }) {
   const isHe = thread.language === 'he';
   const ch = CH[thread.channel];
   const tierHex = thread.tier ? TIER[thread.tier]?.hex : null;
@@ -405,7 +527,7 @@ function ThreadRow({ thread, onOpen, reminded = false, onToggleRemind }) {
           </span>
         )}
         <span style={{ fontSize: 14, color: ink[300] }}>{fmtRelative(thread.lastTs)}</span>
-        <RemindBell reminded={reminded} onToggle={onToggleRemind} />
+        <RemindBell entry={remindEntry} onSet={() => onSetRemind?.('1h')} onClear={onClearRemind} />
       </div>
       <div
         className={isHe ? 'hebrew' : ''}
@@ -436,7 +558,7 @@ function ThreadRow({ thread, onOpen, reminded = false, onToggleRemind }) {
  * Faded card bg = channel.faded on the WHOLE opened thread.
  * Reply box border + Send button pick up channel color so you always know which channel you're on.
  */
-function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
+function ThreadView({ thread, onClose, remindEntry, onSetRemind, onClearRemind }) {
   const { set } = useDemo();
   const isHe = thread.language === 'he';
   const isFamily = thread.familyTag === true;
@@ -656,7 +778,7 @@ function ThreadView({ thread, onClose, reminded = false, onToggleRemind }) {
           <Home size={15} strokeWidth={2.4} /> {laneBusy ? '…' : isStaff ? 'Staff ✓' : laneMsg ? laneMsg : '→ Staff'}
         </button>
         <ListenButton compact />
-        <ReminderPicker />
+        <ReminderPicker entry={remindEntry} onSet={onSetRemind} onClear={onClearRemind} />
       </div>
 
       {/* Nora's elevated read — but Family is private (Nora stays out) */}
@@ -1337,22 +1459,39 @@ function ChannelFilterPills({ value, setValue, kinds, subId }) {
 }
 
 /**
- * RemindBell — per-thread "remind in 1 hour" toggle. Fixed 1h, no picker (mock-only).
+ * RemindBell — per-thread reminder toggle on the row (quick 1h set, real API).
+ * Setting creates a hidden bucket_item carrier + reminders row (see setRemind in
+ * CommsPanel); the fire-reminders cron + mounted <ReminderToast/> surface it live.
  * Rendered inside the always-visible meta row of a ThreadRow, which is itself a <button>.
  * MUST be a span role="button" with stopPropagation — never a nested real <button>.
- * Gold (#FFCC33) when a reminder is set; muted otherwise.
+ * Gold (#FFCC33) while saving or set (optimistic); red tint on failure (tap retries).
  */
-function RemindBell({ reminded = false, onToggle }) {
+function RemindBell({ entry, onSet, onClear }) {
   const gold = '#FFCC33';
+  const isError = entry?.status === 'error';
+  const isOn = Boolean(entry) && !isError;
+  const label = entry?.label || '1h';
+  const activate = () => {
+    if (entry?.status === 'saving') return;
+    if (entry?.status === 'set') onClear?.();
+    else onSet?.(); // fresh set, or retry after an error
+  };
+  const title = isError
+    ? 'Reminder failed — tap to retry'
+    : entry?.status === 'saving'
+      ? `Setting reminder · ${label}…`
+      : isOn
+        ? `Reminder set · ${label} (tap to clear)`
+        : 'Remind me in 1 hour';
   return (
     <span
       role="button"
       tabIndex={0}
-      aria-label={reminded ? 'Reminder set for 1 hour — tap to clear' : 'Remind me in 1 hour'}
-      title={reminded ? 'Reminder set · in 1 hour (tap to clear)' : 'Remind me in 1 hour'}
-      onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
+      aria-label={title}
+      title={title}
+      onClick={(e) => { e.stopPropagation(); activate(); }}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onToggle?.(); }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); activate(); }
       }}
       style={{
         display: 'inline-flex',
@@ -1362,9 +1501,9 @@ function RemindBell({ reminded = false, onToggle }) {
         cursor: 'pointer',
         borderRadius: 7,
         padding: '6px 9px',
-        background: reminded ? `${gold}26` : 'transparent',
-        border: `1px solid ${reminded ? gold : 'rgba(15,23,42,0.16)'}`,
-        color: reminded ? '#92400E' : ink[300],
+        background: isOn ? `${gold}26` : isError ? 'rgba(229,57,53,0.08)' : 'transparent',
+        border: `1px solid ${isOn ? gold : isError ? '#E53935' : 'rgba(15,23,42,0.16)'}`,
+        color: isOn ? '#92400E' : isError ? '#B91C1C' : ink[300],
         fontSize: 14,
         fontWeight: 800,
         letterSpacing: '0.04em',
@@ -1372,8 +1511,8 @@ function RemindBell({ reminded = false, onToggle }) {
         transition: 'all 0.12s ease'
       }}
     >
-      <Clock size={15} strokeWidth={2.4} color={reminded ? gold : undefined} />
-      1h
+      <Clock size={15} strokeWidth={2.4} color={isOn ? gold : isError ? '#E53935' : undefined} />
+      {label}
     </span>
   );
 }
@@ -1381,25 +1520,32 @@ function RemindBell({ reminded = false, onToggle }) {
 /**
  * ReminderPicker — Gideon's change: a reminder with OPTIONS, not a fixed 1h.
  * 1h / 2h / 3h / 6h / Tomorrow. Lives in the open-thread header where there's room.
- * Mock: local single-select; gold when chosen.
+ * Real flow: each pick creates a hidden bucket_item carrier + reminders row via
+ * setRemind in CommsPanel; the fire-reminders cron + <ReminderToast/> deliver it.
+ * Selection is the panel-level entry (shared with the row's RemindBell); gold when set.
  */
 const REMIND_OPTIONS = ['1h', '2h', '3h', '6h', 'Tomorrow'];
-function ReminderPicker() {
-  const [sel, setSel] = React.useState(null);
+function ReminderPicker({ entry, onSet, onClear }) {
   const gold = '#FFCC33';
+  const saving = entry?.status === 'saving';
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 800, color: ink[300], letterSpacing: '0.04em' }}>
         <Clock size={12} strokeWidth={2.4} /> Remind:
       </span>
       {REMIND_OPTIONS.map((o) => {
-        const on = sel === o;
+        const on = Boolean(entry) && entry.status !== 'error' && entry.label === o;
         return (
           <button
             key={o}
             type="button"
-            onClick={() => setSel(on ? null : o)}
-            title={`Remind me in ${o}`}
+            disabled={saving}
+            onClick={() => {
+              if (saving) return;
+              if (on) onClear?.();
+              else onSet?.(o); // fresh set, replace, or error retry
+            }}
+            title={on ? `Reminder set · ${o} (tap to clear)` : `Remind me in ${o}`}
             style={{
               background: on ? `${gold}26` : '#FFFFFF',
               border: `1px solid ${on ? gold : 'rgba(15,23,42,0.16)'}`,
@@ -1408,7 +1554,8 @@ function ReminderPicker() {
               padding: '2px 7px',
               fontSize: 13,
               fontWeight: 800,
-              cursor: 'pointer',
+              cursor: saving ? 'default' : 'pointer',
+              opacity: saving ? 0.6 : 1,
               fontFamily: 'inherit',
               lineHeight: 1
             }}
@@ -1417,6 +1564,15 @@ function ReminderPicker() {
           </button>
         );
       })}
+      {saving && (
+        <span style={{ fontSize: 12, fontWeight: 800, color: ink[300] }}>…</span>
+      )}
+      {entry?.status === 'set' && (
+        <span style={{ fontSize: 12, fontWeight: 800, color: '#92400E' }}>⏰ set</span>
+      )}
+      {entry?.status === 'error' && (
+        <span style={{ fontSize: 12, fontWeight: 800, color: '#B91C1C' }}>failed — tap to retry</span>
+      )}
     </div>
   );
 }

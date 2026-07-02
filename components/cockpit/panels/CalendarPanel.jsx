@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Video, Phone, Coffee } from 'lucide-react';
 import { ink, tier as TIER, semantic, brand } from '../lib/colors.js';
 import { fmtTime } from '../lib/format.js';
@@ -65,6 +65,33 @@ export default function CalendarPanel({ width }) {
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
+  }, []);
+
+  // SearchPalette event rows dispatch CustomEvent('calendar:reveal', { detail: { id } }).
+  // Switch to Today (all live events are today's — adaptCalendar sets date: today),
+  // scroll the row into view (also scrolls the horizontal <main> to this panel),
+  // and flash it gold for 2s.
+  const listRef = useRef(null);
+  const flashTimer = useRef(null);
+  const [flashId, setFlashId] = useState(null);
+  useEffect(() => {
+    const onReveal = (ev) => {
+      const id = ev?.detail?.id;
+      if (!id) return;
+      setView('today');
+      setFlashId(id);
+      requestAnimationFrame(() => {
+        const el = listRef.current?.querySelector(`[data-event-id="${CSS.escape(String(id))}"]`);
+        if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'center', inline: 'center' });
+      });
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+      flashTimer.current = setTimeout(() => setFlashId(null), 2000);
+    };
+    window.addEventListener('calendar:reveal', onReveal);
+    return () => {
+      window.removeEventListener('calendar:reveal', onReveal);
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+    };
   }, []);
 
   const tomorrowDate = shiftDate(todayDate, 1);
@@ -230,13 +257,13 @@ export default function CalendarPanel({ width }) {
       </div>
 
       {/* Agenda list */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 6 }}>
+      <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: 6 }}>
         {view === 'today' && (today.length === 0 ? (
           <div style={{ padding: '20px 12px', textAlign: 'center', color: ink[300], fontSize: 14, fontWeight: 600 }}>
             Nothing on the calendar today.
           </div>
         ) : today.map((e) => (
-          <EventRow key={e.id} event={e} now={now} nowEventId={nowEvent?.id} nextEventId={nextEvent?.id} />
+          <EventRow key={e.id} event={e} now={now} nowEventId={nowEvent?.id} nextEventId={nextEvent?.id} flash={flashId === e.id} />
         )))}
         {view === 'tomorrow' && (tomorrow.length === 0 ? (
           <div style={{ padding: '20px 12px', textAlign: 'center', color: ink[300], fontSize: 14, fontWeight: 600 }}>
@@ -267,7 +294,7 @@ export default function CalendarPanel({ width }) {
   );
 }
 
-function EventRow({ event, now, nowEventId, nextEventId }) {
+function EventRow({ event, now, nowEventId, nextEventId, flash }) {
   const Icon = ICON_BY_TYPE[event.type] || Coffee;
   const tierHex = event.tier ? TIER[event.tier]?.hex : null;
   const isHe = event.language === 'he';
@@ -278,10 +305,12 @@ function EventRow({ event, now, nowEventId, nextEventId }) {
   const countdown = isNext && now ? fmtCountdown(eventStart(event).getTime() - now.getTime()) : null;
   return (
     <div
+      data-event-id={event.id}
       style={{
         position: 'relative',
         background: '#FFFFFF',
-        border: `1px solid ${isNow ? '#00897B' : semantic.divider}`,
+        border: `1px solid ${flash ? brand.gold : isNow ? '#00897B' : semantic.divider}`,
+        boxShadow: flash ? `0 0 0 3px ${brand.gold}55` : undefined,
         borderRadius: 8,
         padding: '8px 10px 8px 16px',
         marginBottom: 4,

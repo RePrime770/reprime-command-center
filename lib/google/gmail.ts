@@ -1,4 +1,5 @@
 import { google, type gmail_v1 } from 'googleapis'
+import { extractPlainTextBody } from './gmail-body'
 
 /**
  * Minimal Gmail wrapper that reuses the existing GOOGLE_REFRESH_TOKEN
@@ -221,6 +222,32 @@ export async function getMessage(
     unread: labels.includes('UNREAD'),
     hasICS: detectICS(data.payload || undefined),
   }
+}
+
+export type GmailMessageBody = {
+  id: string
+  /** Decoded plain text (HTML bodies are stripped — never raw HTML). */
+  text: string
+  source: 'plain' | 'html' | 'none'
+}
+
+/**
+ * Fetch one message's decoded plain-text body. Prefers text/plain parts;
+ * falls back to text/html stripped to plain text (see lib/google/gmail-body).
+ * Callers cap length with MAX_BODY_CHARS before shipping to the UI.
+ */
+export async function getMessageBody(
+  messageId: string,
+  accountEmail?: GmailAccountKey | string,
+): Promise<GmailMessageBody> {
+  const gmail = client(accountEmail)
+  const res = await gmail.users.messages.get({
+    userId: 'me',
+    id: messageId,
+    format: 'full',
+  })
+  const { text, source } = extractPlainTextBody(res.data.payload || undefined)
+  return { id: res.data.id || messageId, text, source }
 }
 
 /**

@@ -80,15 +80,16 @@ export default function EmailPanel({ width }) {
   const [inbox, setInbox] = useState('all');
   const [openedId, setOpenedId] = useState(null);
   const [composing, setComposing] = useState(false);
-  const [remindIds, setRemindIds] = useState(() => new Set());
+  // Per-email reminder status: 'saving' | 'set' | 'error', keyed by email id.
+  // Resets on reload — the durable surface is the bucket_items row + toast.
+  const [remindState, setRemindState] = useState({});
   const [search, setSearch] = useState('');
   const activeTab = INBOXES.find((t) => t.k === inbox) || ALL_INBOX;
 
-  // Unread (fallback: total) count per inbox tab — feeds the tab pill badges.
+  // Unread count per inbox tab — feeds the tab pill badges (0 = grey pill).
   const unreadCountFor = (key) => {
     const scope = key === 'all' ? emails : emails.filter((e) => e.inbox === key);
-    const unread = scope.filter((e) => e.unread === true || e.read === false).length;
-    return unread > 0 ? unread : scope.length;
+    return scope.filter((e) => e.unread === true || e.read === false).length;
   };
 
   // The top-bar Concierge "Email" button sets emailComposeOpen; open the
@@ -100,12 +101,61 @@ export default function EmailPanel({ width }) {
       set('emailComposeOpen', false);
     }
   }, [state.emailComposeOpen, set]);
-  const toggleRemind = (id) =>
-    setRemindIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+
+  // ⌘K palette contract: 'cockpit:openEmail' with detail { id } opens that
+  // email through the same code path as clicking its row (Agent E dispatches
+  // this event from the command palette).
+  useEffect(() => {
+    const onOpenEmail = (e) => {
+      const id = e?.detail?.id;
+      if (!id) return;
+      setComposing(false);
+      setOpenedId(id);
+    };
+    window.addEventListener('cockpit:openEmail', onOpenEmail);
+    return () => window.removeEventListener('cockpit:openEmail', onOpenEmail);
+  }, []);
+
+  // Real "remind in 1h": create a bucket task (POST /api/bucket), then
+  // schedule its reminder (POST /api/bucket/[id]/remind, fires via cron →
+  // ReminderToast). One-way — no reminder-delete API exists, so 'set' sticks.
+  const setReminder = async (email) => {
+    if (remindState[email.id] === 'saving' || remindState[email.id] === 'set') return;
+    setRemindState((prev) => ({ ...prev, [email.id]: 'saving' }));
+    try {
+      const bres = await fetch('/api/bucket', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `Reply to ${email.from}: ${email.subject || '(no subject)'}`.slice(0, 200),
+          body: email.preview || null,
+          priority: 2,
+          source_type: 'email',
+          source_url: email.gmailUrl || null,
+        }),
+      });
+      if (!bres.ok) throw new Error('bucket_failed');
+      const item = await bres.json();
+      if (!item?.id) throw new Error('no_id');
+      const rres = await fetch(`/api/bucket/${item.id}/remind`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fire_at: new Date(Date.now() + 3600_000).toISOString(),
+          payload: {
+            title: `Email: ${email.subject || '(no subject)'}`,
+            body: `From ${email.from}`,
+          },
+        }),
+      });
+      if (!rres.ok) throw new Error('remind_failed');
+      setRemindState((prev) => ({ ...prev, [email.id]: 'set' }));
+    } catch {
+      setRemindState((prev) => ({ ...prev, [email.id]: 'error' }));
+    }
+  };
   const byInbox = inbox === 'all' ? emails : emails.filter((e) => e.inbox === inbox);
   // Sort the "All" view by timestamp desc so the most-recent message across
   // BOTH mailboxes lands on top. Per-mailbox tabs keep server-returned order
@@ -272,8 +322,8 @@ export default function EmailPanel({ width }) {
                   key={e.id}
                   email={e}
                   onOpen={() => setOpenedId(e.id)}
-                  reminded={remindIds.has(e.id)}
-                  onToggleRemind={() => toggleRemind(e.id)}
+                  remindStatus={remindState[e.id]}
+                  onSetRemind={() => setReminder(e)}
                 />
               ))
             )}
@@ -392,7 +442,7 @@ function ComposeEmail({ onClose }) {
   );
 }
 
-function EmailRow({ email, onOpen, reminded, onToggleRemind }) {
+function EmailRow({ email, onOpen, remindStatus, onSetRemind }) {
   const isHe = email.language === 'he';
   const tierHex = email.tier ? TIER[email.tier]?.hex : null;
   const ib = inboxMeta(email.inbox);
@@ -431,7 +481,7 @@ function EmailRow({ email, onOpen, reminded, onToggleRemind }) {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <RemindButton reminded={reminded} onToggle={onToggleRemind} />
+          <RemindButton status={remindStatus} onSet={onSetRemind} />
           {/* Per-row source badge — makes "All" view legible: each row carries
               a visible colored chip ("g@reprime" / "g@floridastate") with the
               mailbox color so origin is obvious at a glance. */}
@@ -514,6 +564,32 @@ function OpenedEmail({ email, onClose }) {
   const [replyMode, setReplyMode] = useState('draft');
   const [replyText, setReplyText] = useState(defaultDraft);
   const [draftLoading, setDraftLoading] = useState(false);
+
+  // Full plain-text body via GET /api/email/body (triage only carries the
+  // snippet). The snippet stays on screen while the fetch is in flight, so
+  // the reader is never staring at a blank card.
+  const [bodyState, setBodyState] = useState({ status: 'loading', text: '' }); // loading | ok | empty | error
+  useEffect(() => {
+    let cancelled = false;
+    setBodyState({ status: 'loading', text: '' });
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/email/body?id=${encodeURIComponent(email.id)}&account=${encodeURIComponent(email.inbox || '')}`,
+          { credentials: 'same-origin' },
+        );
+        if (!res.ok) throw new Error('fetch_failed');
+        const data = await res.json();
+        const text = typeof data?.body === 'string' ? data.body : '';
+        if (!cancelled) {
+          setBodyState(text.trim() ? { status: 'ok', text } : { status: 'empty', text: '' });
+        }
+      } catch {
+        if (!cancelled) setBodyState({ status: 'error', text: '' });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [email.id, email.inbox]);
 
   // Read/unread toggle via Gmail (needs gmail.modify on the token).
   const [isUnread, setIsUnread] = useState(email.unread === true);
@@ -767,6 +843,7 @@ function OpenedEmail({ email, onClose }) {
             fontSize: 19,
             lineHeight: 1.55,
             color: ink[700],
+            whiteSpace: 'pre-wrap',
             direction: isHe ? 'rtl' : 'ltr',
             textAlign: isHe ? 'right' : 'left'
           }}
@@ -774,7 +851,33 @@ function OpenedEmail({ email, onClose }) {
           <div style={{ fontSize: 14, color: ink[300], marginBottom: 6, fontWeight: 700, letterSpacing: '0.06em' }}>
             {(email.from || '').toUpperCase()} · NEWEST
           </div>
-          {email.body || email.preview || '(empty body — Nora hasn\'t cached this one yet)'}
+          {bodyState.status === 'loading' && (
+            <div style={{ fontSize: 14, color: ink[300], fontStyle: 'italic', marginBottom: 6 }}>
+              Loading full message…
+            </div>
+          )}
+          {bodyState.status === 'error' && (
+            <div style={{ fontSize: 13, color: '#B91C1C', fontWeight: 700, marginBottom: 6 }}>
+              Couldn&rsquo;t load full body — showing preview.
+              {email.gmailUrl && (
+                <>
+                  {' '}
+                  <a
+                    href={email.gmailUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ color: '#B91C1C', fontWeight: 800, textDecoration: 'underline' }}
+                  >
+                    Open in Gmail
+                  </a>
+                </>
+              )}
+            </div>
+          )}
+          {bodyState.status === 'ok'
+            ? bodyState.text
+            : (email.preview || '(no message body)')}
         </div>
 
         {/* Older messages in thread */}
@@ -1145,38 +1248,57 @@ function EmailReplyZone({ ib, defaultDraft, replyMode, setReplyMode, replyText, 
 }
 
 /**
- * RemindButton — per-email "remind 1h" toggle.
+ * RemindButton — per-email "remind in 1h" wired to the REAL reminders
+ * pipeline (was a fake local toggle): parent's onSet POSTs /api/bucket then
+ * /api/bucket/[id]/remind; the cron fires it into ReminderToast in ~1h.
+ * One-way: no reminder-delete API exists, so 'set' cannot be un-set here.
  * Rows are <button>s, so this is a span role="button" with stopPropagation
  * (never a nested <button>). Gold #FFCC33 when set. Fixed 1 hour, no picker.
+ * status: undefined (default) | 'saving' | 'set' | 'error'.
  */
-function RemindButton({ reminded, onToggle }) {
+function RemindButton({ status, onSet }) {
+  const isSet = status === 'set';
+  const isSaving = status === 'saving';
+  const isError = status === 'error';
+  const label = isSaving ? '…' : isError ? 'retry' : '1h';
+  const title = isSet
+    ? 'Reminder set — fires in ~1h'
+    : isSaving
+      ? 'Setting reminder…'
+      : isError
+        ? 'Reminder failed — tap to retry'
+        : 'Remind me in 1h — creates a real bucket reminder';
+  const activate = () => {
+    if (isSaving || isSet) return;
+    onSet?.();
+  };
   return (
     <span
       role="button"
       tabIndex={0}
-      onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
+      onClick={(e) => { e.stopPropagation(); activate(); }}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onToggle?.(); }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); activate(); }
       }}
-      title={reminded ? 'Reminder set · 1h' : 'Remind me in 1h'}
-      aria-label={reminded ? 'Reminder set for 1 hour' : 'Remind me in 1 hour'}
+      title={title}
+      aria-label={title}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         gap: 3,
-        background: reminded ? '#FFCC33' : 'transparent',
-        color: reminded ? '#1E293B' : ink[300],
-        border: `1px solid ${reminded ? '#FFCC33' : 'rgba(15,23,42,0.18)'}`,
+        background: isSet ? '#FFCC33' : 'transparent',
+        color: isSet ? '#1E293B' : isError ? '#B91C1C' : ink[300],
+        border: `1px solid ${isSet ? '#FFCC33' : isError ? '#B91C1C' : 'rgba(15,23,42,0.18)'}`,
         borderRadius: 999,
         padding: '4px 10px',
         fontSize: 15,
         fontWeight: 800,
         letterSpacing: '0.04em',
-        cursor: 'pointer'
+        cursor: isSaving || isSet ? 'default' : 'pointer'
       }}
     >
       <Clock size={15} strokeWidth={2.6} />
-      1h
+      {label}
     </span>
   );
 }

@@ -9,6 +9,9 @@
 //   - Defensive: tolerate array vs { threads } / { events } envelopes upstream
 //     (the provider normalizes envelopes; these functions assume arrays/objects).
 
+import { isStaffName } from '@/lib/cockpit/staff-roster';
+import { formatPhoneDisplay } from '@/lib/timelines/parse';
+
 const HEBREW_RE = /[א-ת]/; // /[א-ת]/
 
 /**
@@ -44,23 +47,24 @@ function channelKey(panel, channelType) {
   }
 }
 
-// Pure JS port of the staff-roster regex from lib/cockpit/staff-roster.ts.
-// Kept in-file so this .js adapter has no .ts import (Next/Babel can transpile
-// either, but keeping the runtime dependency-free is simpler).
-const STAFF_NAME_REGEX = /\b(Shirel|Kazi|Steve|Adir|Chaim)\b/i;
-
 function adaptThreadRow(row) {
   const preview = typeof row.last_message_preview === 'string' ? row.last_message_preview : '';
   const panel = row.panel === '305' ? '305' : row.panel === '718' ? '718' : null;
   // Map the REAL channel_type (whatsapp/sms/imessage/google_voice) to a channel
   // key so SMS/iMessage threads render under the correct band, not all as WA.
   const channel = channelKey(panel, row.channel_type);
-  const contactName = row.contact_name || 'Unknown';
+  // Name resolution: the threads route already resolves Pipedrive → phonebook →
+  // formatted phone for WhatsApp rows, but SMS/iMessage ingest paths can leave
+  // contact_name null — fall back to a formatted phone before 'Unknown'.
+  const contactName =
+    (typeof row.contact_name === 'string' && row.contact_name.trim()) ||
+    (typeof row.phone === 'string' && row.phone && formatPhoneDisplay(row.phone)) ||
+    'Unknown';
   // Staff classification — explicit DB lane_override wins; otherwise auto-detect
-  // by name match against the staff roster (Shirel / Kazi / Steve / Adir /
-  // Chaim). Threads named for any of these go to the Staff sub-pillar.
+  // by name match against the canonical roster (lib/cockpit/staff-roster.ts).
+  // Threads named for any roster token go to the Staff sub-pillar.
   const explicitLane = row.lane_override;
-  const isStaffByName = explicitLane !== 'general' && STAFF_NAME_REGEX.test(contactName);
+  const isStaffByName = explicitLane !== 'general' && isStaffName(contactName);
   const staffTag = explicitLane === 'staff' || isStaffByName;
   // Staff outranks investor — Adir is on both registries; the user's standing
   // rule is "show him under Staff." Lane override 'general' opts back out.
@@ -466,4 +470,23 @@ export function makeThreadHelpers(threads) {
   };
   const findThread = (id) => list.find((t) => t.id === id);
   return { threadsByChannel, findThread };
+}
+
+/**
+ * KPI aggregates for the TopChrome strip (batch 1.6). Pure; tolerant of
+ * empty/missing inputs so the strip never throws while data is loading.
+ * @param {{ threads?: Array<object>, emails?: Array<object>, noraToYou?: Array<object>, events?: Array<object> }} src
+ * @returns {{ unreadComms: number, unreadEmail: number, openBucket: number, meetingsToday: number }}
+ */
+export function deriveKpis({ threads, emails, noraToYou, events } = {}) {
+  const t = Array.isArray(threads) ? threads : [];
+  const e = Array.isArray(emails) ? emails : [];
+  const n = Array.isArray(noraToYou) ? noraToYou : [];
+  const ev = Array.isArray(events) ? events : [];
+  return {
+    unreadComms: t.reduce((sum, th) => sum + (typeof th.unread === 'number' ? th.unread : 0), 0),
+    unreadEmail: e.filter((m) => m.unread === true).length,
+    openBucket: n.filter((c) => c.source === 'bucket').length,
+    meetingsToday: ev.length,
+  };
 }

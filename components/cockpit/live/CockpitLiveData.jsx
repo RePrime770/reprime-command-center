@@ -83,6 +83,7 @@ const EMPTY_VALUE = {
   noraDesk: { noraToYou: [], youToNora: [] },
   emails: [],
   emailSecondary: null,
+  deals: null,
   loading: true,
   error: null,
   lastUpdated: null,
@@ -94,7 +95,7 @@ export function CockpitLiveDataProvider({ children }) {
   const hasLiveRef = useRef(false);
 
   const load = useCallback(async () => {
-    const [t305, t718, cal, brief, bucket, asks, emailTriage] =
+    const [t305, t718, cal, brief, bucket, asks, emailTriage, dealsRes] =
       await Promise.allSettled([
         fetchJsonSafe('/api/whatsapp/threads?panel=305'),
         fetchJsonSafe('/api/whatsapp/threads?panel=718'),
@@ -103,6 +104,7 @@ export function CockpitLiveDataProvider({ children }) {
         fetchJsonSafe('/api/bucket?status=open'),
         fetchJsonSafe('/api/secretary/asks'),
         fetchJsonSafe('/api/email/triage'),
+        fetchJsonSafe('/api/pipedrive/deals'),
       ]);
 
     const rows305 = t305.status === 'fulfilled' ? asThreadRows(t305.value) : [];
@@ -112,13 +114,14 @@ export function CockpitLiveDataProvider({ children }) {
     const bucketPayload = bucket.status === 'fulfilled' ? bucket.value : null;
     const asksPayload = asks.status === 'fulfilled' ? asks.value : null;
     const emailPayload = emailTriage.status === 'fulfilled' ? emailTriage.value : null;
+    const dealsPayload = dealsRes.status === 'fulfilled' ? dealsRes.value : null;
 
     // If every source came back null/empty AND we have never had live data,
     // leave the EMPTY data in place and flag live as unavailable — never mock.
     const everySourceFailed =
       t305.status !== 'fulfilled' && t718.status !== 'fulfilled' &&
       !calPayload && !briefPayload && !bucketPayload && !asksPayload &&
-      !emailPayload;
+      !emailPayload && !dealsPayload;
 
     if (everySourceFailed && !hasLiveRef.current) {
       setValue((prev) => ({
@@ -160,6 +163,10 @@ export function CockpitLiveDataProvider({ children }) {
       noraDesk,
       emails,
       emailSecondary,
+      // Pipedrive deals: raw /api/pipedrive/deals payload pass-through — the
+      // route already returns the adapted shape ({ status, deals, stages,
+      // totals, fetchedAt }); null when the fetch failed.
+      deals: dealsPayload,
       loading: false,
       error: null,
       lastUpdated: new Date().toISOString(),

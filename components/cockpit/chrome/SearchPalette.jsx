@@ -8,7 +8,9 @@ import { useLiveData } from '../live/CockpitLiveData.jsx';
  * Global command / search palette — the "find anyone, any message, any meeting"
  * line. Opened by the Concierge "Search" button (state.searchOpen) or Ctrl/Cmd+K.
  * Searches LIVE data (threads, calendar events, triaged emails) from useLiveData.
- * Clicking a contact opens that conversation in the Comms hub (set openChat).
+ * Every row is actionable: threads open in the Comms hub (set openChat), emails
+ * open in EmailPanel (CustomEvent 'cockpit:openEmail'), events open their join
+ * link or reveal themselves in CalendarPanel (CustomEvent 'calendar:reveal').
  * No fabrication: empty until there's live data; matches only what exists.
  */
 export default function SearchPalette() {
@@ -61,8 +63,30 @@ export default function SearchPalette() {
     set('searchOpen', false);
   };
 
-  // Flat list of selectable rows (only conversations are openable).
-  const items = matchThreads.map((t) => ({ key: `t:${t.id}`, onOpen: () => openThread(t) }));
+  // Email rows → open that message in EmailPanel via a window CustomEvent
+  // (EmailPanel owns the listener; payload is the adapted email id = Gmail message_id).
+  const openEmailRow = (m) => {
+    window.dispatchEvent(new CustomEvent('cockpit:openEmail', { detail: { id: m.id } }));
+    set('searchOpen', false);
+  };
+
+  // Event rows → best available action: open the join link when the event has
+  // one; otherwise reveal + flash the row in CalendarPanel.
+  const openEventRow = (ev) => {
+    if (ev.joinUrl) {
+      window.open(ev.joinUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      window.dispatchEvent(new CustomEvent('calendar:reveal', { detail: { id: ev.id } }));
+    }
+    set('searchOpen', false);
+  };
+
+  // Flat list of selectable rows: threads, then events, then emails (matches render order).
+  const items = [
+    ...matchThreads.map((t) => ({ key: `t:${t.id}`, onOpen: () => openThread(t) })),
+    ...matchEvents.map((ev) => ({ key: `e:${ev.id}`, onOpen: () => openEventRow(ev) })),
+    ...matchEmails.map((m) => ({ key: `m:${m.id}`, onOpen: () => openEmailRow(m) })),
+  ];
 
   // Keyboard navigation (registered only while open).
   useEffect(() => {
@@ -160,23 +184,47 @@ export default function SearchPalette() {
 
           {matchEvents.length > 0 && (
             <Group icon={Calendar} label="Today's meetings" count={matchEvents.length}>
-              {matchEvents.map((e) => (
-                <div key={e.id} style={{ ...rowStyle, cursor: 'default' }}>
-                  <span style={{ fontSize: 16, fontWeight: 700, color: ink[700] }}>{e.time} — {e.title}</span>
-                  {e.joinUrl && <a href={e.joinUrl} target="_blank" rel="noopener noreferrer" onClick={(ev) => ev.stopPropagation()} style={{ fontSize: 13, color: '#2D8CFF', fontWeight: 700 }}>Join ↗</a>}
-                </div>
-              ))}
+              {matchEvents.map((e, i) => {
+                const idx = matchThreads.length + i;
+                const active = idx === cursor;
+                return (
+                  <button
+                    key={e.id}
+                    type="button"
+                    onClick={() => openEventRow(e)}
+                    onMouseEnter={() => setCursor(idx)}
+                    data-row-idx={idx}
+                    style={{ ...rowStyle, background: active ? ink[100] : 'transparent', borderLeft: `3px solid ${active ? brand.navy : 'transparent'}`, paddingLeft: 7 }}
+                  >
+                    <span style={{ fontSize: 16, fontWeight: 700, color: ink[700], flex: 1, textAlign: 'left' }}>{e.time} — {e.title}</span>
+                    {e.joinUrl
+                      ? <span style={{ fontSize: 13, color: '#2D8CFF', fontWeight: 700 }}>Join ↗</span>
+                      : <span style={{ fontSize: 13, color: ink[300], fontWeight: 700 }}>Show in calendar</span>}
+                  </button>
+                );
+              })}
             </Group>
           )}
 
           {matchEmails.length > 0 && (
             <Group icon={Mail} label="Email" count={matchEmails.length}>
-              {matchEmails.map((e) => (
-                <div key={e.id} style={{ ...rowStyle, cursor: 'default' }}>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: ink[700] }}>{e.from}</span>
-                  <span style={{ fontSize: 14, color: ink[500], flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {e.subject || e.preview}</span>
-                </div>
-              ))}
+              {matchEmails.map((e, i) => {
+                const idx = matchThreads.length + matchEvents.length + i;
+                const active = idx === cursor;
+                return (
+                  <button
+                    key={e.id}
+                    type="button"
+                    onClick={() => openEmailRow(e)}
+                    onMouseEnter={() => setCursor(idx)}
+                    data-row-idx={idx}
+                    style={{ ...rowStyle, background: active ? ink[100] : 'transparent', borderLeft: `3px solid ${active ? brand.navy : 'transparent'}`, paddingLeft: 7 }}
+                  >
+                    <span style={{ fontSize: 15, fontWeight: 700, color: ink[700] }}>{e.from}</span>
+                    <span style={{ fontSize: 14, color: ink[500], flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {e.subject || e.preview}</span>
+                  </button>
+                );
+              })}
             </Group>
           )}
 
@@ -190,7 +238,7 @@ export default function SearchPalette() {
         <div style={{ padding: '8px 18px', borderTop: `1px solid ${semantic.divider}`, fontSize: 12, color: ink[300], display: 'flex', gap: 14 }}>
           <span><kbd style={kbdStyle}>⌘K</kbd> open/close</span>
           <span style={{ flex: 1 }} />
-          <span style={{ color: brand.navy, fontWeight: 700 }}>Click a person to open the conversation</span>
+          <span style={{ color: brand.navy, fontWeight: 700 }}>Click to open — conversations, emails, meetings</span>
         </div>
       </div>
     </div>

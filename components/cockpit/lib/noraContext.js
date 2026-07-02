@@ -8,6 +8,7 @@
 const MAX_THREADS = 15;
 const MAX_EVENTS = 12;
 const MAX_BRIEF_SECTIONS = 6;
+const MAX_DEALS = 10;
 const PREVIEW_CAP = 80;
 
 /**
@@ -90,11 +91,33 @@ export function buildNoraContext(live) {
       }))
     : [];
 
+  // Pipedrive pipeline — compact: totals + top deals by value. If Pipedrive
+  // isn't configured we say so explicitly so Nora answers "CRM not connected"
+  // instead of hallucinating. Omitted entirely when the fetch failed/never ran.
+  const dealsSrc = data.deals && typeof data.deals === 'object' ? data.deals : null;
+  let deals = null;
+  if (dealsSrc?.status === 'setup_required') {
+    deals = { status: 'setup_required' };
+  } else if (Array.isArray(dealsSrc?.deals)) {
+    deals = {
+      count: dealsSrc.totals?.count ?? dealsSrc.deals.length,
+      totalByCurrency: dealsSrc.totals?.byCurrency || {},
+      top: dealsSrc.deals.slice(0, MAX_DEALS).map((d) => ({
+        title: clip(d.title, 60),
+        value: d.value,
+        currency: d.currency,
+        stage: clip(d.stageName || '', 30),
+        ...(d.org ? { org: clip(d.org, 40) } : {}),
+      })),
+    };
+  }
+
   return {
     today: data.today || null,
     threads,
     events,
     brief,
     noraCards,
+    ...(deals ? { deals } : {}),
   };
 }

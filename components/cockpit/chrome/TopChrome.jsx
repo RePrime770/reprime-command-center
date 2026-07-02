@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  MessageSquarePlus, StickyNote, Mail, Sun,
+  StickyNote, Mail, Sun,
   Mic, Volume2,
   Headphones, MessagesSquare, AlertCircle, Search,
   HelpCircle, LogOut, ExternalLink
@@ -8,6 +8,7 @@ import {
 import { brand, slate, tier as TIER, ink } from '../lib/colors.js';
 import { useDemo } from '../demo/DemoContext.jsx';
 import { useLiveData } from '../live/CockpitLiveData.jsx';
+import { deriveKpis } from '../live/adapters.js';
 import { useLocale } from '../lib/i18n.jsx';
 import IntegrationStatusPill from './IntegrationStatusPill.jsx';
 import KeyboardShortcutsModal from '../modals/KeyboardShortcutsModal.jsx';
@@ -22,10 +23,13 @@ import KeyboardShortcutsModal from '../modals/KeyboardShortcutsModal.jsx';
 //   Row2 deal sub-strip removed (now-dead).
 //   KEPT: APEX/urgent indicator, TERMINAL wordmark, PTT "Talk to Nora",
 //   global Speechify SpeedSelector (5-step), clock + Shabbat countdown,
-//   conditional Row3 Tier-1 lane, concierge actions Email/Invite/Note/Briefing.
+//   conditional Row3 Tier-1 lane, concierge actions Email/Note/Briefing.
+//   Invite concierge + InviteComposerDrawer removed (batch 1.7 — was a
+//   permanently-disabled mock; /center owns Terminal-invite queueing).
 //
-// Row 1 (~80px): APEX NOW · TERMINAL · | · centered PTT cluster · | ·
-//                Concierge (Search·Note·Email·Briefing·Invite) · clock + Shabbat
+// Row 1 (~80px): APEX NOW · TERMINAL · | · KPI strip · | · centered PTT
+//                cluster · | · Concierge (Search·Note·Email·Briefing) ·
+//                clock + Shabbat
 // Row 3 (~50px conditional): Tier-1 alert banner
 // ============================================================
 
@@ -33,8 +37,7 @@ const CONCIERGE = [
   { k: 'Search',     icon: Search,              color: '#0891B2' },
   { k: 'Note',       icon: StickyNote,          color: '#7B1FA2' },
   { k: 'Email',      icon: Mail,                color: '#5C6BC0' },
-  { k: 'Briefing',   icon: Sun,                 color: '#F9A825' },
-  { k: 'Invite',     icon: MessageSquarePlus,   color: '#FFCC33' }
+  { k: 'Briefing',   icon: Sun,                 color: '#F9A825' }
 ];
 
 const SPEEDS = ['1.2', '1.4', '1.6', '1.8', '2.0'];
@@ -150,6 +153,8 @@ function Row1({ onOpenShortcuts }) {
         <ApexNowIndicator />
         <ClusterDivider />
         <Wordmark />
+        <ClusterDivider />
+        <KpiStrip />
       </div>
 
       {/* CENTER spacer */}
@@ -775,6 +780,35 @@ function Wordmark() {
   );
 }
 
+// KPI strip (batch 1.6) — live counts derived from CockpitLiveData. Renders
+// nothing until the first live fetch succeeds so we never flash fake zeros.
+// Lives INSIDE Row1's fixed 80px band (App.jsx hardcodes topChromeH) — do not
+// grow it into a new row. Non-interactive by design; deep-links out of scope.
+function KpiStrip() {
+  const { threads, emails, noraDesk, events, isLive } = useLiveData();
+  const kpis = useMemo(
+    () => deriveKpis({ threads, emails, noraToYou: noraDesk?.noraToYou, events }),
+    [threads, emails, noraDesk, events]
+  );
+  if (!isLive) return null;
+  const items = [
+    { label: 'MSG', value: kpis.unreadComms, title: 'Unread messages across all comms threads', hot: kpis.unreadComms > 0 },
+    { label: 'MAIL', value: kpis.unreadEmail, title: 'Unread triaged emails', hot: kpis.unreadEmail > 0 },
+    { label: 'TASKS', value: kpis.openBucket, title: 'Open bucket items', hot: false },
+    { label: 'MTG', value: kpis.meetingsToday, title: "Today's meetings", hot: false },
+  ];
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+      {items.map((it) => (
+        <div key={it.label} title={it.title} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.05, minWidth: 34 }}>
+          <span className="mono" style={{ fontSize: 19, fontWeight: 800, color: it.hot ? brand.gold : '#FFFFFF' }}>{it.value}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: brand.goldSoft }}>{it.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // EN / עב language toggle — flips the cockpit chrome language (persisted) and
 // sets <html lang>. Text-only (the kiosk layout stays LTR; Hebrew message
 // bodies already render RTL per-element).
@@ -814,7 +848,6 @@ function ConciergeCluster() {
   const handle = (k) => {
     if (k === 'Search')     { set('searchOpen', !state.searchOpen); return; }
     if (k === 'Email')      { set('emailComposeOpen', true); return; }
-    if (k === 'Invite')     { set('inviteComposerOpen', true); return; }
     if (k === 'Note')       { set('pttState', 'note'); return; }
     if (k === 'Briefing')   { set('briefingOpen', true); return; }
   };
