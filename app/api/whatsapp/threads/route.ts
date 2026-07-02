@@ -184,10 +184,8 @@ export async function GET(request: NextRequest) {
           hint: upsertErr?.hint,
           panel,
         })
-        return NextResponse.json(
-          { error: 'db_upsert_failed', message: upsertErr.message },
-          { status: 500 }
-        )
+        // Supabase messages can name tables/columns — code only to the client.
+        return NextResponse.json({ error: 'db_upsert_failed' }, { status: 500 })
       }
     }
 
@@ -217,10 +215,7 @@ export async function GET(request: NextRequest) {
         hint: selectErr?.hint,
         panel,
       })
-      return NextResponse.json(
-        { error: 'db_select_failed', message: selectErr.message },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: 'db_select_failed' }, { status: 500 })
     }
 
     const phoneToThreadId = new Map<string, string>()
@@ -477,6 +472,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ threads: result })
   } catch (e: any) {
     console.error('[/api/whatsapp/threads] handler error', { message: e?.message, stack: e?.stack })
-    return NextResponse.json({ error: 'Failed to load threads', detail: e?.message }, { status: 502 })
+    return NextResponse.json({ error: 'Failed to load threads' }, { status: 502 })
   }
 }
