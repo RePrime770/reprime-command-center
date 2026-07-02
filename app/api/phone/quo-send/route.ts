@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { safeError } from '@/lib/api/safe-error'
 import { createServerClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -66,13 +67,13 @@ export async function POST(request: NextRequest) {
       const detail = await res.text().catch(() => '')
       console.error('[quo-send] OpenPhone error', res.status, detail.slice(0, 200))
       return NextResponse.json(
-        { error: 'send_failed', status: res.status, detail: detail.slice(0, 300) },
+        { error: 'send_failed', status: res.status },
         { status: 502 }
       )
     }
     const data = (await res.json().catch(() => ({}))) as { data?: { id?: string }; id?: string }
     return NextResponse.json({ ok: true, id: data?.data?.id ?? data?.id ?? null })
   } catch (e) {
-    return NextResponse.json({ error: 'send_error', message: (e as Error).message }, { status: 502 })
+    return safeError('phone/quo-send', e, { code: 'send_error', status: 502 })
   }
 }

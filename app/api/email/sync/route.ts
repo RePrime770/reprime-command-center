@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
+import { safeError } from '@/lib/api/safe-error'
 import { createServiceClient } from '@/lib/supabase/server'
 import {
   configuredAccounts,
@@ -169,7 +170,8 @@ async function syncAccount(
     if (isInsufficientScopeError(err)) {
       return { ...base, consentRequired: true }
     }
-    return { ...base, failures: [{ id: 'list', error: (err as Error).message }] }
+    console.error('[email/sync] list failed', account.email, err)
+    return { ...base, failures: [{ id: 'list', error: 'list_failed' }] }
   }
 
   base.scanned = listed.length
@@ -248,7 +250,8 @@ async function syncAccount(
         { onConflict: 'message_id' },
       )
       if (upsertError) {
-        base.failures.push({ id: stub.id, error: upsertError.message })
+        console.error('[email/sync] upsert failed', stub.id, upsertError)
+        base.failures.push({ id: stub.id, error: 'upsert_failed' })
         continue
       }
       base.scored++
@@ -258,7 +261,8 @@ async function syncAccount(
         base.consentRequired = true
         return base
       }
-      base.failures.push({ id: stub.id, error: (err as Error).message })
+      console.error('[email/sync] message score failed', stub.id, err)
+      base.failures.push({ id: stub.id, error: 'score_failed' })
     }
   }
 
@@ -270,6 +274,14 @@ async function runSync(request: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
+  try {
+    return await runSyncInner()
+  } catch (err) {
+    return safeError('email/sync', err)
+  }
+}
+
+async function runSyncInner() {
   const redis = getRedis()
   const supabase = createServiceClient()
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
+import { safeError } from '@/lib/api/safe-error'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { findPersonByEmail } from '@/lib/pipedrive/client'
 import { GMAIL_ACCOUNTS, secondaryAccountStatus } from '@/lib/google/gmail'
@@ -132,10 +133,7 @@ export async function GET(request: Request) {
     .limit(limit)
 
   if (error) {
-    return NextResponse.json(
-      { error: 'db_error', message: error.message },
-      { status: 500 },
-    )
+    return safeError('email/triage', error, { code: 'db_error', status: 500 })
   }
 
   const redis = getRedis()

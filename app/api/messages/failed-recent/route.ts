@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,7 +38,10 @@ export async function GET() {
       .limit(20)
 
     if (error) {
-      return NextResponse.json({ error: 'db_error', message: error.message }, { status: 502 })
+      return safeError('messages/failed-recent', error, {
+        code: 'db_error',
+        status: 502,
+      })
     }
 
     const items = (data ?? []) as FailedMessage[]
@@ -47,9 +51,9 @@ export async function GET() {
       items,
     })
   } catch (err) {
-    return NextResponse.json(
-      { error: 'unexpected', message: (err as Error).message },
-      { status: 500 }
-    )
+    return safeError('messages/failed-recent', err, {
+      code: 'unexpected',
+      status: 500,
+    })
   }
 }

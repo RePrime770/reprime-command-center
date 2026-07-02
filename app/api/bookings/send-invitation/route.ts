@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
+import { safeError } from '@/lib/api/safe-error'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { getPerson } from '@/lib/pipedrive/client'
 import { sendEmail } from '@/lib/sendgrid/client'
@@ -169,10 +170,7 @@ export async function POST(request: Request) {
   try {
     person = await getPerson(body.contact)
   } catch (err) {
-    return NextResponse.json(
-      { error: 'pipedrive_error', message: (err as Error).message },
-      { status: 502 }
-    )
+    return safeError('bookings/send-invitation', err, { code: 'pipedrive_error', status: 502 })
   }
   if (!person) {
     return NextResponse.json({ error: 'contact_not_found' }, { status: 404 })
@@ -207,14 +205,10 @@ export async function POST(request: Request) {
     status: 'sent',
   })
   if (insertError) {
-    return NextResponse.json(
-      {
-        error: 'invitation_insert_failed',
-        message: insertError.message,
-        hint: 'If table is missing, create the invitations table per the SQL in this route file header.',
-      },
-      { status: 500 }
-    )
+    return safeError('bookings/send-invitation', insertError, {
+      code: 'invitation_insert_failed',
+      status: 500,
+    })
   }
 
   const sentChannels: string[] = []
@@ -239,7 +233,8 @@ export async function POST(request: Request) {
         })
         sentChannels.push('email')
       } catch (err) {
-        errors.push({ channel: 'email', message: (err as Error).message })
+        console.error('[bookings/send-invitation] email send failed', err)
+        errors.push({ channel: 'email', message: 'email_send_failed' })
       }
     }
   }
@@ -259,7 +254,8 @@ export async function POST(request: Request) {
           sentChannels.push('whatsapp_305')
         }
       } catch (err) {
-        errors.push({ channel: 'whatsapp_305', message: (err as Error).message })
+        console.error('[bookings/send-invitation] whatsapp_305 send failed', err)
+        errors.push({ channel: 'whatsapp_305', message: 'whatsapp_send_failed' })
       }
     }
   }
@@ -279,7 +275,8 @@ export async function POST(request: Request) {
           sentChannels.push('whatsapp_718')
         }
       } catch (err) {
-        errors.push({ channel: 'whatsapp_718', message: (err as Error).message })
+        console.error('[bookings/send-invitation] whatsapp_718 send failed', err)
+        errors.push({ channel: 'whatsapp_718', message: 'whatsapp_send_failed' })
       }
     }
   }

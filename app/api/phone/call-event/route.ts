@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { safeError } from '@/lib/api/safe-error'
 import { createServiceClient } from '@/lib/supabase/server'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
 
@@ -78,8 +79,7 @@ export async function POST(request: NextRequest) {
     .from('phone_calls')
     .upsert(row, { onConflict: 'external_id' })
   if (error) {
-    console.error('[call-event] upsert error', error.message)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return safeError('phone/call-event', error, { code: 'upsert_failed', status: 500 })
   }
 
   console.log('[call-event]', event, { panel, from, to, duration: row.duration_seconds })

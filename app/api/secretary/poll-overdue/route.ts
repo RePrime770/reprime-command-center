@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 import { triggerEvent } from '@/lib/pagerduty/events'
 import { cronAuthed } from '@/lib/cron/auth'
 
@@ -32,10 +33,10 @@ export async function GET(request: Request) {
     .limit(PAGE_LIMIT)
 
   if (selErr) {
-    return NextResponse.json(
-      { error: 'select_failed', message: selErr.message },
-      { status: 500 }
-    )
+    return safeError('secretary/poll-overdue', selErr, {
+      code: 'select_failed',
+      status: 500,
+    })
   }
 
   const ids = (due ?? []).map((r) => r.id)
@@ -49,10 +50,10 @@ export async function GET(request: Request) {
     .in('id', ids)
 
   if (updErr) {
-    return NextResponse.json(
-      { error: 'update_failed', message: updErr.message },
-      { status: 500 }
-    )
+    return safeError('secretary/poll-overdue', updErr, {
+      code: 'update_failed',
+      status: 500,
+    })
   }
 
   // One rollup PagerDuty event per cron tick — we don't want N pages for N

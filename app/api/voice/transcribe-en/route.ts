@@ -1,10 +1,19 @@
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { safeError } from '@/lib/api/safe-error'
 import { createServerClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
+  try {
+    return await handleTranscribe(request)
+  } catch (err) {
+    return safeError('voice/transcribe-en', err)
+  }
+}
+
+async function handleTranscribe(request: Request) {
   const supabase = await createServerClient()
   const {
     data: { user },

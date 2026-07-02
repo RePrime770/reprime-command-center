@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 import {
   listInvestorTaggedPersons,
   type InvestorTagTier,
@@ -111,11 +112,10 @@ export async function GET() {
   try {
     investors = await listInvestorTaggedPersons()
   } catch (err) {
-    console.error('[cadence] pipedrive fetch failed', err)
-    return NextResponse.json(
-      { error: 'pipedrive_fetch_failed', detail: (err as Error).message },
-      { status: 500 },
-    )
+    return safeError('investors/cadence', err, {
+      code: 'pipedrive_fetch_failed',
+      status: 500,
+    })
   }
 
   if (investors.length === 0) {

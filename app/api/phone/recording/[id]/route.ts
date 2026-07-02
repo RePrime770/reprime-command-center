@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { safeError } from '@/lib/api/safe-error'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -7,6 +8,17 @@ export const dynamic = 'force-dynamic'
 // GET /api/phone/recording/[id]  (id = phone_calls.id UUID)
 
 export async function GET(
+  request: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    return await handleGet(request, ctx)
+  } catch (err) {
+    return safeError('phone/recording/[id]', err)
+  }
+}
+
+async function handleGet(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {

@@ -1,4 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server'
+import { safeError } from '@/lib/api/safe-error'
 import { createServiceClient } from '@/lib/supabase/server'
 import { listRecent, getMessage, parseFromHeader } from '@/lib/google/gmail'
 import { cronAuthed } from '@/lib/cron/auth'
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
   const { data: roster, error } = await supabase
     .from('roster')
     .select('source_row, email, board_stage, last_reply_at, thread_json')
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return safeError('cron/email-watch', error, { code: 'db_error', status: 500 })
 
   type RC = { source_row: number; board_stage: string | null; last_reply_at: string | null; thread_json: string | null }
   const byEmail = new Map<string, RC>()
@@ -84,9 +85,15 @@ export async function GET(request: NextRequest) {
         if (r.board_stage !== 'booked' && r.board_stage !== 'declined') upd.board_stage = 'replied'
         await supabase.from('roster').update(upd).eq('source_row', r.source_row)
         r.last_reply_at = at; r.thread_json = upd.thread_json as string; matched++
-      } catch (e) { errors.push(`msg: ${(e as Error).message.slice(0, 60)}`) }
+      } catch (e) {
+        console.error('[cron/email-watch] msg failed', m.id, e)
+        errors.push('msg')
+      }
     }
-  } catch (e) { errors.push(`list: ${(e as Error).message.slice(0, 80)}`) }
+  } catch (e) {
+    console.error('[cron/email-watch] list failed', e)
+    errors.push('list')
+  }
 
   return NextResponse.json({ ok: true, matched, errors })
 }

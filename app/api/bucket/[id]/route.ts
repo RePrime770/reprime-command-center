@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 import { bustBucketCache } from '@/lib/bucket/cache'
 
 export const dynamic = 'force-dynamic'
@@ -55,10 +56,10 @@ export async function GET(_request: NextRequest, ctx: RouteContext) {
     .maybeSingle()
 
   if (error) {
-    return NextResponse.json(
-      { error: 'select_failed', message: error.message },
-      { status: 500 }
-    )
+    return safeError('bucket/[id]', error, {
+      code: 'select_failed',
+      status: 500,
+    })
   }
   if (!data) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
@@ -140,10 +141,10 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
     .maybeSingle()
 
   if (error) {
-    return NextResponse.json(
-      { error: 'update_failed', message: error.message },
-      { status: 500 }
-    )
+    return safeError('bucket/[id]', error, {
+      code: 'update_failed',
+      status: 500,
+    })
   }
   if (!data) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
@@ -177,10 +178,10 @@ export async function DELETE(_request: NextRequest, ctx: RouteContext) {
   const service = createServiceClient()
   const { error } = await service.from('bucket_items').delete().eq('id', id)
   if (error) {
-    return NextResponse.json(
-      { error: 'delete_failed', message: error.message },
-      { status: 500 }
-    )
+    return safeError('bucket/[id]', error, {
+      code: 'delete_failed',
+      status: 500,
+    })
   }
   void bustBucketCache()
   return NextResponse.json({ ok: true })

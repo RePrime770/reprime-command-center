@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,8 +63,10 @@ export async function POST(request: NextRequest) {
     .select('id, remind_at')
     .single()
   if (error) {
-    console.error('[/api/investors/reminder] insert failed', error.message)
-    return NextResponse.json({ error: 'db_insert_failed', detail: error.message }, { status: 500 })
+    return safeError('investors/reminder', error, {
+      code: 'db_insert_failed',
+      status: 500,
+    })
   }
 
   return NextResponse.json({ ok: true, reminder: inserted })

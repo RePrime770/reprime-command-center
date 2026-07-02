@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 import { listInvestorTaggedPersons, type InvestorTaggedPerson } from '@/lib/pipedrive/client'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
 import type { DashboardThread, Panel, InvestorTier, InvestorRole } from '@/lib/timelines/types'
@@ -130,8 +131,7 @@ export async function GET() {
       .order('last_message_at', { ascending: false, nullsFirst: false })
     const { data, error } = await query
     if (error) {
-      console.error('[investor-chat-threads] thread fetch failed', { message: error.message })
-      return NextResponse.json({ error: 'db_select_failed', message: error.message }, { status: 500 })
+      return safeError('whatsapp/investor-chat-threads', error, { code: 'db_select_failed', status: 500 })
     }
     rows = (data as ThreadRow[] | null) ?? []
   }

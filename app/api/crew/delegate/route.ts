@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,10 +84,7 @@ export async function POST(request: NextRequest) {
     .eq('active', true)
     .maybeSingle()
   if (crewErr) {
-    return NextResponse.json(
-      { error: 'db_error', message: crewErr.message },
-      { status: 500 }
-    )
+    return safeError('crew/delegate', crewErr, { code: 'db_error', status: 500 })
   }
   if (!crew) {
     return NextResponse.json(
@@ -113,10 +111,10 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (insertErr || !item) {
-    return NextResponse.json(
-      { error: 'db_error', message: insertErr?.message ?? 'insert failed' },
-      { status: 500 }
-    )
+    return safeError('crew/delegate', insertErr ?? new Error('insert returned no row'), {
+      code: 'db_error',
+      status: 500,
+    })
   }
 
   const row = item as BucketItemRow
@@ -143,7 +141,8 @@ export async function POST(request: NextRequest) {
         reminderError = `endpoint_${res.status}`
       }
     } catch (err) {
-      reminderError = err instanceof Error ? err.message : 'endpoint_error'
+      console.error('[crew/delegate] reminder endpoint failed', err)
+      reminderError = 'endpoint_error'
     }
 
     if (!reminderScheduled) {
@@ -154,7 +153,8 @@ export async function POST(request: NextRequest) {
         payload: { source: 'crew/delegate', to_email: toEmail, title },
       })
       if (remErr) {
-        reminderError = `fallback:${remErr.message}`
+        console.error('[crew/delegate] reminder fallback insert failed', remErr)
+        reminderError = 'fallback_insert_failed'
       } else {
         reminderScheduled = true
         reminderVia = 'fallback'

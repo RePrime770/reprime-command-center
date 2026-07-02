@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -71,10 +72,10 @@ export async function GET(_request: NextRequest) {
 
   const firstErr = awaitingRes.error || overdueRes.error || repliedRes.error
   if (firstErr) {
-    return NextResponse.json(
-      { error: 'select_failed', message: firstErr.message },
-      { status: 500 }
-    )
+    return safeError('secretary/asks', firstErr, {
+      code: 'select_failed',
+      status: 500,
+    })
   }
 
   return NextResponse.json({
@@ -138,7 +139,7 @@ export async function PATCH(request: NextRequest) {
     .maybeSingle()
 
   if (error) {
-    return NextResponse.json({ error: 'update_failed', message: error.message }, { status: 500 })
+    return safeError('secretary/asks', error, { code: 'update_failed', status: 500 })
   }
   if (!data) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })

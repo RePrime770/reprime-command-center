@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { safeError } from '@/lib/api/safe-error'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -146,9 +147,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ reply, language })
   } catch (err) {
     // Never leak the API key or raw SDK internals.
-    return NextResponse.json(
-      { error: 'anthropic_failed', message: (err as Error).message },
-      { status: 500 }
-    )
+    return safeError('nora/chat', err, { code: 'anthropic_failed', status: 500 })
   }
 }

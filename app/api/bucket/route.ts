@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 import {
   bustBucketCache,
   isFresh,
@@ -140,10 +141,10 @@ export async function GET(request: NextRequest) {
           stale: true,
         })
       }
-      return NextResponse.json(
-        { error: 'select_failed', message: result.error.message },
-        { status: 500 }
-      )
+      return safeError('bucket', result.error, {
+        code: 'select_failed',
+        status: 500,
+      })
     }
     const items = (result.data ?? []) as Array<{ due_at: string | null }>
     // Cache the FULL result (including snoozed) so include_snoozed=true
@@ -168,10 +169,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ items: [], degraded: true })
   }
   if (result.error) {
-    return NextResponse.json(
-      { error: 'select_failed', message: result.error.message },
-      { status: 500 }
-    )
+    return safeError('bucket', result.error, {
+      code: 'select_failed',
+      status: 500,
+    })
   }
 
   // Defense in depth: re-apply hideSnoozed in JS so the multi-status path
@@ -231,10 +232,7 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (error) {
-    return NextResponse.json(
-      { error: 'insert_failed', message: error.message },
-      { status: 500 }
-    )
+    return safeError('bucket', error, { code: 'insert_failed', status: 500 })
   }
 
   // Fire-and-forget; don't slow the POST if Redis is laggy.

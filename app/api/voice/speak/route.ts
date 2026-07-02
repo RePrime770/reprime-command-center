@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { safeError } from '@/lib/api/safe-error'
 import { createServerClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
@@ -9,6 +10,14 @@ type SpeakBody = {
 }
 
 export async function POST(request: Request) {
+  try {
+    return await handleSpeak(request)
+  } catch (err) {
+    return safeError('voice/speak', err)
+  }
+}
+
+async function handleSpeak(request: Request) {
   const supabase = await createServerClient()
   const {
     data: { user },
@@ -66,8 +75,9 @@ export async function POST(request: Request) {
 
   if (!upstream.ok || !upstream.body) {
     const errText = await upstream.text().catch(() => '')
+    console.error('[voice/speak] TTS upstream error', upstream.status, errText.slice(0, 300))
     return NextResponse.json(
-      { error: 'TTS upstream error', status: upstream.status, detail: errText },
+      { error: 'TTS upstream error', status: upstream.status },
       { status: 502 }
     )
   }

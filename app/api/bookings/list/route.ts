@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { safeError } from '@/lib/api/safe-error'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -24,10 +25,7 @@ export async function GET() {
     .limit(20)
 
   if (error) {
-    return NextResponse.json(
-      { error: 'list_failed', message: error.message },
-      { status: 500 }
-    )
+    return safeError('bookings/list', error, { code: 'list_failed', status: 500 })
   }
   return NextResponse.json({ invitations: data ?? [] })
 }

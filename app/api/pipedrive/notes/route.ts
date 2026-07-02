@@ -3,6 +3,7 @@ import { Redis } from '@upstash/redis'
 import { createServerClient } from '@/lib/supabase/server'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
 import { PIPEDRIVE_FIELD_KEYS, updatePerson } from '@/lib/pipedrive/client'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,10 +42,7 @@ export async function PUT(request: Request) {
       [PIPEDRIVE_FIELD_KEYS.NOTES_FROM_DASHBOARD]: value,
     })
   } catch (err) {
-    return NextResponse.json(
-      { error: 'pipedrive_error', message: (err as Error).message },
-      { status: 502 }
-    )
+    return safeError('pipedrive/notes', err, { code: 'pipedrive_error', status: 502 })
   }
 
   if (body.phone) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { centerAuthed } from '@/lib/center/auth'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
       .from('roster')
       .select('name, phone, email, board_stage, awaiting_us, thread_json')
       .order('source_row', { ascending: true })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return safeError('center/export', error, { code: 'export_query_failed' })
     const rows = (roster || []) as RosterRow[]
 
     const lines = ['Name,Channel,Status,Phone,Email,Last update,Full conversation']
@@ -105,6 +106,6 @@ export async function GET(request: Request) {
       },
     })
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message.slice(0, 200) }, { status: 500 })
+    return safeError('center/export', e, { code: 'export_failed' })
   }
 }

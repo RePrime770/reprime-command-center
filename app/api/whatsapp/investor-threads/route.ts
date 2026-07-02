@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 import type { ChannelType, Panel } from '@/lib/timelines/types'
 
 export const dynamic = 'force-dynamic'
@@ -46,124 +47,119 @@ type MessageRow = {
 }
 
 export async function GET() {
-  const supabase = await createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user || user.email !== 'g@reprime.com') {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
+  try {
+    const supabase = await createServerClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user || user.email !== 'g@reprime.com') {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
 
-  const service = createServiceClient()
+    const service = createServiceClient()
 
-  // Find threads tagged with any is_investor tag.
-  const { data: tagJoins, error: joinErr } = await service
-    .from('thread_tags')
-    .select('thread_id, tags!inner(is_investor)')
-    .eq('tags.is_investor', true)
+    // Find threads tagged with any is_investor tag.
+    const { data: tagJoins, error: joinErr } = await service
+      .from('thread_tags')
+      .select('thread_id, tags!inner(is_investor)')
+      .eq('tags.is_investor', true)
 
-  if (joinErr) {
-    return NextResponse.json(
-      { error: 'db_join_failed', message: joinErr.message },
-      { status: 500 }
+    if (joinErr) {
+      return safeError('whatsapp/investor-threads', joinErr, { code: 'db_join_failed', status: 500 })
+    }
+
+    const investorThreadIds = Array.from(
+      new Set(((tagJoins as { thread_id: string }[] | null) || []).map((r) => r.thread_id))
     )
-  }
 
-  const investorThreadIds = Array.from(
-    new Set(((tagJoins as { thread_id: string }[] | null) || []).map((r) => r.thread_id))
-  )
+    if (investorThreadIds.length === 0) {
+      return NextResponse.json({ groups: [] as InvestorGroup[] })
+    }
 
-  if (investorThreadIds.length === 0) {
-    return NextResponse.json({ groups: [] as InvestorGroup[] })
-  }
+    const { data: threadRows, error: threadErr } = await service
+      .from('whatsapp_threads')
+      .select('id, panel, channel_type, phone, contact_name, last_message_at')
+      .in('id', investorThreadIds)
 
-  const { data: threadRows, error: threadErr } = await service
-    .from('whatsapp_threads')
-    .select('id, panel, channel_type, phone, contact_name, last_message_at')
-    .in('id', investorThreadIds)
+    if (threadErr) {
+      return safeError('whatsapp/investor-threads', threadErr, { code: 'db_select_threads_failed', status: 500 })
+    }
 
-  if (threadErr) {
-    return NextResponse.json(
-      { error: 'db_select_threads_failed', message: threadErr.message },
-      { status: 500 }
-    )
-  }
+    const threads = (threadRows as ThreadRow[] | null) || []
+    if (threads.length === 0) {
+      return NextResponse.json({ groups: [] as InvestorGroup[] })
+    }
+    const threadById = new Map(threads.map((t) => [t.id, t]))
 
-  const threads = (threadRows as ThreadRow[] | null) || []
-  if (threads.length === 0) {
-    return NextResponse.json({ groups: [] as InvestorGroup[] })
-  }
-  const threadById = new Map(threads.map((t) => [t.id, t]))
+    const { data: messageRows, error: msgErr } = await service
+      .from('whatsapp_messages')
+      .select('id, thread_id, direction, body, sent_at, status')
+      .in('thread_id', investorThreadIds)
+      .order('sent_at', { ascending: false, nullsFirst: false })
+      .limit(MESSAGE_LIMIT)
 
-  const { data: messageRows, error: msgErr } = await service
-    .from('whatsapp_messages')
-    .select('id, thread_id, direction, body, sent_at, status')
-    .in('thread_id', investorThreadIds)
-    .order('sent_at', { ascending: false, nullsFirst: false })
-    .limit(MESSAGE_LIMIT)
+    if (msgErr) {
+      return safeError('whatsapp/investor-threads', msgErr, { code: 'db_select_messages_failed', status: 500 })
+    }
 
-  if (msgErr) {
-    return NextResponse.json(
-      { error: 'db_select_messages_failed', message: msgErr.message },
-      { status: 500 }
-    )
-  }
+    const messages = (messageRows as MessageRow[] | null) || []
 
-  const messages = (messageRows as MessageRow[] | null) || []
+    // Group by phone (cross-channel aggregation), capping per-group preview length.
+    const byPhone = new Map<string, InvestorGroup>()
 
-  // Group by phone (cross-channel aggregation), capping per-group preview length.
-  const byPhone = new Map<string, InvestorGroup>()
-
-  for (const m of messages) {
-    const t = threadById.get(m.thread_id)
-    if (!t) continue
-    const phone = t.phone
-    let group = byPhone.get(phone)
-    if (!group) {
-      group = {
-        phone,
-        contact_name: t.contact_name,
-        panel: t.panel,
-        channel_type: t.channel_type,
-        messages: [],
+    for (const m of messages) {
+      const t = threadById.get(m.thread_id)
+      if (!t) continue
+      const phone = t.phone
+      let group = byPhone.get(phone)
+      if (!group) {
+        group = {
+          phone,
+          contact_name: t.contact_name,
+          panel: t.panel,
+          channel_type: t.channel_type,
+          messages: [],
+        }
+        byPhone.set(phone, group)
       }
-      byPhone.set(phone, group)
+      if (group.messages.length < PER_GROUP_MAX) {
+        const isUnread =
+          m.direction === 'in' && (m.status === null || m.status?.toLowerCase() !== 'read')
+        group.messages.push({
+          id: m.id,
+          thread_id: m.thread_id,
+          panel: t.panel,
+          channel_type: t.channel_type,
+          direction: m.direction,
+          body: m.body,
+          sent_at: m.sent_at,
+          status: m.status,
+          is_unread: isUnread,
+        })
+      }
     }
-    if (group.messages.length < PER_GROUP_MAX) {
-      const isUnread =
-        m.direction === 'in' && (m.status === null || m.status?.toLowerCase() !== 'read')
-      group.messages.push({
-        id: m.id,
-        thread_id: m.thread_id,
-        panel: t.panel,
-        channel_type: t.channel_type,
-        direction: m.direction,
-        body: m.body,
-        sent_at: m.sent_at,
-        status: m.status,
-        is_unread: isUnread,
-      })
+
+    // For groups whose threads exist but have no recent messages, still include the group.
+    for (const t of threads) {
+      if (!byPhone.has(t.phone)) {
+        byPhone.set(t.phone, {
+          phone: t.phone,
+          contact_name: t.contact_name,
+          panel: t.panel,
+          channel_type: t.channel_type,
+          messages: [],
+        })
+      }
     }
+
+    const groups = Array.from(byPhone.values()).sort((a, b) => {
+      const aLast = a.messages[0]?.sent_at ? new Date(a.messages[0].sent_at).getTime() : 0
+      const bLast = b.messages[0]?.sent_at ? new Date(b.messages[0].sent_at).getTime() : 0
+      return bLast - aLast
+    })
+
+    return NextResponse.json({ groups })
+  } catch (err) {
+    return safeError('whatsapp/investor-threads', err)
   }
-
-  // For groups whose threads exist but have no recent messages, still include the group.
-  for (const t of threads) {
-    if (!byPhone.has(t.phone)) {
-      byPhone.set(t.phone, {
-        phone: t.phone,
-        contact_name: t.contact_name,
-        panel: t.panel,
-        channel_type: t.channel_type,
-        messages: [],
-      })
-    }
-  }
-
-  const groups = Array.from(byPhone.values()).sort((a, b) => {
-    const aLast = a.messages[0]?.sent_at ? new Date(a.messages[0].sent_at).getTime() : 0
-    const bLast = b.messages[0]?.sent_at ? new Date(b.messages[0].sent_at).getTime() : 0
-    return bLast - aLast
-  })
-
-  return NextResponse.json({ groups })
 }

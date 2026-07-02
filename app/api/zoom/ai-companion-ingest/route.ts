@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { safeError } from '@/lib/api/safe-error'
 import { createServiceClient } from '@/lib/supabase/server'
 import { findPersonByEmail, findPersonByPhone, createActivity } from '@/lib/pipedrive/client'
 import { normalizePhone } from '@/lib/timelines/normalize-phone'
@@ -112,10 +113,10 @@ export async function POST(request: Request) {
     htmlBody = (form.get('html') as string | null) ?? ''
     rawEmail = (form.get('email') as string | null) ?? ''
   } catch (err) {
-    return NextResponse.json(
-      { error: 'invalid_multipart', message: (err as Error).message },
-      { status: 400 }
-    )
+    return safeError('zoom/ai-companion-ingest', err, {
+      code: 'invalid_multipart',
+      status: 400,
+    })
   }
 
   if (!isZoomSender(from)) {
@@ -168,15 +169,12 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   if (insertError) {
-    console.error('[zoom.ai-companion-ingest] supabase insert failed', insertError)
-    return NextResponse.json(
-      {
-        error: 'meeting_summary_insert_failed',
-        message: insertError.message,
-        hint: 'If table is missing, create the meeting_summaries table per the SQL in this route file header.',
-      },
-      { status: 500 }
-    )
+    // If the table is missing, create the meeting_summaries table per the SQL
+    // in this route file header.
+    return safeError('zoom/ai-companion-ingest', insertError, {
+      code: 'meeting_summary_insert_failed',
+      status: 500,
+    })
   }
 
   if (pipedriveContactId !== null) {

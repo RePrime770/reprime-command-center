@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,20 +75,14 @@ export async function POST(request: NextRequest) {
     .upsert({ thread_id: threadId, tag_id: tagId }, { onConflict: 'thread_id,tag_id' })
 
   if (insertErr) {
-    return NextResponse.json(
-      { error: 'db_insert_failed', message: insertErr.message },
-      { status: 500 }
-    )
+    return safeError('tags/apply', insertErr, { code: 'db_insert_failed', status: 500 })
   }
 
   try {
     const isInvestor = await recomputeAndPersistInvestor(threadId)
     return NextResponse.json({ ok: true, is_investor: isInvestor })
   } catch (e) {
-    return NextResponse.json(
-      { error: 'recompute_failed', message: (e as Error).message },
-      { status: 500 }
-    )
+    return safeError('tags/apply', e, { code: 'recompute_failed', status: 500 })
   }
 }
 
@@ -117,19 +112,13 @@ export async function DELETE(request: NextRequest) {
     .eq('tag_id', tagId)
 
   if (deleteErr) {
-    return NextResponse.json(
-      { error: 'db_delete_failed', message: deleteErr.message },
-      { status: 500 }
-    )
+    return safeError('tags/apply', deleteErr, { code: 'db_delete_failed', status: 500 })
   }
 
   try {
     const isInvestor = await recomputeAndPersistInvestor(threadId)
     return NextResponse.json({ ok: true, is_investor: isInvestor })
   } catch (e) {
-    return NextResponse.json(
-      { error: 'recompute_failed', message: (e as Error).message },
-      { status: 500 }
-    )
+    return safeError('tags/apply', e, { code: 'recompute_failed', status: 500 })
   }
 }

@@ -5,6 +5,7 @@ import {
   type BulkProgress,
   type BulkRow,
 } from '@/lib/pipedrive/bulk-upsert'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -109,10 +110,7 @@ export async function POST(request: NextRequest) {
       rows = await loadContactDirectoryRows()
     }
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: 'load_failed', message: (err as Error).message }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    )
+    return safeError('pipedrive/bulk-import', err, { code: 'load_failed', status: 500 })
   }
 
   const stream = new ReadableStream<Uint8Array>({
@@ -129,9 +127,8 @@ export async function POST(request: NextRequest) {
         })
         controller.enqueue(sseEvent({ event: 'done', ...final }))
       } catch (err) {
-        controller.enqueue(
-          sseEvent({ event: 'error', message: (err as Error).message })
-        )
+        console.error('[pipedrive/bulk-import]', err)
+        controller.enqueue(sseEvent({ event: 'error', code: 'bulk_upsert_failed' }))
       } finally {
         controller.close()
       }

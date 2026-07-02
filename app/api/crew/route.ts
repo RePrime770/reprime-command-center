@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,7 +44,7 @@ export async function GET() {
     .order('display_name', { ascending: true })
 
   if (error) {
-    return NextResponse.json({ error: 'db_error', message: error.message }, { status: 500 })
+    return safeError('crew', error, { code: 'db_error', status: 500 })
   }
 
   return NextResponse.json({ crew: (data || []) as CrewMemberRow[] })

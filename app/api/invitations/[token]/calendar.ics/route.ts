@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { safeError } from '@/lib/api/safe-error'
 import { createServiceClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -66,6 +67,7 @@ export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ token: string }> }
 ): Promise<Response> {
+  try {
   const { token } = await context.params
 
   const service = createServiceClient()
@@ -129,4 +131,7 @@ export async function GET(
       'cache-control': 'no-store',
     },
   })
+  } catch (err) {
+    return safeError('invitations/[token]/calendar.ics', err)
+  }
 }

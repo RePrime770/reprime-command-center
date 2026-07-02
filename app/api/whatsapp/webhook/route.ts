@@ -8,6 +8,7 @@ import { getMediaType, parseTimelinesTimestamp } from '@/lib/timelines/parse'
 import type { Panel, TimelinesChat, TimelinesMessage } from '@/lib/timelines/types'
 import { markAskReplied } from '@/lib/secretary/outbound-asks'
 import { processVoiceNote } from '@/lib/center/voice-note'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 // Voice notes get downloaded + transcribed inline, so allow headroom over the
@@ -330,18 +331,7 @@ export async function POST(request: Request) {
     .single()
 
   if (upsertErr || !thread) {
-    console.error('[webhook] thread upsert FAILED', {
-      panel,
-      phone,
-      message: upsertErr?.message,
-      code: upsertErr?.code,
-      details: upsertErr?.details,
-      hint: upsertErr?.hint,
-    })
-    return NextResponse.json(
-      { error: 'thread_upsert_failed', message: upsertErr?.message },
-      { status: 500 }
-    )
+    return safeError('whatsapp/webhook', upsertErr, { code: 'thread_upsert_failed', status: 500 })
   }
 
   console.log('[webhook] thread upsert OK', { threadId: thread.id, panel, phone })
@@ -443,18 +433,7 @@ export async function POST(request: Request) {
   // BUG 3d: log insert result whether success or failure
   console.log('[webhook] insert result', { data: !msgErr, error: msgErr ?? null })
   if (msgErr) {
-    console.error('[webhook] message upsert FAILED', {
-      uid: message.uid,
-      threadId: thread.id,
-      message: msgErr.message,
-      code: msgErr.code,
-      details: msgErr.details,
-      hint: msgErr.hint,
-    })
-    return NextResponse.json(
-      { error: 'message_upsert_failed', message: msgErr.message },
-      { status: 500 }
-    )
+    return safeError('whatsapp/webhook', msgErr, { code: 'message_upsert_failed', status: 500 })
   }
 
   console.log('[webhook] message upsert OK', { uid: message.uid, threadId: thread.id })

@@ -9,6 +9,7 @@ import {
   type PipedriveOrgRef,
 } from '@/lib/pipedrive/client'
 import { getProvider, type EnrichInput, type EnrichResult } from '@/lib/enrich/provider'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,10 +64,7 @@ export async function POST(request: Request) {
   try {
     person = await getPerson(id)
   } catch (err) {
-    return NextResponse.json(
-      { error: 'pipedrive_error', message: (err as Error).message },
-      { status: 502 }
-    )
+    return safeError('pipedrive/enrich', err, { code: 'pipedrive_error', status: 502 })
   }
   if (!person) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
@@ -102,10 +100,7 @@ export async function POST(request: Request) {
   try {
     result = await provider.enrich(input)
   } catch (err) {
-    return NextResponse.json(
-      { error: 'provider_error', message: (err as Error).message, provider: provider.name },
-      { status: 502 }
-    )
+    return safeError('pipedrive/enrich', err, { code: 'provider_error', status: 502 })
   }
 
   if (!result) {
@@ -138,10 +133,7 @@ export async function POST(request: Request) {
         added.company = result.company
       }
     } catch (err) {
-      return NextResponse.json(
-        { error: 'pipedrive_error', message: (err as Error).message },
-        { status: 502 }
-      )
+      return safeError('pipedrive/enrich', err, { code: 'pipedrive_error', status: 502 })
     }
   }
 
@@ -152,10 +144,7 @@ export async function POST(request: Request) {
   try {
     await updatePerson(id, patch)
   } catch (err) {
-    return NextResponse.json(
-      { error: 'pipedrive_error', message: (err as Error).message },
-      { status: 502 }
-    )
+    return safeError('pipedrive/enrich', err, { code: 'pipedrive_error', status: 502 })
   }
 
   return NextResponse.json({ added, provider: provider.name })

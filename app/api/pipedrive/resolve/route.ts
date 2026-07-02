@@ -11,6 +11,7 @@ import {
   type PipedriveActivity,
 } from '@/lib/pipedrive/client'
 import type { Panel } from '@/lib/timelines/types'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -98,10 +99,7 @@ export async function GET(request: Request) {
       activities = await getPersonActivities(person.id, 3)
     }
   } catch (err) {
-    return NextResponse.json(
-      { error: 'pipedrive_error', message: (err as Error).message },
-      { status: 502 }
-    )
+    return safeError('pipedrive/resolve', err, { code: 'pipedrive_error', status: 502 })
   }
 
   const payload: ResolvePayload = {

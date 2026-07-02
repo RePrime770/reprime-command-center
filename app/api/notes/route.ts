@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,7 +36,7 @@ export async function GET() {
     .order('updated_at', { ascending: false })
 
   if (error) {
-    return NextResponse.json({ error: 'db_error', message: error.message }, { status: 500 })
+    return safeError('notes', error, { code: 'db_error', status: 500 })
   }
 
   return NextResponse.json({ notes: (data || []) as NoteRow[] })
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: 'db_error', message: error.message }, { status: 500 })
+    return safeError('notes', error, { code: 'db_error', status: 500 })
   }
 
   return NextResponse.json({ note: data as NoteRow })
@@ -105,7 +106,7 @@ export async function PUT(request: Request) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: 'db_error', message: error.message }, { status: 500 })
+    return safeError('notes', error, { code: 'db_error', status: 500 })
   }
 
   return NextResponse.json({ note: data as NoteRow })
@@ -128,7 +129,7 @@ export async function DELETE(request: Request) {
   const service = createServiceClient()
   const { error } = await service.from('notes').delete().eq('id', id)
   if (error) {
-    return NextResponse.json({ error: 'db_error', message: error.message }, { status: 500 })
+    return safeError('notes', error, { code: 'db_error', status: 500 })
   }
 
   return NextResponse.json({ ok: true })

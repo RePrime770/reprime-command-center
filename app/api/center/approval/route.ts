@@ -3,6 +3,7 @@ import { google } from 'googleapis'
 import { centerAuthed } from '@/lib/center/auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { sendMessage, PANEL_ACCOUNT_MAP } from '@/lib/timelines/client'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase.from('approvals')
     .select('id, source_row, contact_name, channel, their_es, draft_es, draft_he, created_at')
     .eq('status', 'pending').order('created_at', { ascending: true })
-  if (error) return NextResponse.json({ error: error.message, approvals: [] }, { status: 500 })
+  if (error) return safeError('center/approval', error, { code: 'approvals_fetch_failed' })
   return NextResponse.json({ approvals: data || [] })
 }
 
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
       their_text: b.their_text || '', their_es: b.their_es || '', draft_es: b.draft_es || '', draft_he: b.draft_he || '',
       worked_by: 'spanish', status: 'pending',
     }).select('id').single()
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return safeError('center/approval', error, { code: 'create_failed' })
     return NextResponse.json({ ok: true, id: data?.id })
   }
 
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'no_destination' }, { status: 400 })
       }
     } catch (e) {
-      return NextResponse.json({ error: (e as Error).message.slice(0, 200) }, { status: 502 })
+      return safeError('center/approval', e, { code: 'send_failed', status: 502 })
     }
     await supabase.from('approvals').update({ status: 'sent', decided_at: new Date().toISOString() }).eq('id', b.id)
     if (r.source_row != null) await supabase.from('roster').update({ awaiting_us: false, last_from: 'us' }).eq('source_row', r.source_row)

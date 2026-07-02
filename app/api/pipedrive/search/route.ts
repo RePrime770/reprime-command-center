@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { searchPersons } from '@/lib/pipedrive/client'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,9 +27,6 @@ export async function GET(request: Request) {
     const results = await searchPersons(q, limit)
     return NextResponse.json({ results })
   } catch (err) {
-    return NextResponse.json(
-      { error: 'pipedrive_error', message: (err as Error).message },
-      { status: 502 }
-    )
+    return safeError('pipedrive/search', err, { code: 'pipedrive_error', status: 502 })
   }
 }

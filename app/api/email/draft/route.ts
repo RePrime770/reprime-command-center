@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { safeError } from '@/lib/api/safe-error'
 import { createServerClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -73,9 +74,6 @@ export async function POST(request: NextRequest) {
       .trim()
     return NextResponse.json({ draft })
   } catch (err) {
-    return NextResponse.json(
-      { error: 'draft_failed', message: err instanceof Error ? err.message : 'unknown' },
-      { status: 502 }
-    )
+    return safeError('email/draft', err, { code: 'draft_failed', status: 502 })
   }
 }

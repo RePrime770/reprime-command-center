@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { centerAuthed } from '@/lib/center/auth'
 import { createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
     .not('email_audit_flag', 'is', null)
     .order('email_audit_flag', { ascending: true }) // 'high' before 'review'
     .order('source_row', { ascending: true })
-  if (error) return NextResponse.json({ error: error.message, rows: [] }, { status: 500 })
+  if (error) return safeError('center/email-audit', error, { code: 'audit_fetch_failed' })
   return NextResponse.json({ rows: data || [] })
 }
 
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
   if (body.action === 'clear' || body.action === 'skip') {
     // Mark "verified — leave as is" (clear / skip both clear the flag).
     const { error } = await supabase.from('roster').update({ email_audit_flag: null, email_audit_note: null }).eq('source_row', row)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return safeError('center/email-audit', error, { code: 'clear_failed' })
     await supabase.from('invitations').update({ email_audit_flag: null }).eq('contact_email', (await supabase.from('roster').select('email').eq('source_row', row).maybeSingle()).data?.email || '')
     return NextResponse.json({ ok: true, cleared: true })
   }
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     .from('roster')
     .update({ email: newEmail, email_audit_flag: null, email_audit_note: null })
     .eq('source_row', row)
-  if (upRoster) return NextResponse.json({ error: upRoster.message }, { status: 500 })
+  if (upRoster) return safeError('center/email-audit', upRoster, { code: 'update_failed' })
 
   if (oldEmail) {
     await supabase

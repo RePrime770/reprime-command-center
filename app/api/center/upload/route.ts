@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { centerAuthed } from '@/lib/center/auth'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
   let maxRow = 0
   {
     const { data, error } = await supabase.from('roster').select('source_row, phone, email')
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return safeError('center/upload', error, { code: 'roster_fetch_failed' })
     const rows = (data || []) as Array<{ source_row: number | null; phone: string | null; email: string | null }>
     for (const r of rows) {
       if (typeof r.source_row === 'number' && r.source_row > maxRow) maxRow = r.source_row
@@ -140,7 +141,7 @@ export async function POST(request: Request) {
 
   if (toInsert.length > 0) {
     const { error } = await supabase.from('roster').insert(toInsert)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return safeError('center/upload', error, { code: 'roster_insert_failed' })
   }
 
   return NextResponse.json({ added, duplicates, total: incoming.length })

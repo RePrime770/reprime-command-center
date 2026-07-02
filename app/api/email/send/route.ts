@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { safeError } from '@/lib/api/safe-error'
 import { createServerClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/sendgrid/client'
 import { recordOutboundAsk } from '@/lib/secretary/outbound-asks'
@@ -115,10 +116,7 @@ export async function POST(request: NextRequest) {
       html,
     })
   } catch (err) {
-    return NextResponse.json(
-      { error: 'send_failed', message: (err as Error).message },
-      { status: 502 }
-    )
+    return safeError('email/send', err, { code: 'send_failed', status: 502 })
   }
 
   // Secretary: record one outbound ask per primary recipient. Email window=48h.

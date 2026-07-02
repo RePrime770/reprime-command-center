@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { after } from 'next/server'
 import { randomUUID } from 'crypto'
+import { safeError } from '@/lib/api/safe-error'
 import { createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { lookupByName } from '@/lib/contact-directory/client'
 import { sendEmail } from '@/lib/sendgrid/client'
@@ -149,10 +150,11 @@ export async function POST(request: NextRequest) {
   const { error: insertErr } = await service.from('invitations').insert(row)
 
   if (insertErr) {
-    return corsJson(
-      { error: 'db_insert_failed', message: insertErr.message },
-      { status: 500 }
-    )
+    // Preserve CORS headers so cross-origin callers (Chrome extension) can
+    // still read the stable error code.
+    const res = safeError('invitations', insertErr, { code: 'db_insert_failed', status: 500 })
+    for (const [k, v] of Object.entries(CORS_HEADERS)) res.headers.set(k, v)
+    return res
   }
 
   const appUrl = (

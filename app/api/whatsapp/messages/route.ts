@@ -5,6 +5,7 @@ import { normalizePhone } from '@/lib/timelines/normalize-phone'
 import { getMediaType, parseTimelinesTimestamp } from '@/lib/timelines/parse'
 import type { DashboardMessage, Panel, TimelinesMessage } from '@/lib/timelines/types'
 import { recordOutboundAsk } from '@/lib/secretary/outbound-asks'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -216,11 +217,7 @@ export async function GET(request: NextRequest) {
       .from('whatsapp_messages')
       .upsert(rows, { onConflict: 'timelines_uid' })
     if (upsertErr) {
-      console.error('[messages/GET] upsert failed', { message: upsertErr.message, code: upsertErr.code })
-      return NextResponse.json(
-        { error: 'db_upsert_failed', message: upsertErr.message },
-        { status: 500 }
-      )
+      return safeError('whatsapp/messages', upsertErr, { code: 'db_upsert_failed', status: 500 })
     }
   }
 
@@ -231,10 +228,7 @@ export async function GET(request: NextRequest) {
     .order('sent_at', { ascending: true, nullsFirst: true })
 
   if (selectErr) {
-    return NextResponse.json(
-      { error: 'db_select_failed', message: selectErr.message },
-      { status: 500 }
-    )
+    return safeError('whatsapp/messages', selectErr, { code: 'db_select_failed', status: 500 })
   }
 
   const result: DashboardMessage[] = (stored || []).map(
@@ -391,10 +385,7 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (insertErr || !inserted) {
-    return NextResponse.json(
-      { error: 'db_insert_failed', message: insertErr?.message },
-      { status: 500 }
-    )
+    return safeError('whatsapp/messages', insertErr, { code: 'db_insert_failed', status: 500 })
   }
 
   let sent: TimelinesMessage
@@ -411,15 +402,17 @@ export async function POST(request: NextRequest) {
       .from('whatsapp_messages')
       .update({ status: isQuota ? 'QuotaExceeded' : 'Failed' })
       .eq('id', inserted.id)
-    return NextResponse.json(
-      {
-        error: isQuota ? 'timelines_quota_exceeded' : 'timelines_send_failed',
-        message: isQuota
-          ? 'Timelines API monthly quota exceeded — resets May 1. Message saved; retry tomorrow.'
-          : msg,
-      },
-      { status: isQuota ? 429 : 502 }
-    )
+    if (isQuota) {
+      return NextResponse.json(
+        {
+          error: 'timelines_quota_exceeded',
+          message:
+            'Timelines API monthly quota exceeded — resets May 1. Message saved; retry tomorrow.',
+        },
+        { status: 429 }
+      )
+    }
+    return safeError('whatsapp/messages', err, { code: 'timelines_send_failed', status: 502 })
   }
 
   const sentAtIso = sent.timestamp
@@ -438,10 +431,7 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (updateErr) {
-    return NextResponse.json(
-      { error: 'db_update_failed', message: updateErr.message },
-      { status: 500 }
-    )
+    return safeError('whatsapp/messages', updateErr, { code: 'db_update_failed', status: 500 })
   }
 
   const previewBase = text || attachmentFilename || 'attachment'

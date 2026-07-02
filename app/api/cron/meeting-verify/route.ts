@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { safeError } from '@/lib/api/safe-error'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getPastMeetingAttendance } from '@/lib/zoom/client'
 import { notifyGroup } from '@/lib/center/notify'
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
     .gte('confirmed_slot_iso', cutoffRecentIso)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return safeError('cron/meeting-verify', error, { code: 'db_error', status: 500 })
   }
 
   const rows = (data || []) as VerifyRow[]
@@ -85,7 +86,8 @@ export async function GET(request: Request) {
         try {
           await notifyGroup(`⚠ Couldn't confirm ${firstName}'s Terminal meeting (${slotDisplay}) — Zoom attendance unavailable, check manually.`)
         } catch (e) {
-          errors.push(`alert ${row.id}: ${(e as Error).message.slice(0, 80)}`)
+          console.error('[cron/meeting-verify] alert failed', row.id, e)
+          errors.push(`alert ${row.id}`)
         }
         continue
       }
@@ -112,10 +114,12 @@ export async function GET(request: Request) {
           : `⚠ ${firstName} did NOT show for the Terminal meeting (${slotDisplay}). Follow up.`
         await notifyGroup(text)
       } catch (e) {
-        errors.push(`alert ${row.id}: ${(e as Error).message.slice(0, 80)}`)
+        console.error('[cron/meeting-verify] alert failed', row.id, e)
+        errors.push(`alert ${row.id}`)
       }
     } catch (e) {
-      errors.push(`verify ${row.id}: ${(e as Error).message.slice(0, 80)}`)
+      console.error('[cron/meeting-verify] verify failed', row.id, e)
+      errors.push(`verify ${row.id}`)
     }
   }
 

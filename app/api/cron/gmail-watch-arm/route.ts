@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { safeError } from '@/lib/api/safe-error'
 import { createServiceClient } from '@/lib/supabase/server'
 import { client as gmailClient } from '@/lib/google/gmail'
 import { centerAuthed } from '@/lib/center/auth'
@@ -28,6 +29,6 @@ export async function GET(request: Request) {
     await service.from('gmail_watch_state').upsert({ email: WATCH_EMAIL, history_id: historyId, expiration, updated_at: new Date().toISOString() }, { onConflict: 'email' })
     return NextResponse.json({ ok: true, email: WATCH_EMAIL, historyId, expiration })
   } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message.slice(0, 200) }, { status: 502 })
+    return safeError('cron/gmail-watch-arm', e, { code: 'watch_arm_failed', status: 502 })
   }
 }

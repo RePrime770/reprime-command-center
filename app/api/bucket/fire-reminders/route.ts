@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { createServiceClient } from '@/lib/supabase/server'
+import { safeError } from '@/lib/api/safe-error'
 import { cronAuthed } from '@/lib/cron/auth'
 
 export const dynamic = 'force-dynamic'
@@ -45,11 +46,10 @@ async function runFireReminders(request: NextRequest) {
     .order('fire_at', { ascending: true })
     .limit(BATCH_LIMIT)
   if (selectError) {
-    console.error('[fire-reminders] select failed', selectError.message)
-    return NextResponse.json(
-      { error: 'db_select_failed', detail: selectError.message },
-      { status: 500 }
-    )
+    return safeError('bucket/fire-reminders', selectError, {
+      code: 'db_select_failed',
+      status: 500,
+    })
   }
 
   if (!due || due.length === 0) {
@@ -78,7 +78,8 @@ async function runFireReminders(request: NextRequest) {
       .eq('id', row.id)
       .is('fired_at', null)
     if (updateError) {
-      failures.push({ id: row.id, error: updateError.message })
+      console.error('[bucket/fire-reminders] update failed', row.id, updateError)
+      failures.push({ id: row.id, error: 'update_failed' })
       continue
     }
     fired++

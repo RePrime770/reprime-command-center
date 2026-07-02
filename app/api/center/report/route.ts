@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { centerAuthed } from '@/lib/center/auth'
 import { sendChatMessage } from '@/lib/timelines/client'
+import { safeError } from '@/lib/api/safe-error'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -59,7 +60,7 @@ async function buildReport(): Promise<string> {
 export async function GET(request: Request) {
   if (!centerAuthed(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   try { return NextResponse.json({ text: await buildReport() }) }
-  catch (e) { return NextResponse.json({ error: (e as Error).message.slice(0, 200) }, { status: 500 }) }
+  catch (e) { return safeError('center/report', e, { code: 'report_failed' }) }
 }
 
 export async function POST(request: Request) {
@@ -69,5 +70,5 @@ export async function POST(request: Request) {
     let sent = false
     try { await sendChatMessage(ALERT_CHAT_ID, '📊 ' + text); sent = true } catch { /* report still returns */ }
     return NextResponse.json({ text, sent })
-  } catch (e) { return NextResponse.json({ error: (e as Error).message.slice(0, 200) }, { status: 500 }) }
+  } catch (e) { return safeError('center/report', e, { code: 'report_failed' }) }
 }
