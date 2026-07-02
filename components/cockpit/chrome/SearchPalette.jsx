@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, X, MessageSquare, Calendar, Mail, Star } from 'lucide-react';
+import { Search, X, MessageSquare, Calendar, Mail, Star, Command as CommandIcon } from 'lucide-react';
 import { ink, semantic, channel as CH, brand } from '../lib/colors.js';
 import { useDemo } from '../demo/DemoContext.jsx';
 import { useLiveData } from '../live/CockpitLiveData.jsx';
+import { listCommands } from '../../../lib/cockpit/commands';
 
 /**
  * Global command / search palette — the "find anyone, any message, any meeting"
@@ -12,6 +13,11 @@ import { useLiveData } from '../live/CockpitLiveData.jsx';
  * open in EmailPanel (CustomEvent 'cockpit:openEmail'), events open their join
  * link or reveal themselves in CalendarPanel (CustomEvent 'calendar:reveal').
  * No fabrication: empty until there's live data; matches only what exists.
+ *
+ * Commands: enabled CommandRegistry entries (lib/cockpit/commands.ts) render
+ * ABOVE threads — navigate commands hard-route via window.location.assign,
+ * action commands invoke run(). Every seeded deck command ships disabled, so
+ * the section is invisible until a deck flips its DECK_ROUTES flag.
  */
 export default function SearchPalette() {
   const { state, set } = useDemo();
@@ -57,6 +63,20 @@ export default function SearchPalette() {
   const matchEmails = !query ? [] : emailList.filter((e) =>
     `${e.from || ''} ${e.subject || ''} ${e.preview || ''}`.toLowerCase().includes(query)
   ).slice(0, 8);
+  // Enabled palette commands (lib/cockpit/commands.ts). All deck commands ship
+  // disabled, so this is [] today and the Commands section renders nothing.
+  const matchCommands = listCommands(query).slice(0, 6);
+
+  // Commands: navigate → hard route change; action → run(). Close first so the
+  // palette never lingers over a new page.
+  const runCommand = (c) => {
+    set('searchOpen', false);
+    if (c.kind === 'navigate' && c.href) {
+      window.location.assign(c.href);
+    } else if (c.kind === 'action') {
+      c.run?.();
+    }
+  };
 
   const openThread = (t) => {
     set('openChat', t.id);
@@ -81,18 +101,27 @@ export default function SearchPalette() {
     set('searchOpen', false);
   };
 
-  // Flat list of selectable rows: threads, then events, then emails (matches render order).
+  // Flat list of selectable rows: commands, then threads, events, emails (matches render order).
   const items = [
+    ...matchCommands.map((c) => ({ key: `c:${c.id}`, onOpen: () => runCommand(c) })),
     ...matchThreads.map((t) => ({ key: `t:${t.id}`, onOpen: () => openThread(t) })),
     ...matchEvents.map((ev) => ({ key: `e:${ev.id}`, onOpen: () => openEventRow(ev) })),
     ...matchEmails.map((m) => ({ key: `m:${m.id}`, onOpen: () => openEmailRow(m) })),
   ];
 
+  // The keydown handler must see the CURRENT items, not the snapshot from when
+  // the effect last ran — the 60s live poll can re-sort threads without
+  // changing items.length, and Enter would open the wrong row. Mirror items
+  // into a ref every commit and read it at event time.
+  const itemsRef = useRef(items);
+  useEffect(() => { itemsRef.current = items; });
+
   // Keyboard navigation (registered only while open).
   useEffect(() => {
     if (!open) return undefined;
     const onNav = (e) => {
-      const max = items.length - 1;
+      const list = itemsRef.current;
+      const max = list.length - 1;
       if (max < 0) return;
       if (e.key === 'ArrowDown' || e.key === 'Tab') {
         e.preventDefault();
@@ -102,12 +131,12 @@ export default function SearchPalette() {
         setCursor((c) => Math.max(0, c - 1));
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        items[Math.min(cursor, max)]?.onOpen?.();
+        list[Math.min(cursor, max)]?.onOpen?.();
       }
     };
     window.addEventListener('keydown', onNav);
     return () => window.removeEventListener('keydown', onNav);
-  }, [open, items.length, cursor]);
+  }, [open, cursor]);
 
   // Auto-scroll highlighted row into view.
   useEffect(() => {
@@ -151,8 +180,30 @@ export default function SearchPalette() {
 
         {/* Results */}
         <div ref={listRef} style={{ overflowY: 'auto', padding: 8 }}>
+          {matchCommands.length > 0 && (
+            <Group icon={CommandIcon} label="Commands" count={matchCommands.length}>
+              {matchCommands.map((c, idx) => {
+                const active = idx === cursor;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => runCommand(c)}
+                    onMouseEnter={() => setCursor(idx)}
+                    data-row-idx={idx}
+                    style={{ ...rowStyle, background: active ? ink[100] : 'transparent', borderLeft: `3px solid ${active ? brand.navy : 'transparent'}`, paddingLeft: 7 }}
+                  >
+                    <span style={{ fontSize: 16, fontWeight: 700, color: ink[700], flex: 1, textAlign: 'left' }}>{c.title}</span>
+                    <span style={{ fontSize: 13, color: ink[300], fontWeight: 700 }}>{c.kind === 'navigate' ? c.href : 'Run'}</span>
+                  </button>
+                );
+              })}
+            </Group>
+          )}
+
           <Group icon={MessageSquare} label={query ? 'Conversations' : 'Recent conversations'} count={matchThreads.length}>
-            {matchThreads.map((t, idx) => {
+            {matchThreads.map((t, i) => {
+              const idx = matchCommands.length + i;
               const ch = CH[t.channel];
               const active = idx === cursor;
               return (
@@ -185,7 +236,7 @@ export default function SearchPalette() {
           {matchEvents.length > 0 && (
             <Group icon={Calendar} label="Today's meetings" count={matchEvents.length}>
               {matchEvents.map((e, i) => {
-                const idx = matchThreads.length + i;
+                const idx = matchCommands.length + matchThreads.length + i;
                 const active = idx === cursor;
                 return (
                   <button
@@ -209,7 +260,7 @@ export default function SearchPalette() {
           {matchEmails.length > 0 && (
             <Group icon={Mail} label="Email" count={matchEmails.length}>
               {matchEmails.map((e, i) => {
-                const idx = matchThreads.length + matchEvents.length + i;
+                const idx = matchCommands.length + matchThreads.length + matchEvents.length + i;
                 const active = idx === cursor;
                 return (
                   <button
@@ -228,7 +279,7 @@ export default function SearchPalette() {
             </Group>
           )}
 
-          {query && matchThreads.length === 0 && matchEvents.length === 0 && matchEmails.length === 0 && (
+          {query && matchCommands.length === 0 && matchThreads.length === 0 && matchEvents.length === 0 && matchEmails.length === 0 && (
             <div style={{ padding: '24px', textAlign: 'center', color: ink[300], fontSize: 15 }}>
               Nothing matches “{q}”.
             </div>

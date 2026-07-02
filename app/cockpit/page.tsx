@@ -1,4 +1,8 @@
 import CockpitClient from './CockpitClient'
+// Deep-link bridge (Batch 2.5): reads ?openThread= / ?openEmail= on the client
+// and re-dispatches the cockpit's open events. Renders null with no params —
+// the page is visually unchanged.
+import DeepLinkBridge from '@/components/cockpit/live/DeepLinkBridge.jsx'
 
 // The cockpit renders time-dependent content (clock/date) that differs between
 // a static prerender and the client, which surfaced as React hydration error
@@ -13,5 +17,10 @@ import CockpitClient from './CockpitClient'
 export const dynamic = 'force-dynamic'
 
 export default function CockpitPage() {
-  return <CockpitClient />
+  return (
+    <>
+      <DeepLinkBridge />
+      <CockpitClient />
+    </>
+  )
 }
