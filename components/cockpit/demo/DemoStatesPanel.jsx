@@ -99,7 +99,9 @@ export default function DemoStatesPanel() {
         <Group label="✦ NEW IN V2 (FIX DISPATCH)">
           <Btn label="LOI counter-incoming (chip pulses red)" active={state.topBarState === 'counter-loi-incoming'} onClick={() => set('topBarState', state.topBarState === 'counter-loi-incoming' ? 'standard' : 'counter-loi-incoming')} />
           <Btn label="Investor Profile drawer (Doron)" active={state.investorState === 'profile-conversation' && state.investorOpenId === 'inv-001'} onClick={() => { set('investorOpenId', 'inv-001'); set('investorState', state.investorState === 'profile-conversation' ? 'grid' : 'profile-conversation'); }} />
-          <Btn label="Invite Composer drawer" active={!!state.inviteComposerOpen} onClick={() => set('inviteComposerOpen', !state.inviteComposerOpen)} />
+          {/* Invite Composer demo button removed — the drawer is a null stub
+              (fully-mock feature retired in c45ab96); a toggle that lights up
+              while rendering nothing just reads as broken. */}
           <Btn label="Open Doron chat (from investor row)" active={state.openInvestorChat === 'th-001'} onClick={() => set('openInvestorChat', 'th-001')} />
           <Btn label="Cycle Model Tier (Haiku→Sonnet→Opus)" active={state.modelTier && state.modelTier !== 'Haiku'} onClick={() => set('modelTier', { Haiku: 'Sonnet', Sonnet: 'Opus', Opus: 'Haiku' }[state.modelTier || 'Haiku'])} />
           <Btn label="Mistake-detection toast (D4 mock)" active={state.toastStack === 'mistake-detect'} onClick={() => set('toastStack', state.toastStack === 'mistake-detect' ? 'empty' : 'mistake-detect')} />

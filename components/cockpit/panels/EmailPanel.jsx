@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PenSquare, X, Send, Reply, Star, Paperclip, Mic, Clock, Video, ArrowLeft } from 'lucide-react';
 import { ink, channel as CH, tier as TIER, semantic, emailInbox as EI } from '../lib/colors.js';
 import { useLiveData } from '../live/CockpitLiveData.jsx';
@@ -83,6 +83,10 @@ export default function EmailPanel({ width }) {
   // Per-email reminder status: 'saving' | 'set' | 'error', keyed by email id.
   // Resets on reload — the durable surface is the bucket_items row + toast.
   const [remindState, setRemindState] = useState({});
+  const panelRootRef = useRef(null);
+  // Carrier bucket-item ids from a partially-failed remind flow, so retry
+  // reuses the already-created row instead of stacking duplicate carriers.
+  const remindCarrierIds = useRef({});
   const [search, setSearch] = useState('');
   const activeTab = INBOXES.find((t) => t.k === inbox) || ALL_INBOX;
 
@@ -111,6 +115,9 @@ export default function EmailPanel({ width }) {
       if (!id) return;
       setComposing(false);
       setOpenedId(id);
+      // The cockpit <main> scrolls horizontally — without this, a ⌘K email
+      // pick from another panel is an invisible no-op.
+      panelRootRef.current?.scrollIntoView({ block: 'nearest', inline: 'center' });
     };
     window.addEventListener('cockpit:openEmail', onOpenEmail);
     return () => window.removeEventListener('cockpit:openEmail', onOpenEmail);
@@ -122,28 +129,39 @@ export default function EmailPanel({ width }) {
   const setReminder = async (email) => {
     if (remindState[email.id] === 'saving' || remindState[email.id] === 'set') return;
     setRemindState((prev) => ({ ...prev, [email.id]: 'saving' }));
+    const fireAt = new Date(Date.now() + 3600_000).toISOString();
     try {
-      const bres = await fetch('/api/bucket', {
+      // Reuse the carrier from a previously-failed attempt (retry must not
+      // stack duplicate "Reply to …" rows in the bucket).
+      let itemId = remindCarrierIds.current[email.id] || null;
+      if (!itemId) {
+        const bres = await fetch('/api/bucket', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: `Reply to ${email.from}: ${email.subject || '(no subject)'}`.slice(0, 200),
+            body: email.preview || null,
+            priority: 2,
+            source_type: 'email',
+            source_url: email.gmailUrl || null,
+            // Snoozed until it fires — same trick as the comms flow: keeps
+            // the carrier out of the bucket column + TASKS KPI for the hour.
+            due_at: fireAt,
+          }),
+        });
+        if (!bres.ok) throw new Error('bucket_failed');
+        const item = await bres.json();
+        if (!item?.id) throw new Error('no_id');
+        itemId = item.id;
+        remindCarrierIds.current[email.id] = itemId;
+      }
+      const rres = await fetch(`/api/bucket/${itemId}/remind`, {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: `Reply to ${email.from}: ${email.subject || '(no subject)'}`.slice(0, 200),
-          body: email.preview || null,
-          priority: 2,
-          source_type: 'email',
-          source_url: email.gmailUrl || null,
-        }),
-      });
-      if (!bres.ok) throw new Error('bucket_failed');
-      const item = await bres.json();
-      if (!item?.id) throw new Error('no_id');
-      const rres = await fetch(`/api/bucket/${item.id}/remind`, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fire_at: new Date(Date.now() + 3600_000).toISOString(),
+          fire_at: fireAt,
           payload: {
             title: `Email: ${email.subject || '(no subject)'}`,
             body: `From ${email.from}`,
@@ -151,6 +169,7 @@ export default function EmailPanel({ width }) {
         }),
       });
       if (!rres.ok) throw new Error('remind_failed');
+      delete remindCarrierIds.current[email.id];
       setRemindState((prev) => ({ ...prev, [email.id]: 'set' }));
     } catch {
       setRemindState((prev) => ({ ...prev, [email.id]: 'error' }));
@@ -179,6 +198,9 @@ export default function EmailPanel({ width }) {
 
   return (
     <PanelShell width={width} accent={CH.email.hex} title="EMAIL TRIAGE" subtitle="TRIAGED">
+      {/* Zero-size anchor: scrollIntoView on a child scrolls the horizontal
+          cockpit <main> to reveal this panel (⌘K open-email jump target). */}
+      <span ref={panelRootRef} aria-hidden="true" />
       {/* Inbox tabs — v4 §B1 inbox color palette */}
       <div
         style={{
@@ -331,7 +353,10 @@ export default function EmailPanel({ width }) {
         </>
       )}
 
-      {opened && !composing && <OpenedEmail email={opened} onClose={() => setOpenedId(null)} />}
+      {/* key: switching emails while one is open (⌘K path) must REMOUNT —
+          prop-swap reuse leaks replyText/isUnread/sendState from A into B,
+          and a stale reply could be sent to the wrong recipient. */}
+      {opened && !composing && <OpenedEmail key={opened.id} email={opened} onClose={() => setOpenedId(null)} />}
     </PanelShell>
   );
 }

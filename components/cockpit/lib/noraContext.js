@@ -112,12 +112,16 @@ export function buildNoraContext(live) {
     };
   }
 
+  // Key order matters: nora/chat serializes then hard-slices to 8000 chars,
+  // so LAST keys are evicted first on a busy cockpit. Deals sit right after
+  // `today` — they're small (~1.2KB max) and the reason this block exists;
+  // the bulky threads/events lists absorb any truncation instead.
   return {
     today: data.today || null,
+    ...(deals ? { deals } : {}),
     threads,
     events,
     brief,
     noraCards,
-    ...(deals ? { deals } : {}),
   };
 }

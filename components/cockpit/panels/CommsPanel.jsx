@@ -267,15 +267,25 @@ export default function CommsPanel({ width }) {
       return;
     }
     // Optimistic clear; restore on failure (reminder is still live server-side).
+    // The restore must NOT clobber a newer reminder the user set while the
+    // DELETE was in flight — only re-insert if the slot is still empty.
     updateReminder(threadId, null);
+    const restoreIfSlotEmpty = () => {
+      setReminders((prev) => {
+        if (prev.get(threadId)) return prev;
+        const next = new Map(prev);
+        next.set(threadId, { ...entry, status: 'set' });
+        return next;
+      });
+    };
     try {
       const res = await fetch(`/api/bucket/${entry.bucketItemId}`, {
         method: 'DELETE',
         credentials: 'same-origin',
       });
-      if (!res.ok) updateReminder(threadId, { ...entry, status: 'set' });
+      if (!res.ok) restoreIfSlotEmpty();
     } catch {
-      updateReminder(threadId, { ...entry, status: 'set' });
+      restoreIfSlotEmpty();
     }
   };
 
@@ -527,7 +537,9 @@ function ThreadRow({ thread, onOpen, remindEntry, onSetRemind, onClearRemind }) 
           </span>
         )}
         <span style={{ fontSize: 14, color: ink[300] }}>{fmtRelative(thread.lastTs)}</span>
-        <RemindBell entry={remindEntry} onSet={() => onSetRemind?.('1h')} onClear={onClearRemind} />
+        {/* Retry-after-error keeps the user's picked duration — a hardcoded
+            '1h' silently turned a failed "Tomorrow" into a 1-hour reminder. */}
+        <RemindBell entry={remindEntry} onSet={() => onSetRemind?.(remindEntry?.label || '1h')} onClear={onClearRemind} />
       </div>
       <div
         className={isHe ? 'hebrew' : ''}
