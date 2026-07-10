@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getPastMeetingAttendance } from '@/lib/zoom/client'
 import { notifyGroup } from '@/lib/center/notify'
 import { cronAuthed } from '@/lib/cron/auth'
+import { stampCronRun } from '@/lib/cron/heartbeat'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -29,107 +30,121 @@ interface VerifyRow {
   zoom_meeting_id: string | null
 }
 
+// Heartbeat name (lib/cron/manifest.ts). Stamped only after the auth gate —
+// stampCronRun never throws, so it can't break the cron.
+const CRON_NAME = 'meeting-verify'
+
 export async function GET(request: Request) {
   if (!cronAuthed(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  const supabase = createServiceClient()
-  const nowMs = Date.now()
-  const nowIso = new Date(nowMs).toISOString()
-  const cutoffPastIso = new Date(nowMs - 45 * 60 * 1000).toISOString() // slot ≥45 min old
-  const cutoffRecentIso = new Date(nowMs - 24 * 60 * 60 * 1000).toISOString() // within last 24h
+  const startedAt = Date.now()
+  let hbOk = true
+  try {
+    const supabase = createServiceClient()
+    const nowMs = Date.now()
+    const nowIso = new Date(nowMs).toISOString()
+    const cutoffPastIso = new Date(nowMs - 45 * 60 * 1000).toISOString() // slot ≥45 min old
+    const cutoffRecentIso = new Date(nowMs - 24 * 60 * 60 * 1000).toISOString() // within last 24h
 
-  const { data, error } = await supabase
-    .from('invitations')
-    .select('id, contact_first_name, contact_name, confirmed_slot_iso, zoom_meeting_id')
-    .eq('status', 'confirmed')
-    .is('meeting_status', null)
-    .not('confirmed_slot_iso', 'is', null)
-    .not('zoom_meeting_id', 'is', null)
-    .lte('confirmed_slot_iso', cutoffPastIso)
-    .gte('confirmed_slot_iso', cutoffRecentIso)
+    const { data, error } = await supabase
+      .from('invitations')
+      .select('id, contact_first_name, contact_name, confirmed_slot_iso, zoom_meeting_id')
+      .eq('status', 'confirmed')
+      .is('meeting_status', null)
+      .not('confirmed_slot_iso', 'is', null)
+      .not('zoom_meeting_id', 'is', null)
+      .lte('confirmed_slot_iso', cutoffPastIso)
+      .gte('confirmed_slot_iso', cutoffRecentIso)
 
-  if (error) {
-    return safeError('cron/meeting-verify', error, { code: 'db_error', status: 500 })
-  }
+    if (error) {
+      hbOk = false
+      return safeError('cron/meeting-verify', error, { code: 'db_error', status: 500 })
+    }
 
-  const rows = (data || []) as VerifyRow[]
-  const results: Array<{ id: string; status: string }> = []
-  const errors: string[] = []
-  let attended = 0
-  let noShow = 0
+    const rows = (data || []) as VerifyRow[]
+    const results: Array<{ id: string; status: string }> = []
+    const errors: string[] = []
+    let attended = 0
+    let noShow = 0
 
-  for (const row of rows) {
-    // Belt-and-suspenders: the query already filtered nulls, but a static-fallback
-    // booking can carry zoom_meeting_id = 'static' (no real meeting to check).
-    const meetingId = row.zoom_meeting_id
-    if (!meetingId || meetingId === 'static') continue
+    for (const row of rows) {
+      // Belt-and-suspenders: the query already filtered nulls, but a static-fallback
+      // booking can carry zoom_meeting_id = 'static' (no real meeting to check).
+      const meetingId = row.zoom_meeting_id
+      if (!meetingId || meetingId === 'static') continue
 
-    const firstName = row.contact_first_name || row.contact_name || 'Someone'
-    const slotDisplay = formatSlot(row.confirmed_slot_iso)
+      const firstName = row.contact_first_name || row.contact_name || 'Someone'
+      const slotDisplay = formatSlot(row.confirmed_slot_iso)
 
-    try {
-      const att = await getPastMeetingAttendance(meetingId)
+      try {
+        const att = await getPastMeetingAttendance(meetingId)
 
-      // CRITICAL: if Zoom never answered (every feed 404'd / scope error), we
-      // CANNOT read attendance — do NOT call that a no-show. Mark it
-      // 'unverifiable' and ask a human to check, so a real meeting that simply
-      // couldn't be read is never falsely flagged as a no-show.
-      if (!att.ok) {
+        // CRITICAL: if Zoom never answered (every feed 404'd / scope error), we
+        // CANNOT read attendance — do NOT call that a no-show. Mark it
+        // 'unverifiable' and ask a human to check, so a real meeting that simply
+        // couldn't be read is never falsely flagged as a no-show.
+        if (!att.ok) {
+          const { error: updErr } = await supabase
+            .from('invitations')
+            .update({ meeting_status: 'unverifiable', meeting_checked_at: nowIso })
+            .eq('id', row.id)
+          if (updErr) throw new Error(updErr.message)
+          results.push({ id: row.id, status: 'unverifiable' })
+          try {
+            await notifyGroup(`⚠ Couldn't confirm ${firstName}'s Terminal meeting (${slotDisplay}) — Zoom attendance unavailable, check manually.`)
+          } catch (e) {
+            console.error('[cron/meeting-verify] alert failed', row.id, e)
+            errors.push(`alert ${row.id}`)
+          }
+          continue
+        }
+
+        // A real meeting needs the INVITED GUEST to join — our own team (Gideon,
+        // Steve, Tahisa…) waiting in an empty room is still a no-show.
+        const didAttend = att.guestCount >= 1
+        const meetingStatus = didAttend ? 'attended' : 'no_show'
+
         const { error: updErr } = await supabase
           .from('invitations')
-          .update({ meeting_status: 'unverifiable', meeting_checked_at: nowIso })
+          .update({ meeting_status: meetingStatus, meeting_checked_at: nowIso })
           .eq('id', row.id)
         if (updErr) throw new Error(updErr.message)
-        results.push({ id: row.id, status: 'unverifiable' })
+
+        results.push({ id: row.id, status: meetingStatus })
+        if (didAttend) attended++
+        else noShow++
+
+        // Alert per result. Wrap so one failed nudge can't stop the batch.
         try {
-          await notifyGroup(`⚠ Couldn't confirm ${firstName}'s Terminal meeting (${slotDisplay}) — Zoom attendance unavailable, check manually.`)
+          const text = didAttend
+            ? `✅ ${firstName} attended the Terminal meeting.`
+            : `⚠ ${firstName} did NOT show for the Terminal meeting (${slotDisplay}). Follow up.`
+          await notifyGroup(text)
         } catch (e) {
           console.error('[cron/meeting-verify] alert failed', row.id, e)
           errors.push(`alert ${row.id}`)
         }
-        continue
-      }
-
-      // A real meeting needs the INVITED GUEST to join — our own team (Gideon,
-      // Steve, Tahisa…) waiting in an empty room is still a no-show.
-      const didAttend = att.guestCount >= 1
-      const meetingStatus = didAttend ? 'attended' : 'no_show'
-
-      const { error: updErr } = await supabase
-        .from('invitations')
-        .update({ meeting_status: meetingStatus, meeting_checked_at: nowIso })
-        .eq('id', row.id)
-      if (updErr) throw new Error(updErr.message)
-
-      results.push({ id: row.id, status: meetingStatus })
-      if (didAttend) attended++
-      else noShow++
-
-      // Alert per result. Wrap so one failed nudge can't stop the batch.
-      try {
-        const text = didAttend
-          ? `✅ ${firstName} attended the Terminal meeting.`
-          : `⚠ ${firstName} did NOT show for the Terminal meeting (${slotDisplay}). Follow up.`
-        await notifyGroup(text)
       } catch (e) {
-        console.error('[cron/meeting-verify] alert failed', row.id, e)
-        errors.push(`alert ${row.id}`)
+        console.error('[cron/meeting-verify] verify failed', row.id, e)
+        errors.push(`verify ${row.id}`)
       }
-    } catch (e) {
-      console.error('[cron/meeting-verify] verify failed', row.id, e)
-      errors.push(`verify ${row.id}`)
     }
-  }
 
-  return NextResponse.json({
-    candidates: rows.length,
-    attended,
-    noShow,
-    results,
-    errors,
-  })
+    return NextResponse.json({
+      candidates: rows.length,
+      attended,
+      noShow,
+      results,
+      errors,
+    })
+  } catch (err) {
+    hbOk = false
+    throw err
+  } finally {
+    await stampCronRun(CRON_NAME, { ok: hbOk, ms: Date.now() - startedAt })
+  }
 }
 
 // Central-time display for the no-show follow-up nudge.

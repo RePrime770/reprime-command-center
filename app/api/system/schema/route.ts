@@ -60,8 +60,12 @@ export async function GET() {
       if (!pendingMigrations.includes(f)) pendingMigrations.push(f)
     }
 
+    // Always ok:true on a successful probe — pending migrations are DATA the
+    // System/Settings decks render, not an envelope failure. (useDeckData
+    // nulls out data on ok:false, which would blank the runbook exactly when
+    // migrations are pending.)
     return NextResponse.json({
-      ok: pendingMigrations.length === 0 && !reports.some((r) => r.status === 'error'),
+      ok: true,
       data: {
         requirements: reports,
         pendingMigrations,

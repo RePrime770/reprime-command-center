@@ -3,6 +3,7 @@ import { Redis } from '@upstash/redis'
 import { createServiceClient } from '@/lib/supabase/server'
 import { postSlack } from '@/lib/slack/client'
 import { cronAuthed } from '@/lib/cron/auth'
+import { stampCronRun } from '@/lib/cron/heartbeat'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,6 +33,12 @@ export const dynamic = 'force-dynamic'
 const CADENCE_SNAPSHOT_KEY = 'cadence:snapshot:yesterday'
 const CADENCE_SNAPSHOT_TTL = 60 * 60 * 25 // 25h — survives until tomorrow's run
 const CADENCE_CRON_API_PATH = '/api/cron/investor-cadence'
+
+// Heartbeat name (lib/cron/manifest.ts). runDigest only returns 503
+// (cron_secret_not_configured) and 401 from its auth gate — neither is a run,
+// so neither stamps. stampCronRun never throws, so it can't break the cron.
+const CRON_NAME = 'slack-digest'
+const AUTH_GATE_STATUSES: readonly number[] = [401, 503]
 
 interface BucketItem {
   id: string
@@ -325,5 +332,19 @@ async function runDigest(request: NextRequest) {
   })
 }
 
-export const GET = runDigest
-export const POST = runDigest
+async function handleDigest(request: NextRequest) {
+  const startedAt = Date.now()
+  try {
+    const res = await runDigest(request)
+    if (!AUTH_GATE_STATUSES.includes(res.status)) {
+      await stampCronRun(CRON_NAME, { ok: res.status < 400, ms: Date.now() - startedAt })
+    }
+    return res
+  } catch (err) {
+    await stampCronRun(CRON_NAME, { ok: false, ms: Date.now() - startedAt })
+    throw err
+  }
+}
+
+export const GET = handleDigest
+export const POST = handleDigest

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { centerAuthed } from '@/lib/center/auth'
 import { cronAuthed } from '@/lib/cron/auth'
+import { stampCronRun } from '@/lib/cron/heartbeat'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getMessages, resolveChatId, PANEL_ACCOUNT_MAP } from '@/lib/timelines/client'
 
@@ -147,12 +148,25 @@ export async function POST(request: Request) {
 // Auth: cronAuthed (Vercel cron header / Bearer CRON_SECRET) or the board's
 // x-center-pass. This GET was previously wide open — anyone could burn our
 // Timelines rate limit and force roster/message rewrites on demand.
+// Heartbeat name (lib/cron/manifest.ts). Stamped only on the GET (cron) entry
+// after the auth gate — stampCronRun never throws, so it can't break the cron.
+const CRON_NAME = 'center-reconcile'
+
 export async function GET(request: Request) {
   if (!cronAuthed(request) && !centerAuthed(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
-  const service = createServiceClient()
-  return runBatch(service, 12, 'active')
+  const startedAt = Date.now()
+  let hbOk = true
+  try {
+    const service = createServiceClient()
+    return await runBatch(service, 12, 'active')
+  } catch (err) {
+    hbOk = false
+    throw err
+  } finally {
+    await stampCronRun(CRON_NAME, { ok: hbOk, ms: Date.now() - startedAt })
+  }
 }
 
 async function runBatch(service: ReturnType<typeof createServiceClient>, limitIn?: number, scopeIn?: string) {

@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { stampCronRun } from '@/lib/cron/heartbeat'
 import { searchTenants, type InforuptcyCase } from '@/lib/inforuptcy/client'
 
 export const dynamic = 'force-dynamic'
@@ -21,6 +22,11 @@ const WATCHLIST = [
   'Joann',
   'Big Lots',
 ]
+
+// Heartbeat name (lib/cron/manifest.ts). Stamped only after the auth gate —
+// stampCronRun never throws, so it can't break the cron. GET delegates to
+// POST, so the single stamp below covers the scheduled (GET) path too.
+const CRON_NAME = 'inforuptcy-poll'
 
 interface InsertResult {
   newCount: number
@@ -121,9 +127,16 @@ export async function POST(request: Request) {
   if (!authorized(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
-  const result = await runPoll()
-  const status = result.errors.length > 0 ? 502 : 200
-  return NextResponse.json(result, { status })
+  const startedAt = Date.now()
+  try {
+    const result = await runPoll()
+    const status = result.errors.length > 0 ? 502 : 200
+    await stampCronRun(CRON_NAME, { ok: status === 200, ms: Date.now() - startedAt })
+    return NextResponse.json(result, { status })
+  } catch (err) {
+    await stampCronRun(CRON_NAME, { ok: false, ms: Date.now() - startedAt })
+    throw err
+  }
 }
 
 // GET supported for manual smoke-testing from the browser/cli with the same

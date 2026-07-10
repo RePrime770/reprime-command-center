@@ -2,11 +2,17 @@ import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { triggerEvent, type Severity } from '@/lib/pagerduty/events'
 import { cronAuthed } from '@/lib/cron/auth'
+import { stampCronRun } from '@/lib/cron/heartbeat'
 
 export const dynamic = 'force-dynamic'
 
 const PD_QUEUE_KEY = 'pagerduty:queue'
 const BATCH_LIMIT = 50
+
+// Heartbeat name (lib/cron/manifest.ts). Stamped only after the auth gate —
+// stampCronRun never throws, so it can't break the cron. (Without Upstash the
+// stamp is a silent no-op anyway, matching the 503 below.)
+const CRON_NAME = 'dispatch-alerts'
 
 interface QueuedAlert {
   summary: string
@@ -29,49 +35,59 @@ export async function GET(request: Request) {
   if (!cronAuthed(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
-  const redis = getRedis()
-  if (!redis) {
-    return NextResponse.json({ error: 'upstash_not_configured' }, { status: 503 })
-  }
-
-  const now = Date.now()
-  const due = (await redis.zrange(PD_QUEUE_KEY, 0, now, {
-    byScore: true,
-    offset: 0,
-    count: BATCH_LIMIT,
-  })) as string[]
-
-  if (!due || due.length === 0) {
-    return NextResponse.json({ dispatched: 0 })
-  }
-
-  let dispatched = 0
-  const failures: Array<{ member: string; error: string }> = []
-
-  for (const member of due) {
-    let parsed: QueuedAlert | null = null
-    try {
-      parsed = typeof member === 'string' ? (JSON.parse(member) as QueuedAlert) : (member as unknown as QueuedAlert)
-    } catch {
-      await redis.zrem(PD_QUEUE_KEY, member)
-      failures.push({ member: String(member).slice(0, 200), error: 'unparseable_member' })
-      continue
+  const startedAt = Date.now()
+  let hbOk = true
+  try {
+    const redis = getRedis()
+    if (!redis) {
+      hbOk = false
+      return NextResponse.json({ error: 'upstash_not_configured' }, { status: 503 })
     }
-    try {
-      await triggerEvent({
-        summary: parsed.summary,
-        source: 'bookings/cron-dispatch',
-        severity: parsed.severity,
-        dedupKey: parsed.dedupKey,
-        component: parsed.component ?? 'bookings',
-        customDetails: parsed.customDetails,
-      })
-      await redis.zrem(PD_QUEUE_KEY, member)
-      dispatched++
-    } catch (err) {
-      failures.push({ member: String(member).slice(0, 200), error: (err as Error).message })
-    }
-  }
 
-  return NextResponse.json({ dispatched, failures })
+    const now = Date.now()
+    const due = (await redis.zrange(PD_QUEUE_KEY, 0, now, {
+      byScore: true,
+      offset: 0,
+      count: BATCH_LIMIT,
+    })) as string[]
+
+    if (!due || due.length === 0) {
+      return NextResponse.json({ dispatched: 0 })
+    }
+
+    let dispatched = 0
+    const failures: Array<{ member: string; error: string }> = []
+
+    for (const member of due) {
+      let parsed: QueuedAlert | null = null
+      try {
+        parsed = typeof member === 'string' ? (JSON.parse(member) as QueuedAlert) : (member as unknown as QueuedAlert)
+      } catch {
+        await redis.zrem(PD_QUEUE_KEY, member)
+        failures.push({ member: String(member).slice(0, 200), error: 'unparseable_member' })
+        continue
+      }
+      try {
+        await triggerEvent({
+          summary: parsed.summary,
+          source: 'bookings/cron-dispatch',
+          severity: parsed.severity,
+          dedupKey: parsed.dedupKey,
+          component: parsed.component ?? 'bookings',
+          customDetails: parsed.customDetails,
+        })
+        await redis.zrem(PD_QUEUE_KEY, member)
+        dispatched++
+      } catch (err) {
+        failures.push({ member: String(member).slice(0, 200), error: (err as Error).message })
+      }
+    }
+
+    return NextResponse.json({ dispatched, failures })
+  } catch (err) {
+    hbOk = false
+    throw err
+  } finally {
+    await stampCronRun(CRON_NAME, { ok: hbOk, ms: Date.now() - startedAt })
+  }
 }

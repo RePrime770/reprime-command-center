@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { safeError } from '@/lib/api/safe-error'
+import { stampCronRun } from '@/lib/cron/heartbeat'
 import { createServiceClient } from '@/lib/supabase/server'
 import {
   configuredAccounts,
@@ -31,6 +32,9 @@ const SYNC_DAYS = 7
 // Scoring assumes the sender is a single from-address. Re-scoring is cheap;
 // we still cap per-cron work so a 7-day backlog catches up across runs.
 const MAX_SCORE_PER_RUN = 200
+// Heartbeat name (lib/cron/manifest.ts). Stamped only after the auth gate —
+// stampCronRun never throws, so it can't break the cron.
+const CRON_NAME = 'email-sync'
 
 function getRedis(): Redis | null {
   const url = process.env.UPSTASH_REDIS_REST_URL
@@ -274,9 +278,14 @@ async function runSync(request: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
+  const startedAt = Date.now()
   try {
-    return await runSyncInner()
+    const res = await runSyncInner()
+    // 503 no_accounts_configured is a real (degraded) run — stamp ok:false.
+    await stampCronRun(CRON_NAME, { ok: res.status < 400, ms: Date.now() - startedAt })
+    return res
   } catch (err) {
+    await stampCronRun(CRON_NAME, { ok: false, ms: Date.now() - startedAt })
     return safeError('email/sync', err)
   }
 }

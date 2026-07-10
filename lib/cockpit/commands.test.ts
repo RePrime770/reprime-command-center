@@ -154,9 +154,26 @@ describe('default registry — deck seeds', () => {
     }
   })
 
-  test('all seeded deck commands are disabled — palette lists nothing', () => {
-    expect(listCommands()).toEqual([])
-    expect(listCommands('system')).toEqual([])
-    expect(listCommands('deck')).toEqual([])
+  test('palette lists exactly the decks whose manifest flag is enabled', () => {
+    // Manifest-derived (not hardcoded): each deck batch flips its own flag,
+    // so this test stays true as decks ship one by one.
+    const enabledIds = Object.entries(DECK_ROUTES)
+      .filter(([, route]) => route.enabled)
+      .map(([key]) => `nav:${key}`)
+      .sort()
+
+    expect(listCommands().map((c) => c.id).sort()).toEqual(enabledIds)
+    expect(listCommands('deck').map((c) => c.id).sort()).toEqual(enabledIds)
+
+    for (const [key, route] of Object.entries(DECK_ROUTES)) {
+      const listed = listCommands(key).some((c) => c.id === `nav:${key}`)
+      expect(listed).toBe(route.enabled)
+    }
+  })
+
+  test('the settings deck is live in the palette (batch 3.3 flag flip)', () => {
+    const listed = listCommands('settings')
+    expect(listed.map((c) => c.id)).toContain('nav:settings')
+    expect(listed.find((c) => c.id === 'nav:settings')?.href).toBe('/cockpit/settings')
   })
 })

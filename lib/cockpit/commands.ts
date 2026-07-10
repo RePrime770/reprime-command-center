@@ -48,13 +48,13 @@ export const DECK_ROUTES: Readonly<Record<string, DeckRoute>> = {
     href: '/cockpit/system',
     title: 'System Deck',
     keywords: ['system', 'status', 'health', 'schema', 'diagnostics'],
-    enabled: false,
+    enabled: true,
   },
   settings: {
     href: '/cockpit/settings',
     title: 'Settings Deck',
     keywords: ['settings', 'preferences', 'config', 'integrations'],
-    enabled: false,
+    enabled: true,
   },
   pipeline: {
     href: '/cockpit/pipeline',

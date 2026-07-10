@@ -3,11 +3,18 @@ import { Redis } from '@upstash/redis'
 import { createServiceClient } from '@/lib/supabase/server'
 import { safeError } from '@/lib/api/safe-error'
 import { cronAuthed } from '@/lib/cron/auth'
+import { stampCronRun } from '@/lib/cron/heartbeat'
 
 export const dynamic = 'force-dynamic'
 
 const BATCH_LIMIT = 100
 const DEDUPE_TTL_SECONDS = 300
+
+// Heartbeat name (lib/cron/manifest.ts). runFireReminders only returns 503
+// (cron_secret_not_configured) and 401 from its auth gate — neither is a run,
+// so neither stamps. stampCronRun never throws, so it can't break the cron.
+const CRON_NAME = 'fire-reminders'
+const AUTH_GATE_STATUSES: readonly number[] = [401, 503]
 
 /**
  * GET|POST /api/bucket/fire-reminders — Vercel cron worker (every minute).
@@ -88,8 +95,22 @@ async function runFireReminders(request: NextRequest) {
   return NextResponse.json({ fired, failures })
 }
 
-export const GET = runFireReminders
-export const POST = runFireReminders
+async function handleFireReminders(request: NextRequest) {
+  const startedAt = Date.now()
+  try {
+    const res = await runFireReminders(request)
+    if (!AUTH_GATE_STATUSES.includes(res.status)) {
+      await stampCronRun(CRON_NAME, { ok: res.status < 400, ms: Date.now() - startedAt })
+    }
+    return res
+  } catch (err) {
+    await stampCronRun(CRON_NAME, { ok: false, ms: Date.now() - startedAt })
+    throw err
+  }
+}
+
+export const GET = handleFireReminders
+export const POST = handleFireReminders
 
 function getRedis(): Redis | null {
   const url = process.env.UPSTASH_REDIS_REST_URL
