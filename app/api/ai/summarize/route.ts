@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 import { createServerClient } from '@/lib/supabase/server'
+import '@/lib/fabric/adapters'
+import { routeCapability } from '@/lib/fabric/router'
+import type { GenerateResponseInput, GenerateResponseOutput } from '@/lib/fabric/adapters/llm'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,11 +46,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    return NextResponse.json({ error: 'ANTHROPIC_API_KEY missing' }, { status: 500 })
-  }
-
   const text = (body.text || '').trim()
   if (!text) return NextResponse.json({ summary: '' })
 
@@ -65,24 +62,12 @@ export async function POST(request: NextRequest) {
     .filter(Boolean)
     .join('\n')
 
-  const client = new Anthropic({ apiKey })
-  try {
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 400,
-      system: SYSTEM,
-      messages: [{ role: 'user', content: userMsg }],
-    })
-    const summary = response.content
-      .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('\n')
-      .trim()
-    return NextResponse.json({ summary })
-  } catch (err) {
-    return NextResponse.json(
-      { error: 'summarize_failed', message: err instanceof Error ? err.message : 'unknown' },
-      { status: 502 }
-    )
+  const result = await routeCapability<GenerateResponseInput, GenerateResponseOutput>(
+    'GENERATE_AI_RESPONSE',
+    { system: SYSTEM, userMessage: userMsg, maxTokens: 400 }
+  )
+  if (!result.ok) {
+    return NextResponse.json({ error: 'summarize_failed', message: result.message }, { status: 502 })
   }
+  return NextResponse.json({ summary: result.data.text })
 }

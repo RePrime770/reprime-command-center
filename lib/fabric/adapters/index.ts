@@ -6,3 +6,5 @@
  * Future adapter modules (e.g. tts.ts, sms.ts, email.ts) get added here.
  */
 import './stt'
+import './llm'
+import './tts'

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
+import '@/lib/fabric/adapters'
+import { routeCapability } from '@/lib/fabric/router'
 import { safeError } from '@/lib/api/safe-error'
 import { createServerClient } from '@/lib/supabase/server'
+import type { SynthesizeSpeechInput, SynthesizeSpeechOutput } from '@/lib/fabric/adapters/tts'
 
 export const runtime = 'nodejs'
 
@@ -33,59 +36,31 @@ async function handleSpeak(request: Request) {
     return NextResponse.json({ error: 'Missing text' }, { status: 400 })
   }
 
-  const voiceId = process.env.ELEVENLABS_VOICE_ID
-  const apiKey = process.env.ELEVENLABS_API_KEY
-  if (!voiceId || !apiKey) {
-    return NextResponse.json(
-      { error: 'TTS not configured' },
-      { status: 500 }
-    )
-  }
-
-  // eleven_flash_v2_5 is the low-latency multilingual model (~75ms model
-  // latency, supports Hebrew). The previous eleven_v3 is the alpha expressive
-  // model with multi-second synthesis — that was the 1-4s delay Gideon heard.
-  const payload: Record<string, unknown> = {
-    text,
-    model_id: 'eleven_flash_v2_5',
-    voice_settings: {
-      stability: 0.5,
-      similarity_boost: 0.75,
-      style: 0.0,
-      use_speaker_boost: true,
-    },
-  }
-  // flash/turbo v2.5 are multilingual; pass the language hint for Hebrew.
-  payload.language_code = language
-
-  // /stream + optimize_streaming_latency lets bytes flow as they're synthesized;
-  // a lighter mp3 (64kbps) shaves transfer time. Both cut perceived latency.
-  const upstream = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream?optimize_streaming_latency=4&output_format=mp3_44100_64`,
-    {
-      method: 'POST',
-      headers: {
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json',
-        Accept: 'audio/mpeg',
-      },
-      body: JSON.stringify(payload),
-    }
+  const result = await routeCapability<SynthesizeSpeechInput, SynthesizeSpeechOutput>(
+    'SYNTHESIZE_SPEECH',
+    { text, language }
   )
 
-  if (!upstream.ok || !upstream.body) {
-    const errText = await upstream.text().catch(() => '')
-    console.error('[voice/speak] TTS upstream error', upstream.status, errText.slice(0, 300))
+  if (!result.ok) {
+    // No adapter is enabled at all (neither ElevenLabs nor OpenAI TTS env
+    // vars are set) — same shape as the pre-fabric route's dedicated
+    // missing-config check.
+    if (result.error === 'VALIDATION' && result.message === 'capability_not_configured') {
+      return NextResponse.json({ error: 'TTS not configured' }, { status: 500 })
+    }
     return NextResponse.json(
-      { error: 'TTS upstream error', status: upstream.status },
+      { error: 'TTS upstream error', message: result.message },
       { status: 502 }
     )
   }
 
-  return new Response(upstream.body, {
+  // TRUE STREAMED response — result.data.stream is the live upstream body
+  // when ElevenLabs (the primary) wins, so bytes flow as they're synthesized,
+  // matching the pre-fabric route's latency profile exactly.
+  return new Response(result.data.stream, {
     status: 200,
     headers: {
-      'Content-Type': 'audio/mpeg',
+      'Content-Type': result.data.contentType,
       'Cache-Control': 'no-store',
     },
   })
