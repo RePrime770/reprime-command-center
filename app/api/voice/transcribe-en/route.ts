@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { safeError } from '@/lib/api/safe-error'
 import { createServerClient } from '@/lib/supabase/server'
+import '@/lib/fabric/adapters'
+import { routeCapability } from '@/lib/fabric/router'
+import type { TranscribeInput, TranscribeOutput } from '@/lib/fabric/adapters/stt'
 
 export const runtime = 'nodejs'
 
@@ -28,20 +30,20 @@ async function handleTranscribe(request: Request) {
     return NextResponse.json({ error: 'Missing audio file' }, { status: 400 })
   }
 
-  // Groq Whisper Large v3 is ~10x faster than OpenAI Whisper (~300ms vs 2-4s).
-  // Uses the existing openai SDK pointed at Groq's OpenAI-compatible endpoint —
-  // no extra package needed. Falls back to OpenAI if GROQ_API_KEY is absent.
-  const useGroq = !!process.env.GROQ_API_KEY
-  const client = useGroq
-    ? new OpenAI({ apiKey: process.env.GROQ_API_KEY!, baseURL: 'https://api.groq.com/openai/v1' })
-    : new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-
-  const result = await client.audio.transcriptions.create({
-    file: audio,
-    model: useGroq ? 'whisper-large-v3' : 'whisper-1',
+  // Speech-to-text routed through the integration fabric: Groq Whisper
+  // Large v3 (~10x faster than OpenAI Whisper) is tried first, with runtime
+  // failover to OpenAI Whisper if Groq is unconfigured or its call throws.
+  const result = await routeCapability<TranscribeInput, TranscribeOutput>('TRANSCRIBE_AUDIO', {
+    audio,
     language: 'en',
-    response_format: 'json',
   })
 
-  return NextResponse.json({ text: result.text, language: 'en', rtl: false })
+  if (!result.ok) {
+    return safeError('voice/transcribe-en', new Error(result.message), {
+      code: 'stt_unavailable',
+      status: 502,
+    })
+  }
+
+  return NextResponse.json({ text: result.data.text, language: 'en', rtl: false })
 }

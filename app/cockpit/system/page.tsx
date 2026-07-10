@@ -9,6 +9,7 @@ import useNowMs from '@/components/decks/system/useNowMs.js'
 import CronBoard from '@/components/decks/system/CronBoard.jsx'
 import SchemaBoard from '@/components/decks/system/SchemaBoard.jsx'
 import HealthCard from '@/components/decks/system/HealthCard.jsx'
+import FabricBoard from '@/components/decks/system/FabricBoard.jsx'
 import { SECTION_TITLE, SECTION_HINT } from '@/components/decks/settings/sectionStyles.js'
 import { success, warning, danger, ink } from '@/components/cockpit/lib/colors.js'
 import {
@@ -20,6 +21,7 @@ import {
   type Tally,
 } from '@/lib/decks/system-view'
 import type { SchemaRequirementReport } from '@/lib/decks/settings-view'
+import type { CapabilityManifestEntry } from '@/lib/fabric/observability'
 
 /**
  * /cockpit/system — System Health deck (roadmap Phase 3).
@@ -45,6 +47,7 @@ import type { SchemaRequirementReport } from '@/lib/decks/settings-view'
 
 const CRONS_REFRESH_MS = 30_000
 const SCHEMA_REFRESH_MS = 60_000
+const FABRIC_REFRESH_MS = 30_000
 const CONTENT_MAX_WIDTH = 1180
 const STAT_PLACEHOLDER = '—'
 
@@ -57,6 +60,10 @@ interface SchemaDeckData {
   requirements?: SchemaRequirementReport[]
   pendingMigrations?: string[]
   probeErrors?: string[]
+}
+
+interface FabricDeckData {
+  capabilities?: CapabilityManifestEntry[]
 }
 
 /** "x/y" StatCard value, or the placeholder while a source is still loading. */
@@ -95,6 +102,9 @@ export default function SystemDeckPage() {
   const crons = useDeckData<CronsDeckData>('/api/system/crons', { refreshMs: CRONS_REFRESH_MS })
   const schema = useDeckData<SchemaDeckData>('/api/system/schema', {
     refreshMs: SCHEMA_REFRESH_MS,
+  })
+  const fabric = useDeckData<FabricDeckData>('/api/system/fabric', {
+    refreshMs: FABRIC_REFRESH_MS,
   })
   const { loading: healthLoading, health, error: healthError, refresh: refreshHealth } =
     useHealth() as {
@@ -203,6 +213,18 @@ export default function SystemDeckPage() {
             error={healthError}
             health={health}
             onRetry={refreshHealth}
+          />
+        </Section>
+
+        <Section
+          title="Integration fabric"
+          hint="Capability -> provider routing (roadmap ZT-2). Routed means the fabric has at least one adapter behind it with circuit-breaker tracking; everything else falls back to plain env-presence — an honest gap, not a fault."
+        >
+          <FabricBoard
+            loading={fabric.loading}
+            error={fabric.error}
+            data={fabric.data}
+            onRetry={fabric.refresh}
           />
         </Section>
       </div>
