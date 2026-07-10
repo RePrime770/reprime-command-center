@@ -24,6 +24,13 @@ import type { CapabilityId, RoutingResult } from './types'
  * front of this router for send capabilities. This batch does NOT build
  * that outbox — do not wire a SEND_* adapter through routeCapability without
  * that safeguard in place.
+ *
+ * ZT-4 (2026-07-11) built the INBOX half only (lib/fabric/inbox.ts —
+ * recordWebhookReceipt, inbound webhook-delivery dedup). Before any SEND_*
+ * capability is wired through routeCapability, a durable OUTBOX table must
+ * exist: states PENDING -> SENDING -> SENT -> CONFIRMED / FAILED / AMBIGUOUS
+ * / DEAD_LETTER, keyed by an idempotency key, with delivery-status
+ * reconciliation against the provider before any failover retry.
  */
 export async function routeCapability<TInput, TOutput>(
   capability: CapabilityId,

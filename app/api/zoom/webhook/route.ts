@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
+import { recordWebhookReceipt, deriveZoomEventId } from '@/lib/fabric/inbox'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -18,7 +19,7 @@ export const maxDuration = 60
 export async function POST(request: Request) {
   const secret = process.env.ZOOM_WEBHOOK_SECRET_TOKEN || ''
   const raw = await request.text()
-  let body: { event?: string; payload?: Record<string, unknown> } = {}
+  let body: { event?: string; event_ts?: number | string; payload?: Record<string, unknown> } = {}
   try { body = JSON.parse(raw || '{}') } catch { /* ignore */ }
 
   // 1) Zoom endpoint URL validation (CRC): echo HMAC-SHA256(plainToken, secret).
@@ -37,13 +38,24 @@ export async function POST(request: Request) {
     if (sig && sig !== expected) return NextResponse.json({ error: 'bad signature' }, { status: 401 })
   }
 
-  // 3) Capture every event so nothing is lost before full processing is wired.
+  // 3) Dedup (ZT-4 durable inbox): Zoom retries delivery on any non-2xx
+  //    response or timeout, and can occasionally double-deliver even on
+  //    success. deriveZoomEventId (lib/fabric/inbox.ts, unit-tested) always
+  //    includes the event TYPE in the key — see its doc comment for why
+  //    keying on object.uuid alone would silently drop real events.
+  const externalEventId = deriveZoomEventId(body, raw)
+  const { isNew } = await recordWebhookReceipt('zoom', externalEventId)
+  if (!isNew) {
+    return NextResponse.json({ ok: true, deduped: true })
+  }
+
+  // 4) Capture every event so nothing is lost before full processing is wired.
   const service = createServiceClient()
   try {
     await service.from('zoom_events').insert({ event: body?.event || 'unknown', payload: body?.payload || {} })
   } catch (e) { console.error('[zoom-webhook] store', (e as Error).message) }
 
-  // 4) NEXT (needs Zoom API creds): recording.completed -> pull summary +
+  // 5) NEXT (needs Zoom API creds): recording.completed -> pull summary +
   //    next-steps + transcript, copy the video to your Drive named by RP-serial,
   //    append the index-sheet row, raise the NEW NEXT ACTION badge on the card.
   //    meeting.ended -> participant check -> attended / no-show on the card.
